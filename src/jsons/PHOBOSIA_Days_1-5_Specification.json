@@ -1,0 +1,953 @@
+{
+  "document": {
+    "title": "PHOBOSIA Days 1-5 Mission, Screen, Interaction and Progression Specification",
+    "version": "1.0",
+    "purpose": "Implementation-ready source of truth for Phase 2. Attach this file to the coding-agent prompt and require the agent to inspect the repository and map these requirements onto the actual existing code and assets.",
+    "project": "PHOBOSIA",
+    "challenge_context": "NASA Space Apps Challenge 2026",
+    "scope": "Days 1-5 only, plus shared UI and mission foundations needed to support Days 6-14 later.",
+    "status": "Design specification; not a claim that described features already exist.",
+    "important_note": "Actual repository filenames, screen names, scene hierarchy, triggers, assets, transforms and visual references must be inspected before implementation. Do not invent file paths, assets, coordinates or existing object names.",
+    "priority": [
+      "Preserve the existing Next.js + TypeScript + Three.js application.",
+      "Use the existing Master Terrain, selected location, coordinates, bounds, scale, exports, modules, assets, transitions and scene identifiers.",
+      "Keep the main experience first-person on-foot Mars observation.",
+      "Do not implement Rover operation in Phase 2; it is a possible optional feature after Day 14 and essential testing.",
+      "Drone operation is a separate later feature controlled from Mission Control; do not implement it in Days 1-5.",
+      "Keep the 14-day mission plan intact and do not invent additional modules."
+    ]
+  },
+  "global_rules": {
+    "player_perspective": {
+      "mode": "First-person",
+      "visible_player_body": false,
+      "outdoor_helmet_view": true,
+      "description": "During outdoor Mars observation, show the world through a lightweight astronaut-helmet visor treatment: mostly clear centre, darkened curved/circular edges, subtle vignette and restrained telemetry. Do not show a third-person astronaut body.",
+      "activation": "Active for outdoor Master Terrain exploration. It must not incorrectly cover loading screens, destination videos, menus or other full-screen transitions. Inspect actual scene/transition state before implementing activation."
+    },
+    "movement": {
+      "primary_mode": "On-foot",
+      "requirements": [
+        "Preserve current controls where practical and document actual bindings discovered in the repository.",
+        "Frame-rate-independent walking.",
+        "Reasonable walking pace and controlled acceleration/deceleration only if compatible with the existing controller.",
+        "Reliable ground detection and collision against actual terrain and relevant solid geometry.",
+        "No camera floating, falling through ground or passing through walls where collision is supported.",
+        "Do not assume one Three.js world unit equals one metre without checking scale.",
+        "Do not add a physics engine solely for this phase.",
+        "Avoid exaggerated head bob, motion blur or effects that hinder observation."
+      ],
+      "out_of_scope": [
+        "Rover driving, wheel rotation, axle movement, suspension, wheel-by-wheel terrain following or Rover control UI.",
+        "Drone flight control.",
+        "Oxygen depletion, survival timers, player health or complex life-support simulation."
+      ]
+    },
+    "visual_system": {
+      "style": "Consistent, restrained science-fiction research expedition; legible, practical, not overly neon or cluttered.",
+      "principles": [
+        "Reuse existing UI components, fonts, colours, layout conventions and visual references wherever present.",
+        "Do not redesign the entire app.",
+        "Prioritise the 3D scene and central observation area.",
+        "Keep HUD text compact and readable at common desktop resolutions.",
+        "Make primary action, secondary information, warnings and completion states visually distinguishable.",
+        "Provide responsive fallback behaviour if the app already supports different viewport sizes."
+      ],
+      "reference_policy": "Inspect all relevant screenshots and existing UI in the repository. If a screen has an explicit reference, follow it. If no reference exists, derive a minimal layout from the existing design system and this specification, documenting assumptions rather than inventing an elaborate new design."
+    },
+    "data_integrity": [
+      "Clearly distinguish simulated mission telemetry from real measurements.",
+      "Never claim PHOBOSIA is connected to live NASA systems unless that connection exists and is verified.",
+      "Do not invent scientific readings, terrain elevations, coordinates, source datasets or discoveries.",
+      "Use existing terrain coordinates and exported Master Terrain. Do not regenerate or relocate terrain in this phase.",
+      "Use existing scene objects and interaction points; inspect before adding anything."
+    ],
+    "mission_state_rules": [
+      "Current day and objective must survive module transitions.",
+      "Entering a module alone does not complete an objective unless explicitly defined.",
+      "Unrelated interactions must not complete the current objective.",
+      "Validate completion from explicit required actions/results, not proximity alone unless explicitly specified.",
+      "Day advancement is permitted only after the day's required objective is complete and the player uses the established Habitat rest/sleep action.",
+      "Prevent duplicate advancement from repeated key presses, overlapping triggers or duplicate listeners.",
+      "Explain what remains when the player tries to rest before completing the objective.",
+      "Store observation/checklist/route results in the existing mission state architecture, not a new backend.",
+      "Do not implement Day 15. Day 14 is the end of the main campaign in a later phase."
+    ],
+    "existing_identifiers_to_preserve_and_verify": {
+      "entrance_triggers": [
+        "Engineering_Entrance_Trigger",
+        "Habitat_Entrance_Trigger",
+        "Main_Entrance_Trigger",
+        "MissionControl_Entrance_Trigger",
+        "ScienceLab_Entrance_Trigger"
+      ],
+      "scene_objects": [
+        "Rover",
+        "Rover_Front_Wheels",
+        "Rover_Middle_Wheels",
+        "Rover_Rear_Wheels",
+        "Drone_Object",
+        "Cinematic_Location",
+        "HAB_WORKSTATION_01"
+      ],
+      "instruction": "Verify these against the actual scene/repository. Preserve exact spelling and case if present. Do not assume all are already imported or loaded. Do not create duplicates to compensate for a loading or reference bug."
+    },
+    "common_screen_components": {
+      "mission_briefing": {
+        "fields": [
+          "mission day number",
+          "mission title",
+          "short story/context briefing",
+          "primary objective",
+          "optional control hint"
+        ],
+        "behaviour": "Show at mission start or day transition using the existing briefing/transition UI if available. Do not create a separate full-screen flow if an equivalent one exists."
+      },
+      "persistent_hud": {
+        "fields": [
+          "current mission day",
+          "short objective label",
+          "objective progress state",
+          "interaction prompt only when relevant",
+          "compact notification area"
+        ],
+        "behaviour": "Keep unobtrusive. Hide or adapt it during loading screens and destination videos."
+      },
+      "helmet_telemetry": {
+        "fields": [
+          "O2 / oxygen status",
+          "suit status",
+          "equipment or power status when relevant",
+          "communication link status when relevant"
+        ],
+        "rules": [
+          "Use verified existing simulated values or clearly labelled illustrative/simulated statuses.",
+          "Do not drain oxygen or implement survival failure mechanics.",
+          "Show only relevant concise indicators, not every value permanently.",
+          "Use alert severity only when a real simulated event exists."
+        ]
+      },
+      "interaction_feedback": {
+        "states": [
+          "not in range: no prompt",
+          "in range: concise interaction label and control hint",
+          "interaction in progress: subtle feedback if needed",
+          "success: confirmation and result",
+          "blocked: short explanation",
+          "error: concise recoverable error"
+        ],
+        "behaviour": "Reuse the existing interaction architecture and prevent duplicate triggers/listeners."
+      },
+      "objective_progress": {
+        "states": [
+          "not started",
+          "in progress",
+          "completed",
+          "blocked or unavailable where appropriate"
+        ],
+        "rules": [
+          "Show meaningful progress based on actual completed requirements.",
+          "Do not show arbitrary percentages if progress is only a single binary action; use a checklist or status label instead.",
+          "Completion must be tied to validated mission state."
+        ]
+      }
+    }
+  },
+  "mission_data_contract": {
+    "purpose": "Recommended conceptual data contract. Adapt names and types to the repository's conventions; do not create a duplicate mission system if a suitable one exists.",
+    "mission_definition_fields": [
+      "id",
+      "dayNumber",
+      "title",
+      "briefing",
+      "primaryObjective",
+      "requiredSteps",
+      "requiredInteractions",
+      "completionRule",
+      "completionFeedback",
+      "restActionRequired",
+      "nextDayNumber"
+    ],
+    "runtime_state_fields": [
+      "currentDay",
+      "missionStatus",
+      "completedStepIds",
+      "interactionResults",
+      "observationRecords",
+      "routePlan",
+      "objectiveValidated",
+      "dayAdvanceInProgress"
+    ],
+    "data_design_rules": [
+      "Use stable IDs for missions, steps, interactions and records.",
+      "Separate mission definitions from runtime completion state.",
+      "Keep state updates deterministic and idempotent.",
+      "Use TypeScript types/unions compatible with the existing project.",
+      "Use only fields actually needed; this is not a requirement to create every field if equivalent existing state exists.",
+      "Days 6-14 must be addable through data/configuration and reusable validators without duplicating the mission engine."
+    ]
+  },
+  "screen_inventory": [
+    {
+      "screen_id": "SHARED_MISSION_BRIEFING",
+      "applies_to_days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "screen_type": "Existing briefing or transition UI",
+      "purpose": "Explain the current day's context and what the player must do.",
+      "layout": {
+        "hierarchy": [
+          "small PHOBOSIA/project identity if already present",
+          "Day N and mission title",
+          "brief context paragraph",
+          "one prominent primary objective",
+          "optional short control hint",
+          "Continue/Start action using existing UI conventions"
+        ],
+        "avoid": [
+          "long paragraphs covering the entire 14-day story",
+          "invented full-screen art when no asset exists",
+          "duplicating an existing transition/briefing screen"
+        ]
+      },
+      "data": [
+        "current day number",
+        "mission title",
+        "briefing text",
+        "primary objective",
+        "optional control hint"
+      ],
+      "states": [
+        "visible at start/transition",
+        "dismissed",
+        "loading if required"
+      ],
+      "acceptance_criteria": [
+        "The briefing matches the actual current day.",
+        "The primary objective is understandable without external documentation.",
+        "The screen does not advance the mission by itself.",
+        "It does not break the established loading and destination-video flow."
+      ]
+    },
+    {
+      "screen_id": "SHARED_OUTDOOR_HELMET_HUD",
+      "applies_to_days": [
+        1,
+        3,
+        5
+      ],
+      "screen_type": "Overlay on the outdoor first-person 3D scene",
+      "purpose": "Frame outdoor observation as viewed through an astronaut helmet and show concise mission telemetry.",
+      "layout": {
+        "center": "Keep the central Mars terrain view clear.",
+        "edges": "Darkened circular/curved visor border and subtle vignette, implemented with a lightweight CSS overlay if practical.",
+        "top_or_upper_corner": "Compact day number and mission/status indicator.",
+        "lower_or_side_area": "Contextual interaction prompt only when the player is in range of a usable interaction.",
+        "secondary_corner": "Compact simulated suit/oxygen/equipment/communication statuses, showing only relevant values.",
+        "notification_area": "Small temporary notification region for verified simulated mission events."
+      },
+      "data": [
+        "current day",
+        "current objective short label",
+        "actual objective status",
+        "verified or clearly labelled simulated telemetry",
+        "current interaction prompt if in range",
+        "event notification if one exists"
+      ],
+      "states": [
+        "outdoor exploration",
+        "near an interaction",
+        "objective updated",
+        "warning notification",
+        "hidden during loading/video/menu",
+        "adapted or hidden indoors"
+      ],
+      "acceptance_criteria": [
+        "No third-person astronaut body is visible.",
+        "The centre remains readable for terrain observation.",
+        "The visor does not block pointer lock or movement input.",
+        "The overlay does not cover loading screens or destination videos.",
+        "Telemetry is not misrepresented as live real-world data.",
+        "No complex holographic 3D system is introduced just for decoration."
+      ]
+    },
+    {
+      "screen_id": "SHARED_INTERACTION_FEEDBACK",
+      "applies_to_days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "screen_type": "Contextual prompt/result overlay",
+      "purpose": "Explain what can be interacted with and communicate the result.",
+      "layout": {
+        "position": "Use the existing interaction UI location. If none exists, choose a compact location that does not obstruct the centre of view.",
+        "content": "Short action name, relevant key hint discovered from current controls, and result/status.",
+        "success": "Brief success message with relevant result.",
+        "blocked": "Brief explanation of why the action is unavailable."
+      },
+      "acceptance_criteria": [
+        "Only appears for a real usable interaction.",
+        "Does not display prompts for decorative objects without interactions.",
+        "The same action cannot fire multiple times due to overlapping triggers.",
+        "Interaction results are recorded in mission state when relevant."
+      ]
+    },
+    {
+      "screen_id": "SHARED_OBJECTIVE_STATUS",
+      "applies_to_days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "screen_type": "Compact objective/checklist UI",
+      "purpose": "Let the player understand what remains to complete the day.",
+      "layout": {
+        "position": "Use the current HUD/mission panel convention.",
+        "content": "Short objective title and required steps/checklist.",
+        "progress": "Use actual step completion or a simple status label; do not invent percentages.",
+        "completion": "Clear completion state and a concise instruction to return to Habitat to rest when appropriate."
+      },
+      "acceptance_criteria": [
+        "Progress reflects actual validated steps.",
+        "Incomplete steps remain visible.",
+        "Objective completion is not confused with permission to advance the day.",
+        "The player can still explore after completing the objective."
+      ]
+    },
+    {
+      "screen_id": "SHARED_HABITAT_REST_AND_DAY_ADVANCE",
+      "applies_to_days": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "screen_type": "Existing Habitat rest/sleep interaction and feedback",
+      "purpose": "Allow the player to explicitly finish a day and start the next one after its objective is complete.",
+      "layout": {
+        "interaction_prompt": "Rest/Sleep or the equivalent existing interaction label.",
+        "if_incomplete": "Show that the current objective is incomplete and list or summarise remaining required steps.",
+        "if_complete": "Show a confirmation or concise transition feedback using the existing UI flow.",
+        "during_transition": "Use the established transition/loading/briefing flow."
+      },
+      "rules": [
+        "Do not automatically advance time when an objective completes.",
+        "Day 5 must not advance to Day 6 unless the later campaign implementation supports it and the route-planning objective is validated."
+      ],
+      "acceptance_criteria": [
+        "The rest interaction is explicit.",
+        "Incomplete objectives block advancement.",
+        "A successful rest advances the day exactly once.",
+        "Repeated inputs cannot skip days.",
+        "The next day's briefing and objective load correctly."
+      ]
+    }
+  ],
+  "days": [
+    {
+      "day": 1,
+      "id": "DAY_01_BASE_ORIENTATION",
+      "title": "Base Orientation",
+      "purpose": "Introduce the player to the base, first-person controls and established connected modules without an overly long tutorial.",
+      "story_context": "The mission begins at the existing spawn point. The player receives an orientation briefing before beginning the first operational day.",
+      "start": {
+        "spawn": "Use the actual existing Day 1/start spawn configuration. Do not invent or move a spawn location.",
+        "briefing": "Explain that the player is beginning a 14-day Mars observation mission and must become familiar with the base and its available work areas.",
+        "initial_ui": [
+          "SHARED_MISSION_BRIEFING",
+          "SHARED_OBJECTIVE_STATUS"
+        ],
+        "required_checks": [
+          "Correct day number is shown.",
+          "Player controls are usable.",
+          "The current objective is visible."
+        ]
+      },
+      "primary_objective": "Complete a basic base-orientation checklist by visiting/inspecting designated existing orientation points.",
+      "required_steps": [
+        {
+          "step_id": "DAY1_REVIEW_CONTROLS",
+          "label": "Review movement and interaction controls",
+          "action": "Show a concise control hint through the existing briefing or help UI.",
+          "validation": "The hint is displayed or acknowledged if existing UI supports acknowledgement. Do not require an elaborate tutorial system."
+        },
+        {
+          "step_id": "DAY1_VISIT_CENTRAL_HUB",
+          "label": "Explore the Central Hub",
+          "action": "Player enters or inspects the existing Central Hub orientation point.",
+          "validation": "Use a real existing trigger or explicit interaction. Do not assume mere module loading is an objective unless designed as such."
+        },
+        {
+          "step_id": "DAY1_INSPECT_BASE_AREAS",
+          "label": "Identify the main work areas",
+          "action": "Visit a small set of existing designated orientation points in modules that are already connected and accessible.",
+          "validation": "Use only actual existing modules and interaction points. Do not require every module if that creates excessive backtracking."
+        },
+        {
+          "step_id": "DAY1_CONFIRM_ORIENTATION",
+          "label": "Confirm base orientation",
+          "action": "Use the existing orientation confirmation interaction or a minimal interaction in the current system.",
+          "validation": "Only complete after required orientation steps are recorded."
+        }
+      ],
+      "allowed_locations": [
+        "Central Hub",
+        "Existing connected modules that are accessible in the current build"
+      ],
+      "screen_requirements": [
+        {
+          "screen_id": "DAY1_BRIEFING",
+          "must_show": [
+            "Day 1",
+            "Base Orientation",
+            "One-paragraph briefing",
+            "Primary objective",
+            "Concise movement/interaction controls based on actual bindings"
+          ]
+        },
+        {
+          "screen_id": "DAY1_OBJECTIVE_CHECKLIST",
+          "must_show": [
+            "Orientation objective",
+            "Each required step and actual status",
+            "Completion feedback"
+          ]
+        },
+        {
+          "screen_id": "DAY1_OUTDOOR_HUD",
+          "must_show": [
+            "Helmet visor effect while outside",
+            "Day and short objective label",
+            "Contextual interaction hint",
+            "Compact, non-intrusive simulated suit/status indicators"
+          ]
+        }
+      ],
+      "mission_state_outputs": [
+        "orientation checklist completion",
+        "validated Day 1 objective status"
+      ],
+      "completion_rule": "All required Day 1 orientation steps must be validated. Completion enables the Habitat rest action; it does not automatically advance the day.",
+      "completion_feedback": "Show a concise confirmation that base orientation is complete and the player may continue exploring or return to the Habitat to rest.",
+      "failure_and_edge_cases": [
+        "Re-entering a module must not duplicate progress.",
+        "A decorative object must not satisfy a required step.",
+        "If a designated interaction point is missing, report it rather than silently inventing a new scene object.",
+        "Do not make optional module exploration mandatory."
+      ],
+      "acceptance_criteria": [
+        "Day 1 is represented as data in the existing mission architecture.",
+        "The briefing and checklist reflect actual mission state.",
+        "The objective completes only after validated steps.",
+        "The player can freely explore after completing the objective.",
+        "The player cannot advance the day before completion.",
+        "Rest advances to Day 2 exactly once."
+      ]
+    },
+    {
+      "day": 2,
+      "id": "DAY_02_HABITAT_READINESS",
+      "title": "Habitat Readiness",
+      "purpose": "Perform a straightforward simulated readiness check using existing Habitat equipment and interaction points.",
+      "story_context": "After initial orientation, the player verifies that the Habitat is ready for the next observation activities.",
+      "start": {
+        "spawn": "Use established day-transition spawn/placement behaviour. Do not invent a new spawn point.",
+        "briefing": "Explain that the player must inspect existing Habitat readiness items and confirm their status.",
+        "initial_ui": [
+          "SHARED_MISSION_BRIEFING",
+          "SHARED_OBJECTIVE_STATUS"
+        ]
+      },
+      "primary_objective": "Inspect designated existing Habitat readiness interaction(s) and record the result.",
+      "required_steps": [
+        {
+          "step_id": "DAY2_ENTER_HABITAT",
+          "label": "Enter the Habitat",
+          "action": "Use the existing Habitat entrance and transition.",
+          "validation": "Verify the actual Habitat trigger and destination transition."
+        },
+        {
+          "step_id": "DAY2_INSPECT_READINESS",
+          "label": "Inspect Habitat readiness",
+          "action": "Interact with actual existing equipment/interaction point(s) that can reasonably represent readiness.",
+          "validation": "Reuse existing interaction objects. If none exists, add the smallest interaction supported by the existing system and document the exact object/reference used."
+        },
+        {
+          "step_id": "DAY2_RECORD_STATUS",
+          "label": "Record readiness status",
+          "action": "Confirm a concise simulated readiness checklist/result.",
+          "validation": "Store the result in mission state. Do not imply live telemetry."
+        }
+      ],
+      "allowed_locations": [
+        "Habitat",
+        "Existing connected areas if needed"
+      ],
+      "screen_requirements": [
+        {
+          "screen_id": "DAY2_BRIEFING",
+          "must_show": [
+            "Day 2",
+            "Habitat Readiness",
+            "Reason for readiness check",
+            "Primary objective",
+            "Instruction to inspect designated Habitat interaction point(s)"
+          ]
+        },
+        {
+          "screen_id": "DAY2_HABITAT_CHECKLIST",
+          "must_show": [
+            "Readiness check title",
+            "Actual implemented checklist items only",
+            "Each item's status",
+            "Final simulated result",
+            "Whether the objective is complete"
+          ]
+        },
+        {
+          "screen_id": "DAY2_INTERACTION_FEEDBACK",
+          "must_show": [
+            "Contextual prompt when in range",
+            "Result after interaction",
+            "Clear feedback if relevant equipment interaction is unavailable"
+          ]
+        }
+      ],
+      "mission_state_outputs": [
+        "Habitat readiness result",
+        "validated Day 2 objective status"
+      ],
+      "out_of_scope": [
+        "Oxygen depletion",
+        "Survival countdown",
+        "Player health",
+        "Complex life-support simulation",
+        "Making HAB_WORKSTATION_01 entertainment a required objective"
+      ],
+      "completion_rule": "Required Habitat readiness interaction(s) are complete and the result is recorded. The player must explicitly rest in the Habitat to advance to Day 3.",
+      "completion_feedback": "Show a clear readiness result and explain that the objective is complete.",
+      "acceptance_criteria": [
+        "Day 2 can be completed using actual accessible interactions.",
+        "The checklist contains no invented sensor values.",
+        "The result persists across module transitions.",
+        "HAB_WORKSTATION_01 and its existing relationships remain intact.",
+        "Rest advances to Day 3 exactly once."
+      ]
+    },
+    {
+      "day": 3,
+      "id": "DAY_03_POWER_SYSTEM_OBSERVATION",
+      "title": "Power System Observation",
+      "purpose": "Record a simple simulated observation of the base power system using existing Engineering and solar-panel assets.",
+      "story_context": "The player performs a baseline power-system observation before more demanding outdoor science work.",
+      "start": {
+        "briefing": "Explain that the player must inspect the designated power-system observation point and record the displayed simulated status.",
+        "initial_ui": [
+          "SHARED_MISSION_BRIEFING",
+          "SHARED_OBJECTIVE_STATUS"
+        ]
+      },
+      "primary_objective": "Inspect the existing power-related interaction point and save a baseline observation record.",
+      "required_steps": [
+        {
+          "step_id": "DAY3_REACH_ENGINEERING",
+          "label": "Reach the Engineering Unit",
+          "action": "Use the existing Engineering entrance transition.",
+          "validation": "Verify `Engineering_Entrance_Trigger` in the actual project."
+        },
+        {
+          "step_id": "DAY3_INSPECT_POWER",
+          "label": "Inspect the power system",
+          "action": "Use an existing power-system or solar-panel interaction point if one is available.",
+          "validation": "Inspect actual loaded assets and interaction references. Do not assume solar panels are interactive just because they are visible."
+        },
+        {
+          "step_id": "DAY3_RECORD_POWER_OBSERVATION",
+          "label": "Record the baseline observation",
+          "action": "Save a small observation record with source/interaction identifier, mission day, timestamp if the project already supports it, and clearly labelled simulated status/result.",
+          "validation": "Use only existing data or intentionally defined simulated data. Do not invent real electrical measurements."
+        }
+      ],
+      "allowed_locations": [
+        "Engineering Unit",
+        "Existing outdoor solar-panel area if already accessible",
+        "Existing connected routes"
+      ],
+      "screen_requirements": [
+        {
+          "screen_id": "DAY3_BRIEFING",
+          "must_show": [
+            "Day 3",
+            "Power System Observation",
+            "Reason for recording a baseline",
+            "Primary objective",
+            "Required location or interaction hint"
+          ]
+        },
+        {
+          "screen_id": "DAY3_POWER_OBSERVATION_PANEL",
+          "must_show": [
+            "Observation title",
+            "Source equipment/interaction label based on actual assets",
+            "Mission day",
+            "Simulated status/result",
+            "Record/save confirmation",
+            "Objective completion status"
+          ],
+          "design_rule": "Use an existing panel or contextual interaction result. Do not create a large new dashboard if a compact panel satisfies the task."
+        },
+        {
+          "screen_id": "DAY3_OUTDOOR_HELMET_HUD",
+          "must_show": [
+            "Helmet visor effect outdoors",
+            "Day 3 and concise objective label",
+            "Contextual observation prompt near a usable interaction point",
+            "Compact equipment status only if relevant"
+          ]
+        }
+      ],
+      "mission_state_outputs": [
+        "baseline power observation record",
+        "validated Day 3 objective status"
+      ],
+      "data_rules": [
+        "Clearly label simulated readings or statuses.",
+        "Do not claim connection to real solar-panel telemetry.",
+        "Preserve existing solar-panel assets, transforms and names."
+      ],
+      "completion_rule": "The player has completed the required power observation and the result has been recorded in mission state.",
+      "completion_feedback": "Confirm that the baseline observation was recorded and allow free exploration before the player rests.",
+      "acceptance_criteria": [
+        "The Engineering transition works.",
+        "The power observation is an actual interaction rather than a decorative prompt.",
+        "A result is stored and can be referenced by later mission logic.",
+        "The UI makes simulated data clear.",
+        "Rest advances to Day 4 exactly once."
+      ]
+    },
+    {
+      "day": 4,
+      "id": "DAY_04_LIFE_SUPPORT_VERIFICATION",
+      "title": "Life-Support Verification",
+      "purpose": "Perform a concise simulated life-support readiness verification using existing Habitat and Engineering equipment.",
+      "story_context": "The player checks relevant life-support readiness before beginning the outdoor scientific survey sequence.",
+      "start": {
+        "briefing": "Explain that the player must inspect relevant existing life-support interaction point(s), review the simulated result and record the verification.",
+        "initial_ui": [
+          "SHARED_MISSION_BRIEFING",
+          "SHARED_OBJECTIVE_STATUS"
+        ]
+      },
+      "primary_objective": "Complete a simple life-support readiness verification and save its result.",
+      "required_steps": [
+        {
+          "step_id": "DAY4_REACH_RELEVANT_MODULE",
+          "label": "Reach the relevant equipment",
+          "action": "Use existing Habitat and/or Engineering transitions based on the actual equipment placement.",
+          "validation": "Determine equipment location by inspecting the actual scene and code. Do not assume a new object exists."
+        },
+        {
+          "step_id": "DAY4_INSPECT_LIFE_SUPPORT",
+          "label": "Inspect life-support readiness",
+          "action": "Interact with the actual available relevant equipment point.",
+          "validation": "Use the existing interaction system or a minimal extension. Do not add resource depletion or survival mechanics."
+        },
+        {
+          "step_id": "DAY4_RECORD_VERIFICATION",
+          "label": "Record the verification result",
+          "action": "Save the result in mission state with a clear simulated status label.",
+          "validation": "Only mark complete after the result is stored successfully."
+        }
+      ],
+      "allowed_locations": [
+        "Habitat",
+        "Engineering Unit",
+        "Existing connecting areas"
+      ],
+      "screen_requirements": [
+        {
+          "screen_id": "DAY4_BRIEFING",
+          "must_show": [
+            "Day 4",
+            "Life-Support Verification",
+            "Purpose of the check",
+            "Primary objective",
+            "Location hint based on actual equipment placement"
+          ]
+        },
+        {
+          "screen_id": "DAY4_LIFE_SUPPORT_CHECKLIST",
+          "must_show": [
+            "Verification title",
+            "Actual implemented checklist item(s)",
+            "Status for each completed item",
+            "Overall simulated verification result",
+            "Record confirmation",
+            "Objective completion status"
+          ]
+        },
+        {
+          "screen_id": "DAY4_HELMET_STATUS",
+          "must_show": [
+            "Compact suit/life-support status when relevant",
+            "No countdown or depletion mechanic",
+            "A warning only if an actual simulated event is defined"
+          ]
+        }
+      ],
+      "mission_state_outputs": [
+        "life-support verification result",
+        "validated Day 4 objective status"
+      ],
+      "out_of_scope": [
+        "Oxygen depletion or survival failure",
+        "Complex pressure/temperature simulation",
+        "Player damage or health system",
+        "New Habitat or Engineering modules"
+      ],
+      "completion_rule": "The required verification interaction has been completed and its result saved. The player must explicitly rest in the Habitat to advance.",
+      "completion_feedback": "Show the verification result and explain that the objective is complete.",
+      "acceptance_criteria": [
+        "The interaction uses actual available equipment or a documented minimal addition.",
+        "Day 2 and Day 4 reuse shared interaction and checklist logic where practical.",
+        "The result is persisted in mission state.",
+        "No survival mechanics are introduced.",
+        "Rest advances to Day 5 exactly once."
+      ]
+    },
+    {
+      "day": 5,
+      "id": "DAY_05_TERRAIN_ROUTE_PLANNING",
+      "title": "Terrain Route Planning",
+      "purpose": "Prepare for upcoming Mars terrain observations using the existing Master Terrain and Mission Control.",
+      "story_context": "Before the first major outdoor survey, the player reviews the established observation area and records a practical route plan.",
+      "start": {
+        "briefing": "Explain that the player must review the existing observation area and confirm a route or target selection for the next scientific activity.",
+        "initial_ui": [
+          "SHARED_MISSION_BRIEFING",
+          "SHARED_OBJECTIVE_STATUS"
+        ]
+      },
+      "primary_objective": "Review the existing terrain/map representation, select or confirm a route/observation target using available UI, and save the plan.",
+      "required_steps": [
+        {
+          "step_id": "DAY5_REACH_MISSION_CONTROL",
+          "label": "Reach Mission Control",
+          "action": "Use the existing Mission Control entrance transition.",
+          "validation": "Verify `MissionControl_Entrance_Trigger` in the actual project."
+        },
+        {
+          "step_id": "DAY5_REVIEW_MASTER_TERRAIN",
+          "label": "Review the existing observation area",
+          "action": "Use the actual available map or terrain representation. Preserve selected location and existing terrain coordinates.",
+          "validation": "Inspect current map UI and terrain data. Do not invent coordinates, route lengths, slopes, elevation or geographic labels."
+        },
+        {
+          "step_id": "DAY5_SELECT_ROUTE_OR_TARGET",
+          "label": "Select or confirm the observation route/target",
+          "action": "Reuse an existing route-selection interface if available. Otherwise implement a minimal, clear selection/confirmation UI compatible with the current project.",
+          "validation": "The selected target must correspond to a real existing marker, supported map coordinate or verified scene location. Do not place arbitrary new markers without documenting why."
+        },
+        {
+          "step_id": "DAY5_SAVE_ROUTE_PLAN",
+          "label": "Save the route plan",
+          "action": "Save the selected target/route reference in mission state.",
+          "validation": "Only mark the step complete after a valid selection is saved."
+        }
+      ],
+      "allowed_locations": [
+        "Mission Control",
+        "Existing connected routes and modules"
+      ],
+      "screen_requirements": [
+        {
+          "screen_id": "DAY5_BRIEFING",
+          "must_show": [
+            "Day 5",
+            "Terrain Route Planning",
+            "Why planning is needed before outdoor observation",
+            "Primary objective",
+            "Instruction to review the existing map/terrain in Mission Control"
+          ]
+        },
+        {
+          "screen_id": "DAY5_ROUTE_PLANNING",
+          "must_show": [
+            "Title and concise route-planning instruction",
+            "Actual existing map or terrain preview if available",
+            "Selectable existing targets or supported route choices",
+            "Selected target/route state",
+            "Confirm/save action",
+            "Validation feedback if no valid target is selected"
+          ],
+          "layout_guidance": {
+            "preferred": "Reuse existing Mission Control map/planning layout. Keep map/terrain preview as the main visual region and route/target controls in a compact side panel if the current design supports that pattern.",
+            "fallback": "If no planning screen exists, create a simple responsive panel using existing visual components. Do not create a new 3D map or external mapping dependency without need.",
+            "not_allowed": [
+              "Invented terrain coordinates",
+              "Unverified distances, slope measurements or elevation values",
+              "Complex pathfinding",
+              "External map service dependency",
+              "A new standalone module"
+            ]
+          }
+        },
+        {
+          "screen_id": "DAY5_ROUTE_CONFIRMATION",
+          "must_show": [
+            "Selected target/route identifier",
+            "Confirmation that the plan was saved",
+            "Objective completion status",
+            "Short note that the plan supports the upcoming observation mission"
+          ]
+        }
+      ],
+      "mission_state_outputs": [
+        "route/target selection reference",
+        "route plan completion status"
+      ],
+      "data_rules": [
+        "Use current Master Terrain and its existing coordinates.",
+        "Do not regenerate or relocate the terrain.",
+        "Do not claim a selected route is scientifically optimal unless the application calculates and validates that.",
+        "If no existing route data or markers are available, implement a minimal selection mechanism grounded in actual terrain references and document it."
+      ],
+      "completion_rule": "A valid existing target/route has been selected and the route plan is saved. The player must return to the Habitat and explicitly rest to advance when the next-day mission is implemented.",
+      "completion_feedback": "Confirm the route plan was saved and explain that the player may continue exploring or rest when ready.",
+      "acceptance_criteria": [
+        "Mission Control transition works.",
+        "Planning UI uses actual terrain data and existing references.",
+        "Selection is saved in mission state.",
+        "Invalid/no selection prevents completion.",
+        "Route plan is available for later mission logic.",
+        "No Day 6 geological survey gameplay is implemented in Phase 2.",
+        "Existing coordinates and terrain assets remain unchanged."
+      ]
+    }
+  ],
+  "cross_day_flow": {
+    "expected_sequence": [
+      "Start the current day and display its briefing.",
+      "Allow first-person movement and exploration.",
+      "Show contextual prompts only near valid interactions.",
+      "Perform the day's required actions.",
+      "Validate each required step and store its result.",
+      "Display objective completion feedback when all requirements are satisfied.",
+      "Allow free exploration after objective completion.",
+      "Require explicit Habitat rest/sleep interaction to advance the day.",
+      "If requirements are incomplete, block advancement and explain what remains.",
+      "Advance to the next day exactly once and show the next briefing."
+    ],
+    "important_distinction": "Objective completion and day advancement are separate states. Completing an objective does not automatically start the next day.",
+    "state_examples": [
+      "DAY_ACTIVE",
+      "OBJECTIVE_IN_PROGRESS",
+      "OBJECTIVE_COMPLETE",
+      "WAITING_FOR_REST",
+      "DAY_TRANSITION_IN_PROGRESS"
+    ],
+    "implementation_note": "Use existing state conventions if they differ. Do not introduce redundant parallel state machines."
+  },
+  "phase_2_acceptance_tests": [
+    {
+      "test_id": "P2-001",
+      "description": "Project builds and starts using its existing commands.",
+      "pass_condition": "Actual build/start commands complete successfully or failures are documented precisely."
+    },
+    {
+      "test_id": "P2-002",
+      "description": "Outdoor first-person movement works on the existing Master Terrain.",
+      "pass_condition": "Player can walk without falling through or floating above actual terrain, within the limits of the current collision system."
+    },
+    {
+      "test_id": "P2-003",
+      "description": "Helmet visor activates only in the intended outdoor state.",
+      "pass_condition": "Visible outdoors and does not incorrectly cover loading screens, videos or other full-screen UI."
+    },
+    {
+      "test_id": "P2-004",
+      "description": "Mission day and objective remain consistent across module transitions.",
+      "pass_condition": "Changing modules does not reset or accidentally advance the day."
+    },
+    {
+      "test_id": "P2-005",
+      "description": "Day 1 orientation can be completed through validated interactions.",
+      "pass_condition": "Only required orientation steps complete the objective."
+    },
+    {
+      "test_id": "P2-006",
+      "description": "Day 2 Habitat readiness can be completed.",
+      "pass_condition": "Checklist uses real implemented interactions and saves the result."
+    },
+    {
+      "test_id": "P2-007",
+      "description": "Day 3 power observation can be completed.",
+      "pass_condition": "Baseline simulated observation is recorded and clearly labelled."
+    },
+    {
+      "test_id": "P2-008",
+      "description": "Day 4 life-support verification can be completed.",
+      "pass_condition": "Result is recorded without adding survival mechanics."
+    },
+    {
+      "test_id": "P2-009",
+      "description": "Day 5 route planning can be completed.",
+      "pass_condition": "A valid existing terrain target/route reference is saved; invalid selection is blocked."
+    },
+    {
+      "test_id": "P2-010",
+      "description": "Rest cannot advance an incomplete day.",
+      "pass_condition": "A clear blocked message is shown and current day remains unchanged."
+    },
+    {
+      "test_id": "P2-011",
+      "description": "Rest advances a completed day exactly once.",
+      "pass_condition": "Repeated inputs and trigger overlap cannot skip a day."
+    },
+    {
+      "test_id": "P2-012",
+      "description": "Existing entrance triggers continue to work.",
+      "pass_condition": "Engineering, Habitat, AirLock, Mission Control and Research Lab transitions are tested and outcomes documented."
+    },
+    {
+      "test_id": "P2-013",
+      "description": "Known scene objects and assets remain intact.",
+      "pass_condition": "Existing identifiers and relationships are verified against the real scene; no accidental renames or duplicate objects."
+    },
+    {
+      "test_id": "P2-014",
+      "description": "Simulated telemetry and notifications are truthful.",
+      "pass_condition": "UI does not imply a real live connection or invent actual NASA telemetry."
+    },
+    {
+      "test_id": "P2-015",
+      "description": "UI is usable and consistent.",
+      "pass_condition": "Screens follow existing visual references and design conventions; layout and key states are checked at the target desktop viewport."
+    }
+  ],
+  "implementation_reporting": {
+    "required_sections": [
+      "Repository and visual-reference inspection findings",
+      "Actual screen inventory discovered",
+      "Files changed and why",
+      "Mission data model and state progression",
+      "Per-day implementation status for Days 1-5",
+      "HUD and interaction UI details",
+      "Existing triggers and scene object verification",
+      "Build/test commands and results",
+      "Tests passed, failed, not run, and manual checks required",
+      "Known limitations and unresolved asset/interaction dependencies",
+      "Recommended next phase based on the established 14-day plan"
+    ],
+    "truthfulness_rule": "Never report a visual, gameplay, interaction or transition test as passed unless it was actually executed and verified. Distinguish code inspection from runtime verification."
+  }
+}

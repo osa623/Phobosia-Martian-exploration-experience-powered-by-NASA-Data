@@ -1,0 +1,10 @@
+node_modules/
+dist/
+public/assets/exr
+public/assets/models
+public/assets/models.zip
+public/assets/videos
+public/assets/shots
+public/assets/assets.zip
+.next/
+.env

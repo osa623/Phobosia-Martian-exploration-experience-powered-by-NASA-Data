@@ -1,0 +1,1 @@
+export const moduleLabels={Habitat:"Habitat",Airlock:"Airlock",Hub:"Central Hub",Engineering:"Engineering Unit",Science:"Science Lab",MissionControl:"Mission Control",Terrain:"Mars Terrain"} as const;

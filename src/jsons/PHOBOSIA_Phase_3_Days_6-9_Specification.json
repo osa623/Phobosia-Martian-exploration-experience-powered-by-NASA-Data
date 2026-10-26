@@ -1,0 +1,1255 @@
+
+{
+  "document_metadata": {
+    "project": "PHOBOSIA",
+    "document_title": "Phase 3 Mission Specification - Days 6 to 9",
+    "file_name": "PHOBOSIA_Phase_3_Days_6-9_Specification.json",
+    "version": "1.0.0",
+    "phase": 3,
+    "status": "Implementation Specification",
+    "language": "English",
+    "purpose": "Provide a detailed, testable specification for implementing PHOBOSIA mission Days 6, 7, 8, and 9. This file must be used as the source of mission requirements by a separate coding-agent master prompt.",
+    "day_range": {
+      "start_day": 6,
+      "end_day": 9,
+      "included_days": [6, 7, 8, 9]
+    },
+    "prerequisites": [
+      "Phase 1 is complete.",
+      "Phase 2 is complete and implements Days 1 to 5.",
+      "The existing mission-state system, daily briefing flow, objective validation, interaction framework, module transitions, screen-rendering framework, and Habitat rest/sleep progression must be reused wherever possible.",
+      "The existing PHOBOSIA_Days_1-5_Specification.json must be inspected before modifying shared systems."
+    ],
+    "source_of_truth": "This specification defines the intended Phase 3 gameplay. The actual repository defines the real file paths, identifiers, object names, screen dimensions, transforms, interfaces, and established implementation patterns. Preserve existing working systems and adapt implementation to the actual repository without silently renaming existing objects."
+  },
+  "project_constraints": {
+    "technology_stack": [
+      "Existing Next.js application",
+      "TypeScript",
+      "Three.js",
+      "Existing project-specific rendering and interaction utilities"
+    ],
+    "migration_policy": {
+      "change_framework": false,
+      "replace_existing_architecture": false,
+      "add_backend_without_necessity": false,
+      "rewrite_phase_1_or_phase_2": false,
+      "rule": "Extend the existing architecture. Do not migrate to another framework or replace working systems simply to implement Phase 3."
+    },
+    "hardware_constraints": {
+      "gpu": "NVIDIA MX350 with 2 GB VRAM",
+      "ram": "12 GB",
+      "requirements": [
+        "Keep the experience suitable for a modest laptop GPU.",
+        "Reuse existing Three.js geometries, materials, textures, cameras, and rendering utilities where appropriate.",
+        "Avoid unnecessary high-resolution textures and duplicate assets.",
+        "Avoid expensive post-processing and excessive animated effects.",
+        "Do not add a physics engine solely for these missions.",
+        "Dispose of temporary resources created by new interactions.",
+        "Prevent event-listener, texture, and render-loop leaks."
+      ]
+    },
+    "player_experience": {
+      "primary_perspective": "First-person, eye-level astronaut observation.",
+      "visible_astronaut_body": false,
+      "outdoor_helmet_hud": "Reuse the Phase 2 helmet/visor HUD. Show it outdoors only, except where the established UI intentionally displays a compatible contextual notification.",
+      "drone_view": "First-person remote FPV camera, separate from astronaut movement.",
+      "third_person_camera": false,
+      "movement": "Reuse the existing Phase 1 first-person movement system."
+    },
+    "fixed_modules": [
+      "Habitat",
+      "Mission Control",
+      "Research/Science Lab",
+      "Engineering Unit",
+      "Central Hub",
+      "Connectors",
+      "Airlock",
+      "Rover/garage and drone area",
+      "Existing Mars master terrain",
+      "Solar panels",
+      "Communication/satellite elements"
+    ],
+    "scope_exclusions": [
+      "Do not implement Days 10, 11, 12, 13, or 14 in Phase 3.",
+      "Do not implement rover driving or rover terrain-following in this phase.",
+      "Do not add new habitat modules or additional buildings.",
+      "Do not implement third-person astronaut control.",
+      "Do not require a visible drone mesh for Day 9.",
+      "Do not introduce a new inventory, crafting, survival, or complex sample-collection system.",
+      "Do not present simulated observations as actual NASA discoveries.",
+      "Do not claim live NASA telemetry, live drone telemetry, or real instrument readings unless such integrations already exist and have been verified."
+    ],
+    "future_phase_boundaries": {
+      "phase_4": {
+        "days": [10, 11, 12],
+        "topics": [
+          "Communications test",
+          "Anomaly investigation",
+          "System diagnostics"
+        ]
+      },
+      "phase_5": {
+        "days": [13, 14],
+        "topics": [
+          "Scientific synthesis",
+          "Final mission report",
+          "Campaign completion and end-to-end testing"
+        ]
+      }
+    }
+  },
+  "repository_audit": {
+    "mandatory_before_implementation": [
+      "Read this Phase 3 specification and the actual Phase 2 JSON specification from the repository.",
+      "Inspect the existing mission type definitions and mission-state implementation.",
+      "Inspect the current daily briefing, objective checklist, objective validation, completion summary, and rest/sleep progression.",
+      "Inspect the existing module transition implementation, including fade, loading screen, destination video, skip behaviour, and spawn restoration.",
+      "Inspect the existing screen-plane rendering system and how it determines which screens are active.",
+      "Inspect the existing terrain generator, selected Mars region, coordinate bounds, terrain scale, and any available height data.",
+      "Inspect the existing Day 5 route-plan data and how it is saved.",
+      "Inspect the existing Drone_Object reference, Mission Control screens, controls, camera architecture, and input handling.",
+      "Inspect existing screen plane dimensions, aspect ratios, transforms, orientations, parent objects, and material assignments.",
+      "Inspect actual asset filenames before referencing any images, videos, textures, or models.",
+      "Run the existing build and tests before changes and record baseline failures."
+    ],
+    "preserve_existing_trigger_names": [
+      {
+        "name": "Engineering_Entrance_Trigger",
+        "destination": "Engineering Unit",
+        "instruction": "Preserve the exact name and existing behaviour."
+      },
+      {
+        "name": "Habitat_Entrance_Trigger",
+        "destination": "Habitat",
+        "instruction": "Preserve the exact name and existing behaviour."
+      },
+      {
+        "name": "Main_Entrance_Trigger",
+        "destination": "AirLock",
+        "instruction": "Preserve the exact name and existing behaviour."
+      },
+      {
+        "name": "MissionControl_Entrance_Trigger",
+        "destination": "Mission Control",
+        "instruction": "Preserve the exact name and existing behaviour."
+      },
+      {
+        "name": "ScienceLab_Entrance_Trigger",
+        "destination": "Research Lab",
+        "instruction": "Preserve the exact name and existing behaviour."
+      }
+    ],
+    "preserve_existing_scene_objects": [
+      {
+        "name": "Cinematic_Location",
+        "instruction": "Do not relocate, duplicate, rename, or repurpose this marker as a survey target without confirming its existing purpose."
+      },
+      {
+        "name": "Drone_Object",
+        "instruction": "Inspect its actual type and scene usage. It may be an Empty/reference object rather than a visible drone mesh."
+      },
+      {
+        "name": "HAB_WORKSTATION_01",
+        "instruction": "Preserve its existing Habitat workstation interaction and screen/object identity."
+      },
+      {
+        "name": "Existing Mars master terrain",
+        "instruction": "Preserve the existing selected region and coordinates. Do not regenerate a different Mars location for Phase 3."
+      }
+    ],
+    "identifier_policy": [
+      "Do not rename existing scene objects, triggers, screen planes, exported TypeScript symbols, or established state keys merely for naming consistency.",
+      "Do not invent screen-plane names before inspecting the actual scene.",
+      "Do not move existing objects to make an interaction easier without explicit necessity and documented approval.",
+      "If a required target or control does not exist, report the gap and reuse the nearest appropriate existing interaction pattern.",
+      "New identifiers may be introduced for mission records and objective IDs when necessary, provided they do not conflict with existing names."
+    ]
+  },
+  "mission_progression": {
+    "standard_daily_loop": [
+      "Show the briefing for the active mission day.",
+      "Allow exploration and relevant interactions.",
+      "Update objective progress from actual mission state.",
+      "Save required records when the player confirms an observation or analysis.",
+      "Validate all required completion conditions.",
+      "Show a completion summary when the day is complete.",
+      "Allow free exploration after completion.",
+      "Require the established Habitat rest/sleep interaction to advance to the next day."
+    ],
+    "progression_rules": [
+      "Only the current campaign day may be active.",
+      "A day must not complete merely because a UI panel was opened.",
+      "Required records must be validated before their objectives are marked complete.",
+      "Incomplete required objectives must block rest/sleep progression.",
+      "Repeated confirmation must not create duplicate records or repeat completion side effects.",
+      "State changes must be idempotent where appropriate.",
+      "Leaving and re-entering a module must not erase saved observations.",
+      "Day 9 completion may prepare the existing Day 10 state, but must not implement Day 10 gameplay.",
+      "Never create a Day 15."
+    ],
+    "shared_state": {
+      "instruction": "Extend the existing mission-state types and persistence mechanism rather than creating a competing state system.",
+      "potential_fields_if_missing": {
+        "currentDay": "number",
+        "completedDays": "Existing serializable collection of completed day numbers",
+        "completedObjectiveIds": "Existing or equivalent serializable collection",
+        "observations": "Array of saved observation records",
+        "geologicalSurvey": "GeologicalSurveyRecord or null",
+        "surfaceObservation": "SurfaceObservationRecord or null",
+        "scienceAnalysis": "ScienceAnalysisRecord or null",
+        "droneSurvey": "DroneSurveyRecord or null",
+        "routePlan": "Existing Day 5 route-plan record, reused if available",
+        "activeInteraction": "Existing interaction state or equivalent",
+        "droneModeActive": "boolean or existing equivalent"
+      },
+      "record_rules": [
+        "Records must be serializable.",
+        "Do not store Three.js Object3D instances, DOM nodes, callbacks, or camera objects in mission records.",
+        "Each record must have a stable identifier.",
+        "Store source record IDs when one record is derived from another.",
+        "Clearly label generated values and interpretations as simulated.",
+        "Use the existing persistence strategy and avoid adding a backend."
+      ]
+    }
+  },
+  "shared_ui_requirements": {
+    "visual_identity": {
+      "style": "Professional, distinctive PHOBOSIA mission interface inspired by aerospace and scientific observation consoles.",
+      "palette": [
+        "Dark navy",
+        "Blue-grey",
+        "Metallic grey",
+        "Restrained orange accents",
+        "Readable light neutral text"
+      ],
+      "principles": [
+        "Clear visual hierarchy",
+        "Consistent typography",
+        "Readable scientific data",
+        "Subtle and purposeful animation",
+        "Minimal obstruction of first-person view",
+        "Distinct visual states for available, active, complete, and unavailable interactions"
+      ],
+      "avoid": [
+        "Generic unstyled browser panels",
+        "Excessive neon effects",
+        "Excessive glow",
+        "Decorative random warnings",
+        "Tiny unreadable text",
+        "Overcrowded HUD elements",
+        "UI that obscures the main outdoor view"
+      ]
+    },
+    "3d_screen_rendering": [
+      "Inspect each real screen plane's width, height, aspect ratio, orientation, and transform before designing its content.",
+      "Fit each interface to the corresponding screen geometry.",
+      "Use a flat CanvasTexture or the existing screen-rendering mechanism where appropriate.",
+      "Do not project flat interface text onto spherical geometry unless the actual display surface is spherical.",
+      "Correct stretching, mirroring, clipping, upside-down text, incorrect orientation, and curved text distortion.",
+      "Use appropriate texture resolution without excessive VRAM use.",
+      "Do not recreate textures every frame unless the existing rendering architecture requires it.",
+      "Dispose of textures created specifically for a screen when that screen is permanently removed.",
+      "Activate only the relevant screens for the current module and interaction.",
+      "Do not illuminate or populate every screen in every module at once.",
+      "If a physical screen is too small for detailed controls, show a concise summary and use the established interaction UI for detailed input."
+    ],
+    "input_and_interaction": [
+      "Reuse the established E-key interaction convention.",
+      "Show contextual interaction prompts only when the player is in range and the interaction is available.",
+      "Prevent a single key press from activating multiple conflicting interactions.",
+      "When a console is open, prevent gameplay movement keys from unintentionally moving the astronaut.",
+      "Provide visible success, unavailable, incomplete, and recoverable-error feedback.",
+      "Clean up listeners when a UI, mode, or scene is closed.",
+      "Preserve the existing camera and control state when switching between modules or modes."
+    ],
+    "helmet_hud": {
+      "outdoor_only": true,
+      "show_in_indoor_modules": false,
+      "show_over_fullscreen_transition": false,
+      "show_over_destination_video": false,
+      "show_over_mission_menu": false,
+      "show_over_drone_fpv": false,
+      "requirements": [
+        "Reuse the existing Phase 2 helmet HUD.",
+        "Display relevant current-day objective progress.",
+        "Display contextual prompts when appropriate.",
+        "Use actual mission state for statuses.",
+        "Do not introduce arbitrary random errors.",
+        "Any scripted alert must correspond to an actual mission event or be explicitly identified as scripted simulation."
+      ]
+    }
+  },
+  "days": [
+    {
+      "day": 6,
+      "day_id": "DAY_06_GEOLOGICAL_SITE_SURVEY",
+      "title": "Geological Site Survey",
+      "mission_phase": "Field Survey",
+      "primary_location": "Existing Mars master terrain",
+      "supporting_locations": [
+        "Mission Control",
+        "Airlock",
+        "Central Hub"
+      ],
+      "narrative_purpose": "Use the existing Day 5 route-planning work to conduct an initial outdoor geological observation. The astronaut reaches a designated survey area, inspects visible terrain characteristics, and saves a preliminary geological record for later scientific comparison.",
+      "briefing": {
+        "delivery": "Use the existing daily briefing system.",
+        "required_content": [
+          "Day 6 title and mission number",
+          "Short narrative context",
+          "Survey target or target identifier",
+          "Primary objective checklist",
+          "Reminder to use the existing Airlock transition when exiting the habitat",
+          "Clear simulated-data note where applicable"
+        ],
+        "narrative_guidance": "Mission Control has prepared an initial survey target using the existing mission configuration and the Day 5 route plan where available. The astronaut must inspect the surface and record preliminary observations.",
+        "data_truthfulness": "Do not present simulated observations as new NASA discoveries or as verified geological conclusions about Mars."
+      },
+      "prerequisites": [
+        {
+          "id": "D6_PRE_01_DAY5_ROUTE",
+          "required": false,
+          "condition": "Use the existing Day 5 route-plan record if it is available.",
+          "fallback": "Use the configured existing survey target if the route-plan record is unavailable. Do not fabricate a saved route plan."
+        }
+      ],
+      "objectives": [
+        {
+          "id": "D6_OBJ_01_REVIEW_TARGET",
+          "label": "Review the geological survey target",
+          "required": true,
+          "completion_condition": "The player opens the relevant existing Mission Control information and reviews the configured Day 6 target.",
+          "validation": "Track the target review in shared mission state. Opening a generic menu does not satisfy this objective."
+        },
+        {
+          "id": "D6_OBJ_02_REACH_TARGET",
+          "label": "Reach the designated survey area",
+          "required": true,
+          "completion_condition": "The player enters the valid configured survey area on the existing Mars master terrain.",
+          "validation": "Use an existing target marker if one exists. Otherwise configure the target through the existing mission configuration pattern. Do not move unrelated scene objects or change the selected terrain coordinates."
+        },
+        {
+          "id": "D6_OBJ_03_INSPECT_SURFACE",
+          "label": "Inspect the surface characteristics",
+          "required": true,
+          "completion_condition": "The player activates the supported geological observation interaction while within the valid target area.",
+          "validation": "Reject the interaction when the player is outside the configured valid area."
+        },
+        {
+          "id": "D6_OBJ_04_SAVE_RECORD",
+          "label": "Save the preliminary geological record",
+          "required": true,
+          "completion_condition": "A valid GeologicalSurveyRecord is saved to shared mission state.",
+          "validation": "The record must contain the required fields and must not be created as a result of merely opening the interface."
+        }
+      ],
+      "interactions": [
+        {
+          "id": "D6_INTERACTION_TARGET_REVIEW",
+          "location": "Mission Control",
+          "input": "Existing E-key interaction",
+          "result": "Display the configured survey target, available Day 5 route-plan summary, and a concise objective checklist."
+        },
+        {
+          "id": "D6_INTERACTION_GEOLOGICAL_SCAN",
+          "location": "Existing Mars master terrain",
+          "input": "Existing contextual interaction convention",
+          "result": "Run a short, lightweight observation interaction and show a readable observation interface."
+        },
+        {
+          "id": "D6_INTERACTION_SAVE_GEOLOGY",
+          "location": "Geological observation interface",
+          "input": "Explicit Save/Confirm action",
+          "result": "Validate the observation selections, save the record, update objective progress, and show a confirmation."
+        }
+      ],
+      "observation_interface": {
+        "title": "GEOLOGICAL FIELD OBSERVATION",
+        "presentation": "A focused PHOBOSIA-style panel. Keep the outdoor view visible where possible and avoid a long full-screen interruption.",
+        "fields": [
+          {
+            "id": "surface_texture",
+            "label": "Surface texture",
+            "input_type": "Selection from predefined descriptive categories",
+            "required": true
+          },
+          {
+            "id": "fragment_distribution",
+            "label": "Rock and fragment distribution",
+            "input_type": "Selection from predefined descriptive categories",
+            "required": true
+          },
+          {
+            "id": "terrain_shape",
+            "label": "Terrain shape or slope",
+            "input_type": "Selection from available descriptive categories",
+            "required": true
+          },
+          {
+            "id": "dust_coverage",
+            "label": "Dust coverage",
+            "input_type": "Selection from predefined descriptive categories",
+            "required": true
+          },
+          {
+            "id": "follow_up_interest",
+            "label": "Potential follow-up area",
+            "input_type": "Optional short selection or note",
+            "required": false
+          }
+        ],
+        "interaction_rules": [
+          "Use a bounded list of choices rather than a complex scientific instrument simulation.",
+          "Do not claim exact mineral composition from terrain geometry alone.",
+          "Do not claim actual scientific certainty.",
+          "Clearly label simulated observations.",
+          "Keep the form usable with keyboard input.",
+          "Preserve the player's selections if saving temporarily fails."
+        ]
+      },
+      "record_schema": {
+        "record_type": "GeologicalSurveyRecord",
+        "required_fields": {
+          "id": "Stable unique record identifier",
+          "day": 6,
+          "targetId": "Stable survey target identifier",
+          "source": "PHOBOSIA simulated field observation",
+          "observedCategories": "Object or array containing the confirmed categories",
+          "summary": "Short readable survey summary",
+          "isSimulated": true,
+          "saved": true
+        },
+        "optional_fields": {
+          "routePlanReference": "Existing Day 5 route-plan ID or null",
+          "missionTimestamp": "Use the existing mission-time convention if available"
+        },
+        "rules": [
+          "Use the project's existing record naming and typing conventions where possible.",
+          "Use a stable identifier so later phases can reference this record.",
+          "Repeated saves should update or reopen the existing Day 6 record rather than create duplicate records.",
+          "Never store Three.js scene objects in this record."
+        ]
+      },
+      "screen_requirements": [
+        {
+          "role": "Mission Control target display",
+          "content": [
+            "Survey target",
+            "Day 5 route-plan summary when available",
+            "Day 6 objective checklist",
+            "Simulated-data label"
+          ],
+          "activation": "Only when the relevant Mission Control screen is active."
+        },
+        {
+          "role": "Outdoor helmet HUD",
+          "content": [
+            "Current day",
+            "Current objective",
+            "Contextual scan prompt when in range",
+            "Relevant existing suit/system state"
+          ],
+          "activation": "Outdoor only."
+        },
+        {
+          "role": "Geological observation panel",
+          "content": [
+            "Observation fields",
+            "Save/Confirm action",
+            "Record status",
+            "Simulated-data label"
+          ],
+          "activation": "Only during the geological observation interaction."
+        }
+      ],
+      "completion_summary": [
+        "Survey target reviewed",
+        "Terrain observation completed",
+        "Preliminary geological record saved",
+        "Record available for later analysis"
+      ],
+      "failure_recovery": [
+        "If the target is missing, report the missing configuration clearly and do not mark the objective complete.",
+        "If the player is outside the valid survey area, display a contextual instruction.",
+        "If saving fails, keep the objective incomplete and allow retry.",
+        "If a record already exists, allow the player to review it without duplicating it."
+      ],
+      "acceptance_tests": [
+        "Day 6 briefing appears only when Day 6 is active.",
+        "The existing Day 5 route-plan record is reused when available.",
+        "The survey target is consistent with the existing master terrain and configured coordinates.",
+        "The scan interaction is unavailable outside its valid area.",
+        "A valid GeologicalSurveyRecord is saved with all required fields.",
+        "Day 6 cannot complete without the saved record.",
+        "Repeated save attempts do not create duplicate records.",
+        "The outdoor HUD does not cover indoor or full-screen interfaces."
+      ]
+    },
+    {
+      "day": 7,
+      "day_id": "DAY_07_SURFACE_OBSERVATION",
+      "title": "Surface Observation",
+      "mission_phase": "Field Observation",
+      "primary_location": "Airlock and existing Mars master terrain",
+      "supporting_locations": [
+        "Habitat",
+        "Mission Control"
+      ],
+      "narrative_purpose": "Conduct a focused outdoor surface observation using the existing Airlock transition and master terrain. The player performs a simple scan-and-confirm interaction and saves a structured observation record for Day 8 laboratory analysis.",
+      "briefing": {
+        "delivery": "Use the existing daily briefing system.",
+        "required_content": [
+          "Day 7 title and mission objective",
+          "Reminder to use the established Airlock flow",
+          "Observation target or target identifier",
+          "Instructions for performing and saving the surface observation",
+          "Simulated-data disclosure"
+        ],
+        "narrative_guidance": "Mission Control requests a focused observation of a selected surface feature. The resulting record will be reviewed in the Research Lab on Day 8.",
+        "data_truthfulness": "Do not imply that a real physical sample was collected or that a real scientific instrument was used unless the existing project genuinely implements that functionality."
+      },
+      "objectives": [
+        {
+          "id": "D7_OBJ_01_REVIEW_TASK",
+          "label": "Review the surface observation task",
+          "required": true,
+          "completion_condition": "The player reviews the Day 7 briefing and target instructions."
+        },
+        {
+          "id": "D7_OBJ_02_USE_AIRLOCK",
+          "label": "Exit through the Airlock",
+          "required": true,
+          "completion_condition": "The player uses the existing Airlock transition path associated with Main_Entrance_Trigger and reaches the outdoor experience.",
+          "validation": "Preserve the existing transition sequence, including any fade, loading, video, skip, and spawn behaviour already implemented."
+        },
+        {
+          "id": "D7_OBJ_03_PERFORM_SCAN",
+          "label": "Perform the surface observation scan",
+          "required": true,
+          "completion_condition": "The player performs the scan interaction at the configured valid observation area."
+        },
+        {
+          "id": "D7_OBJ_04_SAVE_OBSERVATION",
+          "label": "Save the surface observation record",
+          "required": true,
+          "completion_condition": "A valid SurfaceObservationRecord is saved and made available to the Research Lab."
+        }
+      ],
+      "interactions": [
+        {
+          "id": "D7_INTERACTION_AIRLOCK_REMINDER",
+          "location": "Airlock",
+          "input": "Existing E-key interaction convention",
+          "result": "Show the mission-specific exit reminder and surface observation target instructions."
+        },
+        {
+          "id": "D7_INTERACTION_SURFACE_SCAN",
+          "location": "Existing Mars master terrain",
+          "input": "Existing contextual interaction convention",
+          "result": "Perform a short scan interaction and display a flat, readable result panel."
+        },
+        {
+          "id": "D7_INTERACTION_CONFIRM_RECORD",
+          "location": "Surface observation panel",
+          "input": "Explicit Save/Confirm action",
+          "result": "Validate and save the observation record, then update the objective state."
+        }
+      ],
+      "observation_interface": {
+        "title": "SURFACE OBSERVATION",
+        "fields": [
+          {
+            "id": "surface_pattern",
+            "label": "Visible surface pattern",
+            "input_type": "Predefined descriptive selection",
+            "required": true
+          },
+          {
+            "id": "surface_material_appearance",
+            "label": "Surface and fragment appearance",
+            "input_type": "Predefined descriptive selection",
+            "required": true
+          },
+          {
+            "id": "terrain_profile",
+            "label": "Local terrain profile",
+            "input_type": "Predefined descriptive selection based on the available scene",
+            "required": true
+          },
+          {
+            "id": "area_of_interest",
+            "label": "Feature worth revisiting",
+            "input_type": "Predefined selection",
+            "required": true
+          },
+          {
+            "id": "follow_up_question",
+            "label": "Question for laboratory analysis",
+            "input_type": "Short selection or concise note",
+            "required": true
+          }
+        ],
+        "rules": [
+          "Keep the interaction focused on observation rather than a complex physical sample inventory.",
+          "Use only descriptive categories supported by the designed mission scenario.",
+          "Do not fabricate live sensor readings.",
+          "Make the saved record a real dependency for Day 8.",
+          "Allow the player to reopen the saved observation."
+        ]
+      },
+      "record_schema": {
+        "record_type": "SurfaceObservationRecord",
+        "required_fields": {
+          "id": "Stable unique record identifier",
+          "day": 7,
+          "targetId": "Stable observation target identifier",
+          "source": "PHOBOSIA simulated surface observation",
+          "observedCategories": "Confirmed observation categories",
+          "followUpQuestion": "The question selected by the player",
+          "summary": "Short readable observation summary",
+          "isSimulated": true,
+          "saved": true
+        },
+        "optional_fields": {
+          "missionTimestamp": "Use existing mission-time conventions if available",
+          "relatedGeologicalSurveyId": "Day 6 record ID if available"
+        },
+        "rules": [
+          "Store a stable record ID.",
+          "Do not store scene objects or UI elements in the record.",
+          "Repeated saves must not duplicate the record.",
+          "Keep the record accessible to Day 8 through shared mission state."
+        ]
+      },
+      "screen_requirements": [
+        {
+          "role": "Airlock screen",
+          "content": [
+            "Day 7 task reminder",
+            "Surface observation target instructions",
+            "Relevant existing suit/status information"
+          ],
+          "activation": "Only when the Airlock screen is active."
+        },
+        {
+          "role": "Outdoor helmet HUD",
+          "content": [
+            "Day 7 objective progress",
+            "Contextual scan prompt",
+            "Saved-record confirmation"
+          ],
+          "activation": "Outdoor only and never over drone FPV."
+        },
+        {
+          "role": "Surface observation result panel",
+          "content": [
+            "Observation ID",
+            "Confirmed categories",
+            "Follow-up question",
+            "Save status",
+            "Simulated-data label"
+          ],
+          "activation": "Only during observation or record review."
+        }
+      ],
+      "completion_summary": [
+        "Surface observation completed",
+        "Observation record saved",
+        "Record ready for Day 8 Research Lab analysis"
+      ],
+      "failure_recovery": [
+        "Do not permit scanning outside the valid observation area.",
+        "If the Airlock transition fails, preserve the existing transition architecture and report the failure; do not create an unrelated bypass.",
+        "If saving fails, keep the objective incomplete and allow retry.",
+        "If a saved record exists, reopen it safely instead of duplicating it."
+      ],
+      "acceptance_tests": [
+        "Day 7 uses the established Airlock transition path.",
+        "The scan prompt appears only at the valid observation location.",
+        "The result panel is flat, correctly oriented, and readable.",
+        "A valid SurfaceObservationRecord is saved.",
+        "The record can be read by Day 8.",
+        "Day 7 cannot complete while the required record is missing or unsaved.",
+        "Repeated interactions do not duplicate records."
+      ]
+    },
+    {
+      "day": 8,
+      "day_id": "DAY_08_RESEARCH_LAB_ANALYSIS",
+      "title": "Research Lab Analysis",
+      "mission_phase": "Scientific Analysis",
+      "primary_location": "Research/Science Lab",
+      "supporting_locations": [
+        "Central Hub",
+        "Mission Control"
+      ],
+      "narrative_purpose": "Analyse the saved Day 7 surface observation in the existing Research Lab. Where available, compare it with the Day 6 geological survey, choose a cautious interpretation, and save a scientific analysis record for later mission synthesis.",
+      "briefing": {
+        "delivery": "Use the established daily briefing UI.",
+        "required_content": [
+          "Day 8 mission title",
+          "Reference to the saved Day 7 observation",
+          "Instruction to review the source record",
+          "Instruction to compare earlier observations when available",
+          "Instruction to select and save an interpretation",
+          "Explicit simulated-analysis disclosure"
+        ],
+        "narrative_guidance": "The Research Lab has received the surface observation from Day 7. The astronaut must inspect the source record, compare relevant notes, select a cautious interpretation, and save the result.",
+        "data_truthfulness": "This is a simulated educational interpretation, not a claim of actual mineral identification or a new scientific discovery."
+      },
+      "prerequisites": [
+        {
+          "id": "D8_PRE_01_SURFACE_RECORD",
+          "required": true,
+          "condition": "A valid Day 7 SurfaceObservationRecord exists.",
+          "failure_message": "No saved Day 7 surface observation is available. Complete the surface observation before analysing it.",
+          "recovery": "Do not fabricate a source record. Keep the analysis objective unavailable until the required record exists."
+        },
+        {
+          "id": "D8_PRE_02_GEOLOGICAL_RECORD",
+          "required": false,
+          "condition": "Use the Day 6 GeologicalSurveyRecord for comparison if available.",
+          "fallback": "Display a clear unavailable state and allow analysis to continue when the mission rules permit."
+        }
+      ],
+      "objectives": [
+        {
+          "id": "D8_OBJ_01_OPEN_SOURCE_RECORD",
+          "label": "Open the Day 7 surface observation",
+          "required": true,
+          "completion_condition": "The player opens the actual saved Day 7 record in the Research Lab interface."
+        },
+        {
+          "id": "D8_OBJ_02_REVIEW_COMPARISON",
+          "label": "Compare the available observations",
+          "required": true,
+          "completion_condition": "The player reviews the Day 7 record and the Day 6 geological record if present."
+        },
+        {
+          "id": "D8_OBJ_03_SELECT_INTERPRETATION",
+          "label": "Select a scientific interpretation",
+          "required": true,
+          "completion_condition": "The player selects one supported, predefined interpretation based on the available observation categories."
+        },
+        {
+          "id": "D8_OBJ_04_SAVE_ANALYSIS",
+          "label": "Save the scientific analysis",
+          "required": true,
+          "completion_condition": "A valid ScienceAnalysisRecord is saved and references the Day 7 source observation."
+        }
+      ],
+      "analysis_interface": {
+        "title": "RESEARCH LAB — OBSERVATION ANALYSIS",
+        "layout": "Use a professional console layout adapted to the real dimensions and aspect ratio of the existing Research Lab screen planes.",
+        "panels": [
+          {
+            "id": "source_observation",
+            "title": "SOURCE OBSERVATION",
+            "content": [
+              "Day 7 observation ID",
+              "Source summary",
+              "Observed categories",
+              "Record status",
+              "Simulated-data label"
+            ]
+          },
+          {
+            "id": "geological_comparison",
+            "title": "GEOLOGICAL COMPARISON",
+            "content": [
+              "Day 6 survey summary when available",
+              "Relevant shared categories or differences",
+              "Clear unavailable state if no Day 6 record exists"
+            ]
+          },
+          {
+            "id": "interpretation",
+            "title": "INTERPRETATION",
+            "content": [
+              "Small set of predefined cautious interpretations",
+              "Short explanation of each interpretation",
+              "Selection state"
+            ]
+          },
+          {
+            "id": "analysis_record",
+            "title": "ANALYSIS RECORD",
+            "content": [
+              "Selected interpretation",
+              "Concise summary",
+              "Save Analysis action",
+              "Saved status"
+            ]
+          }
+        ],
+        "interpretation_rules": [
+          "Interpretations must be educational and cautious.",
+          "Do not assert exact mineral composition, biological evidence, or geological history without an actual supported data source.",
+          "Interpretations must be related to the categories present in the saved observations.",
+          "Mark the analysis as simulated.",
+          "Do not permit saving when the source observation is missing.",
+          "Do not permit saving until an interpretation is selected.",
+          "Allow the player to reopen the saved analysis without duplicating it."
+        ],
+        "example_interpretation_patterns": [
+          {
+            "id": "INTERPRETATION_SURFACE_PATTERN_REVIEW",
+            "label": "Surface pattern requires further observation",
+            "description": "The recorded surface pattern may justify a follow-up visual inspection.",
+            "claim_strength": "Tentative"
+          },
+          {
+            "id": "INTERPRETATION_TERRAIN_VARIATION",
+            "label": "Terrain variation is a useful survey factor",
+            "description": "Differences in the recorded terrain profile may help prioritise a future observation point.",
+            "claim_strength": "Tentative"
+          },
+          {
+            "id": "INTERPRETATION_DUST_COVERAGE",
+            "label": "Dust coverage should be considered",
+            "description": "The recorded dust coverage may affect how visible surface features are interpreted.",
+            "claim_strength": "Tentative"
+          }
+        ]
+      },
+      "record_schema": {
+        "record_type": "ScienceAnalysisRecord",
+        "required_fields": {
+          "id": "Stable unique record identifier",
+          "day": 8,
+          "sourceObservationId": "ID of the Day 7 SurfaceObservationRecord",
+          "selectedInterpretationId": "ID of the selected predefined interpretation",
+          "summary": "Short readable analysis summary",
+          "isSimulated": true,
+          "saved": true
+        },
+        "optional_fields": {
+          "comparedSurveyId": "Day 6 GeologicalSurveyRecord ID or null",
+          "comparisonSummary": "Concise comparison notes",
+          "missionTimestamp": "Use existing mission-time convention if available"
+        },
+        "rules": [
+          "Reference the actual source record by ID.",
+          "Do not copy fabricated values into the record.",
+          "Keep the analysis serializable and reusable by future phases.",
+          "Repeated saves should update or reopen the existing Day 8 record."
+        ]
+      },
+      "screen_requirements": [
+        {
+          "role": "Research Lab primary screen",
+          "content": [
+            "Source observation",
+            "Comparison notes",
+            "Interpretation choices",
+            "Save Analysis action",
+            "Record status"
+          ],
+          "activation": "Only when the player is in the Research Lab and the relevant screen is active."
+        },
+        {
+          "role": "Research Lab supporting screen",
+          "content": [
+            "Current analysis step",
+            "Short contextual instructions",
+            "Saved-record status"
+          ],
+          "activation": "Use only if a suitable existing screen plane is found. Do not invent or rename a screen plane."
+        }
+      ],
+      "completion_summary": [
+        "Day 7 surface observation reviewed",
+        "Available geological comparison completed",
+        "Interpretation selected",
+        "Science analysis saved for later mission synthesis"
+      ],
+      "failure_recovery": [
+        "If the Day 7 record is missing, explain the prerequisite and prevent saving.",
+        "If the Day 6 record is unavailable, show a clear unavailable state rather than fake data.",
+        "If the interpretation selection is cleared, disable Save Analysis.",
+        "If saving fails, preserve the current selection and allow retry.",
+        "If the saved analysis is reopened, display the stored record."
+      ],
+      "acceptance_tests": [
+        "Day 8 reads the actual Day 7 record from shared mission state.",
+        "Day 8 does not fabricate a missing source record.",
+        "Day 6 comparison is used only when its record exists.",
+        "Save Analysis requires a source record and a selected interpretation.",
+        "The saved analysis references the correct source ID.",
+        "The analysis is clearly marked as simulated.",
+        "The Research Lab UI fits actual screen-plane dimensions and remains readable.",
+        "Only relevant Research Lab screens are active."
+      ]
+    },
+    {
+      "day": 9,
+      "day_id": "DAY_09_DRONE_SURVEY",
+      "title": "Drone Survey",
+      "mission_phase": "Remote Surface Survey",
+      "primary_location": "Mission Control",
+      "supporting_locations": [
+        "Existing Drone_Object reference/control area",
+        "Existing Mars master terrain"
+      ],
+      "narrative_purpose": "Conduct a remote survey of the existing Mars master terrain from Mission Control using a first-person drone FPV view. The player inspects a designated area, captures a simulated survey record, exits FPV, and returns to the astronaut's normal camera and controls.",
+      "briefing": {
+        "delivery": "Use the existing daily briefing system.",
+        "required_content": [
+          "Day 9 title and primary objective",
+          "Explanation that the survey is remotely operated from Mission Control",
+          "Instructions for entering and exiting drone FPV mode",
+          "Survey target or configured area",
+          "Explicit simulated-data disclosure"
+        ],
+        "narrative_guidance": "Mission Control authorises a short remote terrain survey. The astronaut will enter a first-person drone view, inspect the configured area, save a survey record, and return to Mission Control.",
+        "data_truthfulness": "Drone telemetry and observations are simulated unless an actual verified data integration exists."
+      },
+      "operating_model": {
+        "control_location": "Mission Control",
+        "camera_mode": "First-person remote FPV",
+        "third_person_mode": false,
+        "visible_drone_mesh_required": false,
+        "existing_reference_object": "Drone_Object",
+        "reference_object_instruction": "Inspect the actual object type, transform, hierarchy, and existing use before implementation. Do not assume it is a visible mesh.",
+        "movement_requirements": [
+          "Use a dedicated drone-control state separate from astronaut movement.",
+          "Use smooth, bounded, frame-rate-independent movement.",
+          "Provide clear control hints while FPV is active.",
+          "Prevent drone controls from triggering astronaut movement.",
+          "Constrain the drone to the configured survey bounds.",
+          "Use existing terrain-height or collision queries if they are already available.",
+          "If terrain queries are unavailable, use a lightweight configurable altitude and boundary constraint.",
+          "Do not rewrite the terrain system.",
+          "Do not add a full flight-physics system or a new physics engine."
+        ],
+        "camera_requirements": [
+          "Reuse the existing render loop and camera architecture where possible.",
+          "Enter FPV only after an explicit action at the relevant Mission Control interaction.",
+          "Store the astronaut camera/control state before switching modes.",
+          "Disable astronaut movement while FPV is active.",
+          "Display a clear DRONE FPV — REMOTE CONTROL indicator.",
+          "Provide a clear exit action.",
+          "Restore the previous astronaut camera and controls on exit.",
+          "Use one cleanup path for normal exit and unexpected interruption.",
+          "Do not create a second uncontrolled animation loop.",
+          "Do not allow repeated activation to create multiple active drone cameras or duplicate listeners."
+        ],
+        "helmet_hud_policy": "Do not display the astronaut's outdoor helmet HUD while the drone FPV view is active. Use a separate minimal drone status overlay."
+      },
+      "objectives": [
+        {
+          "id": "D9_OBJ_01_REVIEW_DRONE_TASK",
+          "label": "Review the remote survey task",
+          "required": true,
+          "completion_condition": "The player reviews the Day 9 task and survey target on the relevant Mission Control console."
+        },
+        {
+          "id": "D9_OBJ_02_ACTIVATE_FPV",
+          "label": "Activate the drone FPV view",
+          "required": true,
+          "completion_condition": "The player explicitly starts FPV mode through the relevant existing Mission Control interaction."
+        },
+        {
+          "id": "D9_OBJ_03_INSPECT_TARGET",
+          "label": "Inspect the designated survey area",
+          "required": true,
+          "completion_condition": "The drone reaches the valid survey area or configured survey bounds and the player confirms the survey interaction."
+        },
+        {
+          "id": "D9_OBJ_04_SAVE_DRONE_RECORD",
+          "label": "Save the remote survey record",
+          "required": true,
+          "completion_condition": "A valid DroneSurveyRecord is saved to shared mission state."
+        },
+        {
+          "id": "D9_OBJ_05_EXIT_FPV",
+          "label": "Return to Mission Control",
+          "required": true,
+          "completion_condition": "The player exits FPV and the astronaut camera, controls, and input state are restored."
+        }
+      ],
+      "interactions": [
+        {
+          "id": "D9_INTERACTION_OPEN_CONSOLE",
+          "location": "Mission Control",
+          "input": "Existing E-key interaction convention",
+          "result": "Open the relevant existing drone control interface."
+        },
+        {
+          "id": "D9_INTERACTION_START_FPV",
+          "location": "Mission Control drone console",
+          "input": "Explicit Start FPV action",
+          "result": "Switch to drone FPV and disable astronaut movement."
+        },
+        {
+          "id": "D9_INTERACTION_CAPTURE_SURVEY",
+          "location": "Drone FPV mode",
+          "input": "Clearly labelled capture action or existing interaction key",
+          "result": "Capture and display a simulated survey record for the configured target."
+        },
+        {
+          "id": "D9_INTERACTION_EXIT_FPV",
+          "location": "Drone FPV mode",
+          "input": "Clearly displayed exit action or key",
+          "result": "Restore the astronaut's previous camera and controls and return to the Mission Control experience."
+        }
+      ],
+      "drone_interface": {
+        "console_title": "REMOTE TERRAIN SURVEY",
+        "console_fields": [
+          "Day 9 mission summary",
+          "Drone readiness/status",
+          "Configured survey target",
+          "Start FPV action",
+          "Available control hints",
+          "Simulated telemetry disclosure"
+        ],
+        "fpv_overlay": [
+          "DRONE FPV — REMOTE CONTROL label",
+          "Concise movement controls",
+          "Survey target status",
+          "Capture action",
+          "Clear exit action",
+          "Non-blocking saved-record status"
+        ],
+        "rules": [
+          "Do not require a visible drone mesh.",
+          "Do not add a third-person drone chase camera.",
+          "Do not display the astronaut helmet overlay in FPV.",
+          "Do not activate the mode outside the intended Day 9 mission interaction unless existing architecture explicitly supports it.",
+          "Prevent normal gameplay input from leaking into drone controls.",
+          "Do not let a UI close action leave the player trapped in drone mode."
+        ]
+      },
+      "record_schema": {
+        "record_type": "DroneSurveyRecord",
+        "required_fields": {
+          "id": "Stable unique record identifier",
+          "day": 9,
+          "targetId": "Stable survey target identifier",
+          "source": "PHOBOSIA simulated remote drone survey",
+          "observedCategories": "Confirmed descriptive categories",
+          "summary": "Short readable survey summary",
+          "isSimulated": true,
+          "saved": true
+        },
+        "optional_fields": {
+          "missionTimestamp": "Use existing mission-time convention if available",
+          "relatedGeologicalSurveyId": "Day 6 record ID if available",
+          "relatedSurfaceObservationId": "Day 7 record ID if available"
+        },
+        "suggested_categories": [
+          "Terrain shape from a remote viewpoint",
+          "Visible surface pattern",
+          "Potential area for a follow-up observation",
+          "Route or observation point worth revisiting"
+        ],
+        "rules": [
+          "Store a stable ID for use by future phases.",
+          "Do not claim real drone telemetry.",
+          "Do not create duplicate records on repeated capture attempts.",
+          "Do not store cameras, Object3D instances, or controls in the record."
+        ]
+      },
+      "completion_summary": [
+        "Remote survey completed",
+        "Drone survey record saved",
+        "Astronaut camera and controls restored",
+        "Mission ready to continue to Day 10 in a later phase"
+      ],
+      "failure_recovery": [
+        "If Drone_Object cannot be resolved, report the actual repository findings and do not silently invent a replacement object.",
+        "If FPV activation fails, leave the astronaut camera and controls unchanged.",
+        "If FPV is interrupted, restore astronaut controls through the same cleanup path.",
+        "If the target is outside valid bounds, provide a clear navigation hint.",
+        "If saving fails, keep the objective incomplete and allow retry.",
+        "Do not permit day advancement while FPV is active.",
+        "If the player repeatedly enters and exits FPV, do not accumulate listeners or render loops."
+      ],
+      "acceptance_tests": [
+        "FPV can be activated through the relevant Mission Control interaction during Day 9.",
+        "The player remains in first-person remote view.",
+        "No third-person astronaut or drone chase camera is introduced.",
+        "A visible drone mesh is not required.",
+        "Astronaut movement is disabled while FPV is active.",
+        "Drone controls do not trigger astronaut movement or unrelated UI actions.",
+        "Exiting FPV restores the previous astronaut camera and control state.",
+        "Repeated enter/exit cycles do not leak listeners or create multiple cameras.",
+        "A valid DroneSurveyRecord is saved and labelled simulated.",
+        "Day 9 cannot complete until the record is saved and FPV is exited."
+      ]
+    }
+  ],
+  "cross_day_data_dependencies": {
+    "day_5_to_day_6": {
+      "source": "Existing Day 5 route-plan record",
+      "consumer": "Day 6 survey target briefing",
+      "required": false,
+      "rule": "Reuse the actual saved route plan when available. Do not fabricate or silently replace it."
+    },
+    "day_6_to_day_8": {
+      "source": "GeologicalSurveyRecord",
+      "consumer": "Day 8 geological comparison panel",
+      "required": false,
+      "rule": "Use the real saved Day 6 record when present."
+    },
+    "day_7_to_day_8": {
+      "source": "SurfaceObservationRecord",
+      "consumer": "Day 8 analysis",
+      "required": true,
+      "rule": "Day 8 must analyse the actual Day 7 record and cannot save analysis without it."
+    },
+    "day_6_and_day_7_to_day_9": {
+      "source": "Existing geological and surface observation records",
+      "consumer": "Optional context for the Day 9 survey",
+      "required": false,
+      "rule": "Use existing records only if relevant to the interface. Do not add unnecessary prerequisites to Day 9."
+    },
+    "day_8_and_day_9_to_future_phases": {
+      "source": [
+        "ScienceAnalysisRecord",
+        "DroneSurveyRecord"
+      ],
+      "consumer": "Later mission phases, including scientific synthesis and communications",
+      "required": true,
+      "rule": "Save stable record IDs and summaries for future use. Do not implement the later phases in this specification."
+    }
+  },
+  "testing_and_quality_assurance": {
+    "baseline": [
+      "Run the existing build before making changes.",
+      "Run existing tests before making changes.",
+      "Record pre-existing failures separately.",
+      "Do not modify unrelated code simply to hide a pre-existing failure."
+    ],
+    "phase_1_and_phase_2_regression": [
+      "Confirm first-person movement still works.",
+      "Confirm existing transitions and trigger destinations remain unchanged.",
+      "Confirm Days 1 to 5 still appear and progress correctly.",
+      "Confirm existing objective validation and Habitat rest/sleep gating remain functional.",
+      "Confirm relevant module screens activate only in the correct context.",
+      "Confirm screen text is not curved, mirrored, stretched, or incorrectly oriented.",
+      "Confirm the outdoor helmet HUD remains hidden indoors and during full-screen transitions.",
+      "Confirm no Phase 3 objectives appear on earlier days unless intentionally shared and inactive."
+    ],
+    "mission_logic_tests": [
+      "Day 6 cannot complete without a valid GeologicalSurveyRecord.",
+      "Day 7 cannot complete without a valid SurfaceObservationRecord.",
+      "Day 8 cannot save analysis without a valid Day 7 source record.",
+      "Day 8 cannot save analysis without a selected interpretation.",
+      "Day 9 cannot complete without a valid DroneSurveyRecord.",
+      "Day 9 cannot complete until the astronaut camera and controls have been restored.",
+      "Repeated saves do not create duplicate records.",
+      "Rest/sleep is blocked while required objectives are incomplete.",
+      "Day 9 progression does not implement Day 10 gameplay."
+    ],
+    "interaction_and_rendering_tests": [
+      "Contextual interaction prompts appear only in valid range and state.",
+      "A single key press does not activate multiple conflicting actions.",
+      "The correct module's screens are activated.",
+      "All in-world screen text fits the actual screen aspect ratio.",
+      "No temporary listener remains after an interaction closes.",
+      "Drone FPV does not leak input into astronaut movement.",
+      "Drone FPV exit restores the original camera and controls.",
+      "The game retains a single stable rendering loop."
+    ],
+    "performance_tests": [
+      "Check for new browser-console errors.",
+      "Check for texture or listener growth after repeatedly opening and closing screens.",
+      "Check for frame-time spikes when switching mission interfaces.",
+      "Avoid loading large assets solely for these missions.",
+      "Run a manual Day 6 to Day 9 playthrough on the target-class laptop when practical."
+    ],
+    "manual_playthrough": [
+      "Complete Day 6 and verify the geological record is saved.",
+      "Complete Day 7 and verify the surface observation is saved.",
+      "Complete Day 8 and verify the analysis references the actual Day 7 record.",
+      "Complete Day 9 and verify FPV entry, movement, capture, exit, and camera restoration.",
+      "Use the existing Habitat rest/sleep action to progress between days.",
+      "Verify incomplete objectives prevent progression.",
+      "Verify that Day 10 gameplay has not been added by Phase 3."
+    ]
+  },
+  "implementation_order": [
+    {
+      "step": 1,
+      "name": "Audit repository and Phase 2 implementation",
+      "deliverable": "Inventory actual mission state, trigger mapping, screen planes, terrain targets, route-plan records, and drone-control wiring."
+    },
+    {
+      "step": 2,
+      "name": "Extend shared mission types and records",
+      "deliverable": "Typed, serializable records for geological survey, surface observation, scientific analysis, and drone survey."
+    },
+    {
+      "step": 3,
+      "name": "Implement Day 6",
+      "deliverable": "Target review, valid-area interaction, observation form, saved geological record, and completion validation."
+    },
+    {
+      "step": 4,
+      "name": "Implement Day 7",
+      "deliverable": "Existing Airlock flow, outdoor scan interaction, saved surface observation, and completion validation."
+    },
+    {
+      "step": 5,
+      "name": "Implement Day 8",
+      "deliverable": "Load the Day 7 record, optionally compare Day 6, select a cautious interpretation, and save analysis."
+    },
+    {
+      "step": 6,
+      "name": "Implement Day 9",
+      "deliverable": "Safe first-person drone FPV, isolated input, survey capture, robust exit/restore, and saved record."
+    },
+    {
+      "step": 7,
+      "name": "Integrate existing 3D screen planes",
+      "deliverable": "Readable flat text, correct aspect ratios, proper module activation, and appropriate interaction feedback."
+    },
+    {
+      "step": 8,
+      "name": "Run regression and end-to-end tests",
+      "deliverable": "Build/test results, manual playthrough results, issues fixed, and documented limitations."
+    }
+  ],
+  "definition_of_done": [
+    "Days 6 to 9 each have a clear briefing, required objectives, interaction feedback, validation, and completion summary.",
+    "Day 6 saves a valid geological survey record.",
+    "Day 7 saves a surface observation record.",
+    "Day 8 reads and analyses the actual Day 7 record and saves a linked analysis.",
+    "Day 9 implements a first-person remote drone survey without requiring a visible drone mesh.",
+    "Drone FPV can be exited safely and restores astronaut camera and controls.",
+    "Existing trigger names, scene objects, transitions, terrain location, and working Phase 1/2 systems remain intact.",
+    "The actual 3D screen planes are used appropriately and their text remains readable.",
+    "Only relevant screens and HUD layers are active in the correct context.",
+    "Mission progression is based on saved state rather than UI appearance.",
+    "The build and applicable tests pass, or remaining failures are documented accurately.",
+    "Days 1 to 5 regression checks are completed.",
+    "No rover driving, new modules, or Days 10 to 14 gameplay is added."
+  ],
+  "coding_agent_final_report": {
+    "required_sections": [
+      "Repository audit summary",
+      "Existing architecture and files inspected",
+      "Exact files changed and why",
+      "Day 6 implementation and test results",
+      "Day 7 implementation and test results",
+      "Day 8 implementation and test results",
+      "Day 9 implementation and test results",
+      "Actual trigger, screen-plane, and scene-object names preserved",
+      "Build and test commands with actual results",
+      "Phase 1 and Phase 2 regression results",
+      "Performance and resource-cleanup checks",
+      "Known limitations or missing assets",
+      "Confirmation that no rover driving or Days 10 to 14 gameplay was added"
+    ],
+    "reporting_rules": [
+      "Never claim a test passed unless it was actually run.",
+      "Separate baseline failures from regressions introduced by Phase 3.",
+      "Report missing scene objects or controls accurately.",
+      "Explain deviations from this specification that were necessary because of the actual repository architecture.",
+      "Do not silently omit an objective that proved difficult to implement."
+    ]
+  }
+}

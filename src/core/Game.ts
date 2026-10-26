@@ -1,0 +1,1417 @@
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
+import { assetPaths, screenActions } from "./Discovery";
+import { Player } from "./Player";
+import type { GameState, SetState } from "./EventBus";
+import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { collisionProfiles } from "./CollisionProfiles";
+import { createModuleLights } from "./ModuleLighting";
+import {
+  MissionManager,
+  DAYS_CONFIG,
+  MASTER_TERRAIN_TARGETS,
+  type MissionProgressState,
+  type GeologicalSurveyRecord,
+  type SurfaceObservationRecord,
+  type ScienceAnalysisRecord,
+  type DroneSurveyRecord
+} from "./MissionManager";
+import { ScreenRenderer } from "./ScreenRenderer";
+
+type ModuleName = keyof typeof assetPaths;
+type Transition = { module: ModuleName; spawn: string };
+type InteractionTarget = { object: THREE.Object3D; identifier: string; center: THREE.Vector3; range: number };
+
+const transitions: Record<ModuleName, Record<string, Transition>> = {
+  Habitat: { HAB_EXIT_TRIGGER: { module: "Hub", spawn: "Habitat_Entrance_Trigger" } },
+  Hub: {
+    Main_Entrance_Trigger: { module: "Airlock", spawn: "Central_Hub_Entrance_Trigger" },
+    Habitat_Entrance_Trigger: { module: "Habitat", spawn: "HABITAT_SPAWN_POINT" },
+    Engineering_Entrance_Trigger: { module: "Engineering", spawn: "Engineering_Entrance" },
+    ScienceLab_Entrance_Trigger: { module: "Science", spawn: "SCIENCE_LAB_SPAWN_POINT" },
+    MissionControl_Entrance_Trigger: { module: "MissionControl", spawn: "MissionControl_Entrance_Trigger" }
+  },
+  Airlock: {
+    Terrain_Entrance_Trigger: { module: "Terrain", spawn: "Spwaning_Position" },
+    Central_Hub_Entrance_Trigger: { module: "Hub", spawn: "Main_Entrance_Trigger" }
+  },
+  Engineering: { Engineering_Entrance: { module: "Hub", spawn: "Engineering_Entrance_Trigger" } },
+  Science: { LAB_EXIT_TRIGGER: { module: "Hub", spawn: "ScienceLab_Entrance_Trigger" } },
+  MissionControl: { MissionControl_Entrance_Trigger: { module: "Hub", spawn: "MissionControl_Entrance_Trigger" } },
+  Terrain: { Spwaning_Position: { module: "Airlock", spawn: "Terrain_Entrance_Trigger" } }
+};
+
+const labels: Record<ModuleName, string> = {
+  Habitat: "Habitat",
+  Hub: "Central Hub",
+  Airlock: "Airlock",
+  Engineering: "Engineering Unit",
+  Science: "Research Lab",
+  MissionControl: "Mission Control",
+  Terrain: "Mars Terrain"
+};
+
+const videos: Partial<Record<ModuleName, string>> = {
+  Habitat: "/assets/videos/Habitat_Entrance.mp4",
+  Airlock: "/assets/videos/AirLock.mp4",
+  Engineering: "/assets/videos/Engineering_Entrance.mp4",
+  Science: "/assets/videos/ReserachLab_Entrance.mp4",
+  MissionControl: "/assets/videos/MissionControl_Entrance.mp4"
+};
+
+export class Game {
+  private renderer: THREE.WebGLRenderer;
+  private scene = new THREE.Scene();
+  private camera = new THREE.PerspectiveCamera(70, 1, 0.05, 2500);
+  private player = new Player(this.camera);
+  private clock = new THREE.Clock();
+  private current?: THREE.Group;
+  private loaded = new Map<ModuleName, THREE.Group>();
+  private interactive: InteractionTarget[] = [];
+  private colliders: THREE.Box3[] = [];
+  private terrain?: THREE.Object3D;
+  private raycaster = new THREE.Raycaster();
+  private down = new THREE.Vector3(0, -1, 0);
+  private temp = new THREE.Vector3();
+  private nearby?: InteractionTarget;
+  private active: ModuleName = "Habitat";
+  private pending?: Transition;
+  private transitionVideoPath?: string;
+
+  public missionManager = new MissionManager();
+  private screenRenderer = new ScreenRenderer();
+
+  private state: GameState;
+  private frame = 0;
+  private disposed = false;
+  private transitioning = false;
+  private observer: ResizeObserver;
+  private environmentTarget?: THREE.WebGLRenderTarget;
+  private environmentTexture?: THREE.DataTexture;
+
+  // Cinematic screen camera transition state
+  private astronautPreTerminalState?: {
+    position: THREE.Vector3;
+    rotation: THREE.Euler;
+  };
+  private cinematicTargetPos = new THREE.Vector3();
+  private cinematicTargetQuat = new THREE.Quaternion();
+  private cinematicStartPos = new THREE.Vector3();
+  private cinematicStartQuat = new THREE.Quaternion();
+  private cinematicProgress = 0;
+  private cinematicGliding = false;
+
+  // Drone FPV Mode State
+  private droneModeActive = false;
+  private astronautStateBeforeDrone?: {
+    module: ModuleName;
+    position: THREE.Vector3;
+    rotation: THREE.Euler;
+  };
+  private droneKeys = new Set<string>();
+  private dronePosition = new THREE.Vector3(470.0, 15.0, -58.7);
+  private droneOrigin = new THREE.Vector3(470.0, 1.02, -58.71);
+  private droneYaw = 0;
+  private dronePitch = -0.15;
+  private droneBattery = 88;
+
+  constructor(private host: HTMLDivElement, private emit: SetState) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    host.prepend(this.renderer.domElement);
+
+    this.scene.background = new THREE.Color(0x0a1015);
+    this.scene.add(new THREE.HemisphereLight(0x9ab1c0, 0x20272b, 0.7));
+
+    const mission = this.missionManager.getCurrentMission();
+    const mState = this.missionManager.getState();
+
+    this.state = {
+      ready: false,
+      module: "Habitat",
+      prompt: "",
+      panel: "",
+      error: "",
+      fps: 0,
+      transition: "",
+      transitionLabel: "",
+      transitionProgress: null,
+
+      missionDay: mState.currentDay,
+      missionTitle: mission.title,
+      objectiveTitle: mission.primaryObjective,
+      objectiveState: mState.objectiveState,
+      completedStepCount: mState.completedStepIds.length,
+      totalStepCount: mission.steps.length,
+      dayBriefingSeen: mState.dayBriefingSeen,
+      showBriefingModal: !mState.dayBriefingSeen,
+      briefingText: mission.briefing,
+      primaryObjective: mission.primaryObjective,
+      controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock",
+      isOutdoorTerrain: false,
+      showRoutePlanning: false,
+      selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
+      notification: mState.notification,
+      restFeedback: null,
+
+      geologicalSurvey: mState.geologicalSurvey,
+      surfaceObservation: mState.surfaceObservation,
+      scienceAnalysis: mState.scienceAnalysis,
+      droneSurvey: mState.droneSurvey,
+
+      showGeologicalForm: false,
+      showSurfaceObservationForm: false,
+      showScienceAnalysisModal: false,
+      showDroneConsoleModal: false,
+
+      droneModeActive: false,
+      droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
+
+      showCinematicOverlay: false,
+      showOSDesktop: false,
+      osInitialApp: undefined
+    };
+
+    this.observer = new ResizeObserver(this.resize);
+    this.observer.observe(host);
+    this.resize();
+    this.bind();
+
+    // Subscribe to mission state changes
+    this.missionManager.subscribe(updated => {
+      this.syncMissionStateToUI(updated);
+      this.screenRenderer.renderAll(this.active, updated);
+    });
+
+    void this.loadEnvironment();
+  }
+
+  private set(p: Partial<GameState>) {
+    this.state = { ...this.state, ...p };
+    this.emit(this.state);
+  }
+
+  private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
+    const mission = this.missionManager.getCurrentMission();
+    this.set({
+      missionDay: mState.currentDay,
+      missionTitle: mission.title,
+      objectiveTitle: mission.primaryObjective,
+      objectiveState: mState.objectiveState,
+      completedStepCount: mState.completedStepIds.length,
+      totalStepCount: mission.steps.length,
+      dayBriefingSeen: mState.dayBriefingSeen,
+      showBriefingModal: !mState.dayBriefingSeen,
+      briefingText: mission.briefing,
+      primaryObjective: mission.primaryObjective,
+      selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
+      notification: mState.notification,
+      geologicalSurvey: mState.geologicalSurvey,
+      surfaceObservation: mState.surfaceObservation,
+      scienceAnalysis: mState.scienceAnalysis,
+      droneSurvey: mState.droneSurvey
+    });
+  }
+
+  private async loadEnvironment() {
+    try {
+      const source = await new EXRLoader().loadAsync(
+        "/assets/exr/mars-dunes-day-light_2K_fc2ff73b-6eed-4836-92ed-f94e0d2d649f.exr"
+      );
+      if (this.disposed) {
+        source.dispose();
+        return;
+      }
+      // Store source texture for sky background (equirectangular mapping)
+      source.mapping = THREE.EquirectangularReflectionMapping;
+      this.environmentTexture = source;
+
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.environmentTarget = pmrem.fromEquirectangular(source);
+      pmrem.dispose();
+      this.updateEnvironment();
+    } catch {
+      this.set({ error: "Environment EXR could not be loaded; continuing without terrain reflections." });
+    }
+  }
+
+  private updateEnvironment() {
+    if (this.active === "Terrain") {
+      this.scene.environment = this.environmentTarget?.texture ?? null;
+      this.scene.background = this.environmentTexture ?? new THREE.Color(0x101a20);
+    } else {
+      this.scene.environment = null;
+      this.scene.background = new THREE.Color(0x0a1015);
+    }
+  }
+
+  async start() {
+    await this.loadAndSpawn({ module: "Habitat", spawn: "HABITAT_SPAWN_POINT" });
+    if (!this.disposed) {
+      this.set({ ready: true });
+      this.loop();
+    }
+  }
+
+  lock() {
+    const isModalOpen =
+      this.state.panel ||
+      this.transitioning ||
+      this.state.showBriefingModal ||
+      this.state.showRoutePlanning ||
+      this.state.showGeologicalForm ||
+      this.state.showSurfaceObservationForm ||
+      this.state.showScienceAnalysisModal ||
+      this.state.showDroneConsoleModal ||
+      this.state.restFeedback ||
+      this.state.showCinematicOverlay ||
+      this.state.showOSDesktop;
+
+    if (!isModalOpen) {
+      void this.renderer.domElement.requestPointerLock();
+    }
+  }
+
+  closePanel() {
+    this.set({ panel: "" });
+    this.lock();
+  }
+
+  dismissBriefing() {
+    this.missionManager.markBriefingSeen();
+    this.set({ showBriefingModal: false });
+    this.lock();
+  }
+
+  closeRoutePlanning() {
+    this.set({ showRoutePlanning: false });
+    this.lock();
+  }
+
+  selectRouteTarget(targetId: string) {
+    const success = this.missionManager.selectRouteTarget(targetId);
+    if (success) {
+      this.set({
+        selectedRouteTargetId: targetId,
+        showRoutePlanning: false,
+        notification: "Route Plan validated and recorded to telemetry."
+      });
+      this.lock();
+    }
+  }
+
+  dismissRestFeedback() {
+    this.set({ restFeedback: null });
+    this.lock();
+  }
+
+  // --- Phase 3 Interaction Controls ---
+
+  closeGeologicalForm() {
+    this.set({ showGeologicalForm: false });
+    this.lock();
+  }
+
+  submitGeologicalForm(data: {
+    targetId: string;
+    observedCategories: {
+      surfaceTexture: string;
+      fragmentDistribution: string;
+      terrainShape: string;
+      dustCoverage: string;
+      followUpInterest?: string;
+    };
+    summary: string;
+  }) {
+    const record = this.missionManager.saveGeologicalSurvey(data);
+    if (record) {
+      this.set({
+        showGeologicalForm: false,
+        notification: "Field survey registered. Preliminary GeologicalSurveyRecord saved."
+      });
+      this.lock();
+    }
+  }
+
+  closeSurfaceObservationForm() {
+    this.set({ showSurfaceObservationForm: false });
+    this.lock();
+  }
+
+  submitSurfaceObservationForm(data: {
+    targetId: string;
+    observedCategories: {
+      surfacePattern: string;
+      surfaceMaterialAppearance: string;
+      terrainProfile: string;
+      areaOfInterest: string;
+    };
+    followUpQuestion: string;
+    summary: string;
+  }) {
+    const record = this.missionManager.saveSurfaceObservation(data);
+    if (record) {
+      this.set({
+        showSurfaceObservationForm: false,
+        notification: "Surface observation logged and transmitted to Research Lab."
+      });
+      this.lock();
+    }
+  }
+
+  closeScienceAnalysisModal() {
+    this.set({ showScienceAnalysisModal: false });
+    this.lock();
+  }
+
+  submitScienceAnalysis(selectedInterpretationId: string, summary: string) {
+    const record = this.missionManager.saveScienceAnalysis({
+      selectedInterpretationId,
+      summary
+    });
+    if (record) {
+      this.set({
+        showScienceAnalysisModal: false,
+        notification: "Laboratory scientific analysis confirmed and archived."
+      });
+      this.lock();
+    }
+  }
+
+  closeDroneConsoleModal() {
+    this.set({ showDroneConsoleModal: false });
+    this.lock();
+  }
+
+  // --- Cinematic Screen Transition & PHOBOSIA OS Desktop ---
+
+  openScreenOS(initialApp?: string) {
+    this.cinematicGliding = false;
+    this.set({
+      showCinematicOverlay: false,
+      showOSDesktop: true,
+      osInitialApp: initialApp
+    });
+  }
+
+  closeOSDesktop() {
+    if (this.astronautPreTerminalState) {
+      this.camera.position.copy(this.astronautPreTerminalState.position);
+      this.camera.rotation.copy(this.astronautPreTerminalState.rotation);
+      this.player.face(new THREE.Quaternion().setFromEuler(this.astronautPreTerminalState.rotation));
+      this.player.resetVelocity();
+      this.player.syncBasePosition();
+      this.astronautPreTerminalState = undefined;
+    }
+    this.cinematicGliding = false;
+    this.set({ showOSDesktop: false, showCinematicOverlay: false });
+    this.lock();
+  }
+
+  async startDroneFPV() {
+    if (this.droneModeActive || this.state.missionDay !== 9) return;
+
+    // 1. Store astronaut camera transform and module in Mission Control
+    this.astronautStateBeforeDrone = {
+      module: this.active,
+      position: this.camera.position.clone(),
+      rotation: this.camera.rotation.clone()
+    };
+
+    // 2. Prepare Terrain model
+    const terrainModel = await this.getModel("Terrain");
+    if (this.current) this.scene.remove(this.current);
+    this.current = terrainModel;
+    this.scene.add(terrainModel);
+    this.active = "Terrain";
+    this.updateEnvironment();
+    this.configureModule(terrainModel, "Terrain");
+
+    // Check if Drone_Object anchor exists in terrain
+    const droneAnchor = terrainModel.getObjectByName("Drone_Object");
+    if (droneAnchor) {
+      droneAnchor.getWorldPosition(this.droneOrigin);
+    } else {
+      this.droneOrigin.set(470.0, 1.02, -58.71);
+    }
+
+    // Set initial drone position
+    this.dronePosition.set(this.droneOrigin.x, 15.0, this.droneOrigin.z);
+    this.droneYaw = 0;
+    this.dronePitch = -0.15;
+    this.camera.position.copy(this.dronePosition);
+    this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
+
+    this.droneModeActive = true;
+    this.droneKeys.clear();
+    this.missionManager.completeStep("D9_OBJ_02_ACTIVATE_FPV");
+
+    this.set({
+      droneModeActive: true,
+      showDroneConsoleModal: false,
+      isOutdoorTerrain: false, // Ensure astronaut helmet HUD is hidden during drone FPV
+      prompt: "DRONE FPV ACTIVE · WASD maneuver · Space/Shift altitude · C capture survey · ESC return to base"
+    });
+
+    void this.renderer.domElement.requestPointerLock();
+  }
+
+  exitDroneFPV() {
+    if (!this.droneModeActive) return;
+    this.droneModeActive = false;
+    this.droneKeys.clear();
+
+    const previous = this.astronautStateBeforeDrone;
+    if (previous) {
+      const mcModel = this.loaded.get(previous.module);
+      if (mcModel) {
+        if (this.current) this.scene.remove(this.current);
+        this.current = mcModel;
+        this.scene.add(mcModel);
+        this.active = previous.module;
+        this.updateEnvironment();
+        this.player.setEyeHeight(1.65);
+        this.configureModule(mcModel, previous.module);
+
+        this.camera.position.copy(previous.position);
+        this.camera.rotation.copy(previous.rotation);
+        this.player.face(new THREE.Quaternion().setFromEuler(previous.rotation));
+        this.player.resetVelocity();
+        this.player.syncBasePosition();
+      }
+    }
+
+    this.missionManager.completeStep("D9_OBJ_05_EXIT_FPV");
+
+    this.set({
+      droneModeActive: false,
+      module: labels[this.active],
+      prompt: "",
+      isOutdoorTerrain: false,
+      notification: "Returned to Mission Control. Astronaut controls restored."
+    });
+
+    document.exitPointerLock();
+  }
+
+  captureDroneSurvey() {
+    if (!this.droneModeActive || this.state.missionDay !== 9) return;
+
+    const record = this.missionManager.saveDroneSurvey({
+      targetId: "TARGET_GAMMA_SOUTH_ESCARPMENT",
+      observedCategories: {
+        viewpointTerrainShape: "Elevated vantage over dissected canyon rim and talus apron",
+        visibleSurfacePattern: "Polygonal thermal contraction fissures along ridge crest",
+        followUpArea: "South escarpment shadow boundary",
+        routeRevisit: "Aerial corridor along north-south fault line"
+      },
+      summary: "Remote drone FPV aerial survey of Site Gamma canyon overlook. High-resolution imagery archived."
+    });
+
+    if (record) {
+      this.set({
+        notification: "Drone remote survey telemetry archived. Press ESC or click Exit to return to base."
+      });
+    }
+  }
+
+  private bind() {
+    document.addEventListener("pointerlockchange", this.pointer);
+    document.addEventListener("mousemove", this.mouse);
+    window.addEventListener("keydown", this.keyDown);
+    window.addEventListener("keyup", this.keyUp);
+    document.addEventListener("visibilitychange", this.visibility);
+  }
+
+  private resize = () => {
+    const width = this.host.clientWidth;
+    const height = this.host.clientHeight;
+    if (!width || !height) return;
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height, false);
+  };
+
+  private pointer = () => {
+    if (document.pointerLockElement !== this.renderer.domElement) {
+      this.player.keys.clear();
+      this.droneKeys.clear();
+    }
+  };
+
+  private mouse = (e: MouseEvent) => {
+    if (document.pointerLockElement !== this.renderer.domElement) return;
+
+    const isModalOpen =
+      this.state.panel ||
+      this.transitioning ||
+      this.state.showBriefingModal ||
+      this.state.showRoutePlanning ||
+      this.state.showGeologicalForm ||
+      this.state.showSurfaceObservationForm ||
+      this.state.showScienceAnalysisModal ||
+      this.state.showDroneConsoleModal ||
+      this.state.restFeedback ||
+      this.state.showCinematicOverlay ||
+      this.state.showOSDesktop;
+
+    if (isModalOpen) return;
+
+    if (this.droneModeActive) {
+      this.droneYaw -= e.movementX * 0.002;
+      this.dronePitch = Math.max(-1.4, Math.min(1.4, this.dronePitch - e.movementY * 0.002));
+      this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
+    } else {
+      this.player.look(e.movementX, e.movementY);
+    }
+  };
+
+  private keyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | undefined;
+    if (target?.matches("input,textarea,[contenteditable='true']")) return;
+
+    if (this.state.transition === "video" && e.code === "Enter" && !e.repeat) {
+      e.preventDefault();
+      this.videoFinished();
+      return;
+    }
+
+    if (this.transitioning) return;
+
+    // Drone FPV Input Handling
+    if (this.droneModeActive) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code)) {
+        e.preventDefault();
+        this.droneKeys.add(e.code);
+      }
+      if (e.code === "KeyC" && !e.repeat) {
+        e.preventDefault();
+        this.captureDroneSurvey();
+      }
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.exitDroneFPV();
+      }
+      return;
+    }
+
+    if (this.state.showBriefingModal) {
+      if (e.code === "Enter" || e.code === "Space" || e.code === "Escape") {
+        e.preventDefault();
+        this.dismissBriefing();
+      }
+      return;
+    }
+
+    if (this.state.restFeedback) {
+      if (e.code === "Escape" || e.code === "Enter" || e.code === "Space") {
+        e.preventDefault();
+        this.dismissRestFeedback();
+      }
+      return;
+    }
+
+    if (this.state.showRoutePlanning) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeRoutePlanning();
+      }
+      return;
+    }
+
+    if (this.state.showGeologicalForm) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeGeologicalForm();
+      }
+      return;
+    }
+
+    if (this.state.showSurfaceObservationForm) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeSurfaceObservationForm();
+      }
+      return;
+    }
+
+    if (this.state.showScienceAnalysisModal) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeScienceAnalysisModal();
+      }
+      return;
+    }
+
+    if (this.state.showDroneConsoleModal) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeDroneConsoleModal();
+      }
+      return;
+    }
+
+    if (this.state.showOSDesktop) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closeOSDesktop();
+      }
+      return;
+    }
+
+    if (this.state.showCinematicOverlay) {
+      return; // Block movement during transition
+    }
+
+    if (this.state.panel) {
+      if (e.code === "Escape") this.closePanel();
+      return;
+    }
+
+    if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code)) {
+      e.preventDefault();
+      this.player.keys.add(e.code);
+    }
+
+    if (e.code === "KeyE" && !e.repeat) {
+      this.interact();
+    }
+  };
+
+  private keyUp = (e: KeyboardEvent) => {
+    if (this.droneModeActive) {
+      this.droneKeys.delete(e.code);
+    } else {
+      this.player.keys.delete(e.code);
+    }
+  };
+
+  private visibility = () => {
+    if (document.hidden) {
+      this.player.keys.clear();
+      this.droneKeys.clear();
+    }
+  };
+
+  private sourceNames(object: THREE.Object3D) {
+    return [object.name, typeof object.userData.name === "string" ? object.userData.name : ""];
+  }
+
+  private resolve<T>(table: Record<string, T>, object: THREE.Object3D): [string, T] | undefined {
+    for (const [identifier, value] of Object.entries(table)) {
+      if (this.sourceNames(object).some(name => name === identifier || name.startsWith(`${identifier}.`))) {
+        return [identifier, value];
+      }
+    }
+    return undefined;
+  }
+
+  private async getModel(module: ModuleName, report?: (percent: number | null) => void) {
+    const cached = this.loaded.get(module);
+    if (cached) {
+      report?.(100);
+      return cached;
+    }
+    const manager = new THREE.LoadingManager();
+    let bytes = 0, total = 0, itemsLoaded = 0, itemsTotal = 0;
+    const publish = () =>
+      report?.(total > 0 ? Math.min(99, Math.floor((bytes / total) * 100)) : itemsTotal ? Math.min(99, Math.floor((itemsLoaded / itemsTotal) * 100)) : null);
+
+    manager.onProgress = (_, loaded, count) => {
+      itemsLoaded = loaded;
+      itemsTotal = count;
+      publish();
+    };
+
+    const loader = new GLTFLoader(manager);
+    const gltf = await new Promise<Awaited<ReturnType<GLTFLoader["loadAsync"]>>>((resolve, reject) =>
+      loader.load(
+        assetPaths[module],
+        resolve,
+        event => {
+          if (event.lengthComputable) {
+            bytes = event.loaded;
+            total = event.total;
+          }
+          publish();
+        },
+        reject
+      )
+    );
+
+    this.loaded.set(module, gltf.scene);
+    report?.(100);
+    return gltf.scene;
+  }
+
+  private configureModule(model: THREE.Group, module: ModuleName) {
+    this.interactive = [];
+    this.colliders = [];
+    this.terrain = undefined;
+
+    const previous = model.getObjectByName("Runtime interaction indicators and lighting");
+    if (previous) model.remove(previous);
+
+    const additions = new THREE.Group();
+    additions.name = "Runtime interaction indicators and lighting";
+    model.add(additions);
+    model.updateWorldMatrix(true, true);
+
+    model.traverse(o => {
+      const route = this.resolve(transitions[module], o);
+      const screen = this.resolve(screenActions, o);
+
+      if (route || screen) {
+        const target = this.makeTarget(o, (route ?? screen)![0]);
+        this.interactive.push(target);
+        this.addMarker(additions, target, Boolean(route));
+
+        // Only hide trigger cylinders, DO NOT hide actual screen displays
+        const isScreenDisplay = /screen|display|monitor/i.test(o.name) || (o.parent && /screen|display|monitor/i.test(o.parent.name));
+        if ((o as THREE.Mesh).isMesh && !isScreenDisplay) {
+          o.visible = false;
+        }
+      }
+
+      if (o.name === "PHOBOSIA_MarsTerrain_2km") {
+        this.terrain = o;
+      }
+    });
+
+    if (module !== "Terrain") {
+      createModuleLights(model, additions);
+    }
+
+    if (module === "Habitat") {
+      this.colliders = buildHabitatColliderSection(model);
+    } else if (module === "Hub") {
+      this.colliders = buildCentralHubColliders(model);
+    } else if (module === "Science") {
+      this.colliders = buildScienceLabColliders(model);
+    } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
+      this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
+    } else if (module !== "Terrain") {
+      this.colliders = buildInteriorColliders(
+        model,
+        new Set(this.interactive.map(target => target.object)),
+        collisionProfiles[module]
+      );
+    }
+
+    if (module === "Terrain") {
+      const sun = new THREE.DirectionalLight(0xffe2c2, 2.2);
+      sun.position.set(200, 300, 120);
+      additions.add(sun);
+    }
+
+    // Attach 3D screen plane rendering to actual screen meshes
+    this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
+  }
+
+  private makeTarget(object: THREE.Object3D, identifier: string): InteractionTarget {
+    const box = new THREE.Box3().setFromObject(object);
+    const center = box.isEmpty() ? object.getWorldPosition(new THREE.Vector3()) : box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    return { object, identifier, center, range: Math.max(2.5, Math.min(4, Math.hypot(size.x, size.z) / 2 + 1)) };
+  }
+
+  private addMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
+    const marker = new THREE.Mesh(
+      new THREE.OctahedronGeometry(entrance ? 0.23 : 0.16),
+      new THREE.MeshBasicMaterial({
+        color: entrance ? 0xe88747 : 0x55cde8,
+        transparent: true,
+        opacity: 0.72,
+        wireframe: true,
+        depthWrite: false
+      })
+    );
+    marker.position.copy(target.center);
+    parent.add(marker);
+  }
+
+  private async loadAndSpawn(route: Transition) {
+    const model = await this.getModel(route.module);
+    if (this.disposed) return;
+
+    if (this.current) this.scene.remove(this.current);
+    this.current = model;
+    this.scene.add(model);
+    this.active = route.module;
+
+    this.updateEnvironment();
+    this.player.setEyeHeight(route.module === "Hub" ? 0.95 : 1.65);
+    this.configureModule(model, route.module);
+
+    const marker = model.getObjectByName(route.spawn);
+    if (!marker) throw new Error(`${labels[route.module]} does not contain required object “${route.spawn}”.`);
+
+    model.updateWorldMatrix(true, true);
+    marker.getWorldPosition(this.temp);
+
+    // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+    if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
+      this.temp.z = 11.5; // Push slightly forward into lab interior (away from exit trigger at z≈13.1)
+    }
+    // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
+    if (route.spawn === "ScienceLab_Entrance_Trigger") {
+      this.temp.x += 0.5; // Nudge inward toward hub center
+      this.temp.z -= 0.5;
+    }
+
+    this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
+    this.colliders = removeSpawnOverlaps(this.colliders, this.camera.position, this.player.eyeHeight);
+
+    const q = new THREE.Quaternion();
+    marker.getWorldQuaternion(q);
+    this.player.face(q);
+    this.player.resetVelocity();
+
+    // Check mission context event for entering module
+    this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
+
+    this.set({
+      module: labels[route.module],
+      isOutdoorTerrain: route.module === "Terrain"
+    });
+  }
+
+  private async beginTransition(route: Transition) {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.pending = route;
+    this.transitionVideoPath = videos[route.module];
+    this.player.keys.clear();
+    document.exitPointerLock();
+
+    this.set({
+      error: "",
+      prompt: "",
+      transition: "loading",
+      transitionLabel: labels[route.module],
+      transitionProgress: this.loaded.has(route.module) ? 100 : null
+    });
+
+    try {
+      const model = await this.getModel(route.module, progress => this.set({ transitionProgress: progress }));
+      if (this.disposed || !this.pending) return;
+
+      this.configureModule(model, route.module);
+      this.set({ transitionProgress: 100 });
+
+      if (this.transitionVideoPath) {
+        this.set({ transition: "video" });
+      } else {
+        await this.finishTransition();
+      }
+    } catch (error) {
+      this.set({
+        transition: "error",
+        error: `Could not prepare ${labels[route.module]}: ${error instanceof Error ? error.message : "unknown error"}`
+      });
+    }
+  }
+
+  transitionVideo() {
+    return this.transitionVideoPath;
+  }
+
+  videoFinished() {
+    if (this.state.transition === "video") void this.finishTransition();
+  }
+
+  videoFailed(message: string) {
+    if (this.state.transition === "video") this.set({ transition: "error", error: message });
+  }
+
+  retryTransition() {
+    if (!this.pending) return;
+    this.transitioning = false;
+    void this.beginTransition(this.pending);
+  }
+
+  continueWithoutVideo() {
+    if (this.pending) void this.finishTransition();
+  }
+
+  private async finishTransition() {
+    const route = this.pending;
+    if (!route || !this.transitioning) return;
+
+    try {
+      const model = this.loaded.get(route.module);
+      if (!model) throw new Error("Destination model is no longer available.");
+
+      if (this.current) this.scene.remove(this.current);
+      this.current = model;
+      this.scene.add(model);
+      this.active = route.module;
+
+      this.updateEnvironment();
+      this.player.setEyeHeight(route.module === "Hub" ? 0.95 : 1.65);
+      this.configureModule(model, route.module);
+
+      const marker = model.getObjectByName(route.spawn);
+      if (!marker) throw new Error(`${labels[route.module]} does not contain required object “${route.spawn}”.`);
+
+      model.updateWorldMatrix(true, true);
+      marker.getWorldPosition(this.temp);
+
+      // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+      if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
+        this.temp.z = 11.5;
+      }
+      // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
+      if (route.spawn === "ScienceLab_Entrance_Trigger") {
+        this.temp.x += 0.5;
+        this.temp.z -= 0.5;
+      }
+
+      this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
+      this.colliders = removeSpawnOverlaps(this.colliders, this.camera.position, this.player.eyeHeight);
+
+      const q = new THREE.Quaternion();
+      marker.getWorldQuaternion(q);
+      this.player.face(q);
+      this.player.resetVelocity();
+
+      // Trigger module entered event
+      this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
+
+      this.pending = undefined;
+      this.transitioning = false;
+      this.set({
+        module: labels[route.module],
+        transition: "",
+        transitionProgress: null,
+        transitionLabel: "",
+        error: "",
+        isOutdoorTerrain: route.module === "Terrain"
+      });
+    } catch (error) {
+      this.set({
+        transition: "error",
+        error: error instanceof Error ? error.message : "Could not enter destination."
+      });
+    }
+  }
+
+  private interact() {
+    if (this.transitioning) return;
+
+    // A. Check outdoor terrain survey triggers if outdoors on Terrain
+    if (this.active === "Terrain") {
+      const pos = this.camera.position;
+      const mState = this.missionManager.getState();
+      const day = mState.currentDay;
+
+      // Day 6: Field Geological Survey Form
+      if (day === 6) {
+        const target = mState.selectedRouteTarget || MASTER_TERRAIN_TARGETS[0];
+        const dist = Math.hypot(pos.x - target.coordinates.x, pos.z - target.coordinates.z);
+        if (dist <= 60 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
+          document.exitPointerLock();
+          this.set({ showGeologicalForm: true, prompt: "" });
+          return;
+        }
+      }
+
+      // Day 7: Surface Observation Form
+      if (day === 7) {
+        const dist = pos.distanceTo(new THREE.Vector3(485.0, 2.1, -95.5));
+        if (dist <= 75 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
+          document.exitPointerLock();
+          this.set({ showSurfaceObservationForm: true, prompt: "" });
+          return;
+        }
+      }
+    }
+
+    if (!this.nearby) return;
+
+    // 1. Entrance / Module Transition
+    const route = transitions[this.active][this.nearby.identifier];
+    if (route) {
+      void this.beginTransition(route);
+      return;
+    }
+
+    // 2. Habitat Rest & Day Advance
+    if (this.nearby.identifier === "HAB_REST_01") {
+      document.exitPointerLock();
+      const check = this.missionManager.canRestAndAdvance();
+      if (!check.canAdvance) {
+        this.set({
+          restFeedback: { type: "blocked", message: check.reason },
+          prompt: ""
+        });
+      } else {
+        const adv = this.missionManager.advanceDay();
+        if (adv.success) {
+          this.set({
+            restFeedback: { type: "success", message: adv.message },
+            prompt: "",
+            showBriefingModal: true
+          });
+        }
+      }
+      return;
+    }
+
+    // 3. Mission Control Day 5 Route Planning & Day 6 Target Review & Day 9 Drone Console
+    if (this.active === "MissionControl") {
+      if (this.state.missionDay === 5 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
+        document.exitPointerLock();
+        this.missionManager.completeStep("DAY5_REVIEW_MASTER_TERRAIN");
+        this.set({
+          showRoutePlanning: true,
+          prompt: ""
+        });
+        return;
+      }
+
+      if (this.state.missionDay === 6 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
+        document.exitPointerLock();
+        this.missionManager.completeStep("D6_OBJ_01_REVIEW_TARGET");
+        const target = this.missionManager.getState().selectedRouteTarget || MASTER_TERRAIN_TARGETS[0];
+        this.set({
+          panel: "Survey Target Profile",
+          notification: `Target Reviewed: ${target.name} (${target.distanceEstimate}). Proceed through Airlock to Martian terrain.`
+        });
+        return;
+      }
+
+      if (
+        this.state.missionDay === 9 &&
+        (this.nearby.identifier === "MC_SYSTEMS_01" ||
+          this.nearby.identifier === "MC_NAVIGATION_01" ||
+          this.nearby.identifier === "MC_MAIN_01" ||
+          /Drone/i.test(this.nearby.identifier))
+      ) {
+        document.exitPointerLock();
+        this.missionManager.completeStep("D9_OBJ_01_REVIEW_DRONE_TASK");
+        this.set({
+          showDroneConsoleModal: true,
+          prompt: ""
+        });
+        return;
+      }
+    }
+
+    // 4. Research Lab Day 8 Analysis Interaction
+    if (
+      this.active === "Science" &&
+      (this.nearby.identifier === "LAB_RESEARCH_ANALYSIS_01" || this.nearby.identifier === "LAB_RESEARCH_MONITORING_01")
+    ) {
+      document.exitPointerLock();
+      const mState = this.missionManager.getState();
+      if (!mState.surfaceObservation) {
+        this.set({
+          restFeedback: {
+            type: "blocked",
+            message: "Prerequisite Incomplete: No saved Day 7 surface observation found. Complete Sol 07 outdoor scan before analysing in the Research Lab."
+          },
+          prompt: ""
+        });
+        return;
+      }
+      this.missionManager.completeStep("D8_OBJ_01_OPEN_SOURCE_RECORD");
+      this.missionManager.completeStep("D8_OBJ_02_REVIEW_COMPARISON");
+      this.set({
+        showScienceAnalysisModal: true,
+        prompt: ""
+      });
+      return;
+    }
+
+    // 5. Mission Contextual Interaction (Days 1–4)
+    const contextResult = this.missionManager.handleContextEvent({
+      type: "trigger_interacted",
+      module: this.active,
+      identifier: this.nearby.identifier
+    });
+
+    // 6. Screen Actions / Cinematic Transition to PHOBOSIA OS Desktop
+    const title = screenActions[this.nearby.identifier];
+    if (title) {
+      document.exitPointerLock();
+
+      const id = this.nearby.identifier;
+      let targetApp = "overview";
+      if (/Habitat/i.test(id)) targetApp = "habitat";
+      else if (/Power|LifeSupportUnit|Monitoring|Diagnostics/i.test(id)) targetApp = "engineering";
+      else if (/Science|Research|Lab|Seed|Water/i.test(id)) targetApp = "science";
+      else if (/Navigation|TerrainMap|Sites/i.test(id)) targetApp = "navigation";
+      else if (/Drone/i.test(id)) targetApp = "drone";
+      else if (/Comms|Communications/i.test(id)) targetApp = "comms";
+      else if (/Timeline|Log|Objectives/i.test(id)) targetApp = "timeline";
+
+      this.astronautPreTerminalState = {
+        position: this.camera.position.clone(),
+        rotation: this.camera.rotation.clone()
+      };
+      this.cinematicStartPos.copy(this.camera.position);
+      this.cinematicStartQuat.copy(this.camera.quaternion);
+
+      const screenCenter = this.nearby.center.clone();
+      const dir = this.camera.position.clone().sub(screenCenter);
+      dir.y = 0;
+      if (dir.lengthSq() < 0.01) dir.set(0, 0, 1);
+      dir.normalize();
+      this.cinematicTargetPos.copy(screenCenter).addScaledVector(dir, 0.75);
+
+      const lookMat = new THREE.Matrix4().lookAt(this.cinematicTargetPos, screenCenter, new THREE.Vector3(0, 1, 0));
+      this.cinematicTargetQuat.setFromRotationMatrix(lookMat);
+
+      this.cinematicProgress = 0;
+      this.cinematicGliding = true;
+
+      this.set({
+        prompt: "",
+        notification: contextResult.feedback ?? null,
+        showCinematicOverlay: true
+      });
+
+      setTimeout(() => {
+        if (!this.disposed && this.state.showCinematicOverlay) {
+          this.openScreenOS(targetApp);
+        }
+      }, 550);
+      return;
+    }
+  }
+
+  private checkTerrainMissionZones() {
+    if (this.active !== "Terrain") return;
+
+    const pos = this.camera.position;
+    const mState = this.missionManager.getState();
+    const day = mState.currentDay;
+
+    // Day 6: Field Geological Survey
+    if (day === 6) {
+      const target = mState.selectedRouteTarget || MASTER_TERRAIN_TARGETS[0];
+      const dist = Math.hypot(pos.x - target.coordinates.x, pos.z - target.coordinates.z);
+      if (dist <= 60 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
+        this.missionManager.completeStep("D6_OBJ_02_REACH_TARGET");
+        if (!this.state.geologicalSurvey) {
+          this.set({ prompt: "Press E to Conduct Geological Field Survey" });
+        }
+      }
+    }
+
+    // Day 7: Surface Observation Scan
+    if (day === 7) {
+      const dist = pos.distanceTo(new THREE.Vector3(485.0, 2.1, -95.5));
+      if (dist <= 75 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
+        this.missionManager.completeStep("D7_OBJ_02_USE_AIRLOCK");
+        if (!this.state.surfaceObservation) {
+          this.set({ prompt: "Press E to Perform Surface Observation Scan" });
+        }
+      }
+    }
+  }
+
+  private findNearby() {
+    const at = this.camera.position;
+    let best: InteractionTarget | undefined;
+    let nearest = Infinity;
+
+    for (const target of this.interactive) {
+      const distance = at.distanceTo(target.center);
+      if (distance <= target.range && distance < nearest) {
+        nearest = distance;
+        best = target;
+      }
+    }
+
+    this.nearby = best;
+    if (!best) {
+      // Don't clear prompt if on terrain and inside survey zone
+      if (this.active !== "Terrain" || (this.state.missionDay !== 6 && this.state.missionDay !== 7)) {
+        this.set({ prompt: "" });
+      }
+      return;
+    }
+
+    const route = transitions[this.active][best.identifier];
+    if (route) {
+      this.set({ prompt: `Press E to travel to ${labels[route.module]}` });
+    } else if (best.identifier === "HAB_REST_01") {
+      this.set({ prompt: `Press E to Rest & Conclude Day ${this.state.missionDay}` });
+    } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
+      if (this.state.missionDay === 5) {
+        this.set({ prompt: "Press E to Access Terrain Survey Planning" });
+      } else if (this.state.missionDay === 6) {
+        this.set({ prompt: "Press E to Review Geological Survey Target" });
+      } else if (this.state.missionDay === 9) {
+        this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
+      } else {
+        this.set({ prompt: "Press E to Access Navigation Console" });
+      }
+    } else if (
+      this.active === "Science" &&
+      (best.identifier === "LAB_RESEARCH_ANALYSIS_01" || best.identifier === "LAB_RESEARCH_MONITORING_01")
+    ) {
+      this.set({ prompt: "Press E to Access Scientific Analysis Console" });
+    } else if (this.active === "MissionControl" && best.identifier === "MC_SYSTEMS_01") {
+      if (this.state.missionDay === 9) {
+        this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
+      } else {
+        this.set({ prompt: "Press E to Inspect Mission Systems Console" });
+      }
+    } else {
+      const title = screenActions[best.identifier] || "Terminal Display";
+      this.set({ prompt: `[E] ACCESS DISPLAY · ${title.toUpperCase()}` });
+    }
+  }
+
+  private canOccupy = (position: THREE.Vector3) =>
+    !this.colliders.some(box =>
+      box.containsPoint(new THREE.Vector3(position.x, Math.max(position.y - 1, box.min.y + 0.1), position.z))
+    );
+
+  private groundHeight = (position: THREE.Vector3) => {
+    if (!this.terrain) return 0;
+    this.raycaster.set(new THREE.Vector3(position.x, 1000, position.z), this.down);
+    const hit = this.raycaster.intersectObject(this.terrain, true)[0];
+    return hit?.point.y ?? 0;
+  };
+
+  private updateDrone(dt: number) {
+    const forward = new THREE.Vector3(-Math.sin(this.droneYaw), 0, -Math.cos(this.droneYaw));
+    const right = new THREE.Vector3(Math.cos(this.droneYaw), 0, -Math.sin(this.droneYaw));
+    const up = new THREE.Vector3(0, 1, 0);
+
+    const move = new THREE.Vector3();
+    if (this.droneKeys.has("KeyW")) move.add(forward);
+    if (this.droneKeys.has("KeyS")) move.sub(forward);
+    if (this.droneKeys.has("KeyD")) move.add(right);
+    if (this.droneKeys.has("KeyA")) move.sub(right);
+    if (this.droneKeys.has("Space")) move.add(up);
+    if (this.droneKeys.has("ShiftLeft") || this.droneKeys.has("ShiftRight")) move.sub(up);
+
+    if (move.lengthSq() > 0) {
+      move.normalize();
+    }
+
+    const droneSpeed = 16.0; // m/s
+    this.dronePosition.addScaledVector(move, droneSpeed * dt);
+
+    // Altitude constraint: 2.5m to 50.0m
+    this.dronePosition.y = Math.max(2.5, Math.min(50.0, this.dronePosition.y));
+
+    // Bounded radius constraint: 250m from drone base origin
+    const horizontalDist = Math.hypot(
+      this.dronePosition.x - this.droneOrigin.x,
+      this.dronePosition.z - this.droneOrigin.z
+    );
+    if (horizontalDist > 250) {
+      const angle = Math.atan2(
+        this.dronePosition.z - this.droneOrigin.z,
+        this.dronePosition.x - this.droneOrigin.x
+      );
+      this.dronePosition.x = this.droneOrigin.x + Math.cos(angle) * 250;
+      this.dronePosition.z = this.droneOrigin.z + Math.sin(angle) * 250;
+    }
+
+    this.camera.position.copy(this.dronePosition);
+    this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
+
+    const signalPercent = Math.max(50, Math.round(100 - (horizontalDist / 250) * 45));
+    if (this.frame % 15 === 0) {
+      this.set({
+        droneTelemetry: {
+          battery: this.droneBattery,
+          signal: signalPercent,
+          altitude: Math.round(this.dronePosition.y * 10) / 10,
+          x: Math.round(this.dronePosition.x * 10) / 10,
+          z: Math.round(this.dronePosition.z * 10) / 10
+        }
+      });
+    }
+  }
+
+  private loop = () => {
+    if (this.disposed) return;
+    requestAnimationFrame(this.loop);
+    const dt = Math.min(this.clock.getDelta(), 0.05);
+
+    if (this.cinematicGliding) {
+      this.cinematicProgress = Math.min(1, this.cinematicProgress + dt * 2.0);
+      const t = 0.5 - 0.5 * Math.cos(Math.PI * this.cinematicProgress);
+      this.camera.position.lerpVectors(this.cinematicStartPos, this.cinematicTargetPos, t);
+      this.camera.quaternion.slerpQuaternions(this.cinematicStartQuat, this.cinematicTargetQuat, t);
+      if (this.cinematicProgress >= 1) {
+        this.cinematicGliding = false;
+      }
+    }
+
+    if (this.droneModeActive) {
+      this.updateDrone(dt);
+    } else {
+      const isModalOpen =
+        document.hidden ||
+        this.state.panel ||
+        this.transitioning ||
+        this.state.showBriefingModal ||
+        this.state.showRoutePlanning ||
+        this.state.showGeologicalForm ||
+        this.state.showSurfaceObservationForm ||
+        this.state.showScienceAnalysisModal ||
+        this.state.showDroneConsoleModal ||
+        this.state.restFeedback ||
+        this.state.showCinematicOverlay ||
+        this.state.showOSDesktop;
+
+      if (!isModalOpen) {
+        this.player.update(dt, this.canOccupy, this.groundHeight);
+        this.findNearby();
+        this.checkTerrainMissionZones();
+      }
+    }
+
+    this.renderer.render(this.scene, this.camera);
+
+    if (++this.frame % 30 === 0) {
+      this.set({ fps: Math.round(1 / Math.max(dt, 0.001)) });
+    }
+  };
+
+  dispose() {
+    this.disposed = true;
+    this.observer.disconnect();
+    document.removeEventListener("pointerlockchange", this.pointer);
+    document.removeEventListener("mousemove", this.mouse);
+    window.removeEventListener("keydown", this.keyDown);
+    window.removeEventListener("keyup", this.keyUp);
+    document.removeEventListener("visibilitychange", this.visibility);
+
+    if (document.pointerLockElement === this.renderer.domElement) {
+      document.exitPointerLock();
+    }
+
+    this.screenRenderer.dispose();
+    this.scene.environment = null;
+    this.environmentTarget?.dispose();
+    this.environmentTexture?.dispose();
+
+    this.loaded.forEach(root =>
+      root.traverse(o => {
+        const mesh = o as THREE.Mesh;
+        mesh.geometry?.dispose();
+        const material = mesh.material;
+        for (const item of material ? (Array.isArray(material) ? material : [material]) : []) {
+          item.dispose();
+        }
+      })
+    );
+
+    this.renderer.dispose();
+    this.renderer.domElement.remove();
+  }
+}

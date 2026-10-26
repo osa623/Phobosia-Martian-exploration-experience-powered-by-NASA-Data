@@ -1,0 +1,997 @@
+/**
+ * PHOBOSIA — Mission System & State Progression Engine (Days 1–9)
+ *
+ * Implements the authoritative Days 1-9 mission sequence, step validation,
+ * observation/verification/survey record persistence, and guarded rest-based day progression.
+ */
+
+export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+export type ObjectiveState = "not_started" | "in_progress" | "completed" | "waiting_for_rest";
+
+export interface MissionStep {
+  stepId: string;
+  label: string;
+  description: string;
+  targetModule?: string;
+  targetTrigger?: string;
+  completed: boolean;
+}
+
+export interface ObservationRecord {
+  id: string;
+  day: number;
+  type:
+    | "orientation"
+    | "habitat_readiness"
+    | "power_observation"
+    | "life_support_verification"
+    | "route_plan"
+    | "geological_survey"
+    | "surface_observation"
+    | "science_analysis"
+    | "drone_survey";
+  sourceIdentifier: string;
+  timestamp: string;
+  isSimulated: true;
+  summary: string;
+  details: Record<string, string | number | boolean>;
+}
+
+export interface TerrainRouteTarget {
+  id: string;
+  name: string;
+  coordinates: { x: number; y: number; z: number };
+  description: string;
+  distanceEstimate: string;
+  hazardRating: "Low" | "Moderate" | "High";
+}
+
+export interface GeologicalSurveyRecord {
+  id: string;
+  day: 6;
+  targetId: string;
+  source: "PHOBOSIA simulated field observation";
+  observedCategories: {
+    surfaceTexture: string;
+    fragmentDistribution: string;
+    terrainShape: string;
+    dustCoverage: string;
+    followUpInterest?: string;
+  };
+  summary: string;
+  isSimulated: true;
+  saved: true;
+  routePlanReference?: string | null;
+  missionTimestamp?: string;
+}
+
+export interface SurfaceObservationRecord {
+  id: string;
+  day: 7;
+  targetId: string;
+  source: "PHOBOSIA simulated surface observation";
+  observedCategories: {
+    surfacePattern: string;
+    surfaceMaterialAppearance: string;
+    terrainProfile: string;
+    areaOfInterest: string;
+  };
+  followUpQuestion: string;
+  summary: string;
+  isSimulated: true;
+  saved: true;
+  missionTimestamp?: string;
+  relatedGeologicalSurveyId?: string | null;
+}
+
+export interface PredefinedInterpretation {
+  id: string;
+  label: string;
+  description: string;
+  claimStrength: "Tentative" | "Moderate" | "Definitive";
+}
+
+export const PREDEFINED_INTERPRETATIONS: PredefinedInterpretation[] = [
+  {
+    id: "INTERPRETATION_SURFACE_PATTERN_REVIEW",
+    label: "Surface pattern requires further observation",
+    description: "The recorded surface pattern may justify a follow-up visual inspection.",
+    claimStrength: "Tentative"
+  },
+  {
+    id: "INTERPRETATION_TERRAIN_VARIATION",
+    label: "Terrain variation is a useful survey factor",
+    description: "Differences in the recorded terrain profile may help prioritise a future observation point.",
+    claimStrength: "Tentative"
+  },
+  {
+    id: "INTERPRETATION_DUST_COVERAGE",
+    label: "Dust coverage should be considered",
+    description: "The recorded dust coverage may affect how visible surface features are interpreted.",
+    claimStrength: "Tentative"
+  }
+];
+
+export interface ScienceAnalysisRecord {
+  id: string;
+  day: 8;
+  sourceObservationId: string;
+  selectedInterpretationId: string;
+  summary: string;
+  isSimulated: true;
+  saved: true;
+  comparedSurveyId?: string | null;
+  comparisonSummary?: string;
+  missionTimestamp?: string;
+}
+
+export interface DroneSurveyRecord {
+  id: string;
+  day: 9;
+  targetId: string;
+  source: "PHOBOSIA simulated remote drone survey";
+  observedCategories: {
+    viewpointTerrainShape: string;
+    visibleSurfacePattern: string;
+    followUpArea: string;
+    routeRevisit: string;
+  };
+  summary: string;
+  isSimulated: true;
+  saved: true;
+  missionTimestamp?: string;
+  relatedGeologicalSurveyId?: string | null;
+  relatedSurfaceObservationId?: string | null;
+}
+
+export interface DayMissionDefinition {
+  day: MissionDayNumber;
+  id: string;
+  title: string;
+  storyContext: string;
+  briefing: string;
+  primaryObjective: string;
+  steps: MissionStep[];
+  allowedModules: string[];
+  completionFeedback: string;
+}
+
+export interface MissionProgressState {
+  currentDay: MissionDayNumber;
+  objectiveState: ObjectiveState;
+  completedStepIds: string[];
+  observationRecords: ObservationRecord[];
+  selectedRouteTarget: TerrainRouteTarget | null;
+  dayBriefingSeen: boolean;
+  campaignFinished: boolean;
+  notification: string | null;
+  geologicalSurvey: GeologicalSurveyRecord | null;
+  surfaceObservation: SurfaceObservationRecord | null;
+  scienceAnalysis: ScienceAnalysisRecord | null;
+  droneSurvey: DroneSurveyRecord | null;
+}
+
+const STORAGE_KEY = "phobosia_mission_progress_v3";
+const PREV_STORAGE_KEY = "phobosia_mission_progress_v2";
+
+export const MASTER_TERRAIN_TARGETS: TerrainRouteTarget[] = [
+  {
+    id: "TARGET_ALPHA_CRATER_RIM",
+    name: "Site Alpha — North Crater Rim Ridge",
+    coordinates: { x: 420.5, y: 14.2, z: -180.0 },
+    description: "Elevated bedrock outcrop overlooking northern impact basin. High scientific value for stratified ejecta sampling.",
+    distanceEstimate: "240 m NW from Airlock",
+    hazardRating: "Moderate"
+  },
+  {
+    id: "TARGET_BETA_DUNE_BASIN",
+    name: "Site Beta — Dune Basin Depression",
+    coordinates: { x: 485.0, y: 2.1, z: -95.5 },
+    description: "Active basaltic sand dune field adjacent to the rover staging platform. Optimal for aeolian sedimentation study.",
+    distanceEstimate: "85 m E from Airlock",
+    hazardRating: "Low"
+  },
+  {
+    id: "TARGET_GAMMA_SOUTH_ESCARPMENT",
+    name: "Site Gamma — Canyon Overlook Escarpment",
+    coordinates: { x: 60.7, y: -0.02, z: -265.1 },
+    description: "Cliff edge at Cinematic Location overlooking deep Martian canyon. Prime geological vantage point.",
+    distanceEstimate: "450 m SW from Base",
+    hazardRating: "High"
+  }
+];
+
+export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
+  1: {
+    day: 1,
+    id: "DAY_01_BASE_ORIENTATION",
+    title: "Base Orientation",
+    storyContext: "Beginning of the 14-day Mars observation expedition. Operational systems are online.",
+    briefing: "Welcome to Mars Outpost PHOBOSIA. Before commencing scientific field observations, review base operations, inspect primary connected modules through the Central Hub, and confirm orientation status.",
+    primaryObjective: "Complete base orientation checklist by reviewing controls and visiting primary operational modules.",
+    steps: [
+      { stepId: "DAY1_REVIEW_CONTROLS", label: "Review Controls", description: "Review basic locomotion and interaction controls.", completed: false },
+      { stepId: "DAY1_VISIT_CENTRAL_HUB", label: "Central Hub Transit", description: "Transit to Central Hub from Habitat.", targetModule: "Hub", completed: false },
+      { stepId: "DAY1_INSPECT_BASE_AREAS", label: "Inspect Work Area", description: "Inspect Habitat main status console or Hub status display.", targetTrigger: "HAB_MONITOR_01", completed: false },
+      { stepId: "DAY1_CONFIRM_ORIENTATION", label: "Confirm Orientation", description: "Confirm orientation checklist at Habitat workstation or main console.", targetTrigger: "HAB_MONITOR_01", completed: false }
+    ],
+    allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl"],
+    completionFeedback: "Base orientation complete. All operational modules cataloged. Return to Habitat Rest Area to finish Day 1."
+  },
+  2: {
+    day: 2,
+    id: "DAY_02_HABITAT_READINESS",
+    title: "Habitat Readiness",
+    storyContext: "Operational verification phase. Habitat life systems require validation.",
+    briefing: "Confirm Habitat systems readiness prior to extended scientific operations. Inspect water recycling status, nutrition inventory, and primary life support telemetry.",
+    primaryObjective: "Inspect designated Habitat readiness consoles and record validation status.",
+    steps: [
+      { stepId: "DAY2_ENTER_HABITAT", label: "Habitat Verification", description: "Confirm presence inside Habitat module.", targetModule: "Habitat", completed: false },
+      { stepId: "DAY2_INSPECT_READINESS", label: "Inspect Life Support & Nutrition", description: "Inspect Water & Nutrition console.", targetTrigger: "HAB_WATER_NUTRITION_01", completed: false },
+      { stepId: "DAY2_RECORD_STATUS", label: "Record Readiness Status", description: "Log Habitat Readiness verification record.", targetTrigger: "HAB_MONITOR_01", completed: false }
+    ],
+    allowedModules: ["Habitat", "Hub"],
+    completionFeedback: "Habitat readiness confirmed. Atmospheric and nutrition subsystems nominal. Rest in Habitat to conclude Day 2."
+  },
+  3: {
+    day: 3,
+    id: "DAY_03_POWER_SYSTEM_OBSERVATION",
+    title: "Power System Observation",
+    storyContext: "Base power distribution requires baseline observation before demanding outdoor science.",
+    briefing: "Transit to Engineering Unit and perform a baseline power-system observation. Record solar array capture, capacitor bank balance, and primary power distribution telemetry.",
+    primaryObjective: "Inspect Engineering power console and record baseline power observation.",
+    steps: [
+      { stepId: "DAY3_REACH_ENGINEERING", label: "Transit to Engineering", description: "Pass through Hub to Engineering Unit.", targetModule: "Engineering", completed: false },
+      { stepId: "DAY3_INSPECT_POWER", label: "Inspect Power Unit", description: "Inspect Engineering Power Unit console.", targetTrigger: "Engineering_PowerUnit_Trigger", completed: false },
+      { stepId: "DAY3_RECORD_POWER_OBSERVATION", label: "Record Power Observation", description: "Store baseline power observation record.", targetTrigger: "Engineering_PowerUnit_Trigger", completed: false }
+    ],
+    allowedModules: ["Engineering", "Hub", "Habitat"],
+    completionFeedback: "Power system baseline recorded. Array output at 94.2% nominal efficiency. Return to Habitat to rest."
+  },
+  4: {
+    day: 4,
+    id: "DAY_04_LIFE_SUPPORT_VERIFICATION",
+    title: "Life-Support Verification",
+    storyContext: "Pre-EVA verification. Atmospheric scrubbers and pressurization balance must be validated.",
+    briefing: "Perform a comprehensive life-support verification across Engineering and Habitat subsystems before tomorrow's outdoor route planning.",
+    primaryObjective: "Inspect life-support diagnostics console and save verification record.",
+    steps: [
+      { stepId: "DAY4_REACH_RELEVANT_MODULE", label: "Access Life Support", description: "Locate Life Support diagnostics console in Engineering Unit.", targetModule: "Engineering", completed: false },
+      { stepId: "DAY4_INSPECT_LIFE_SUPPORT", label: "Inspect Life Support Diagnostics", description: "Verify atmospheric scrubber and thermal regulation loops.", targetTrigger: "Engineering_LifeSupport_Trigger", completed: false },
+      { stepId: "DAY4_RECORD_VERIFICATION", label: "Record Verification", description: "Save Life Support Verification report.", targetTrigger: "Engineering_LifeSupport_Trigger", completed: false }
+    ],
+    allowedModules: ["Engineering", "Habitat", "Hub"],
+    completionFeedback: "Life-support verification logged. CO2 scrubbers nominal (0.04% vol). Return to Habitat to rest."
+  },
+  5: {
+    day: 5,
+    id: "DAY_05_TERRAIN_ROUTE_PLANNING",
+    title: "Terrain Route Planning",
+    storyContext: "Preparation for outdoor scientific observation on the Martian surface.",
+    briefing: "Proceed to Mission Control. Access the Terrain Map console, review verified Master Terrain observation targets, and select your primary route plan for future field surveys.",
+    primaryObjective: "Review Master Terrain map in Mission Control and select a validated survey route plan.",
+    steps: [
+      { stepId: "DAY5_REACH_MISSION_CONTROL", label: "Enter Mission Control", description: "Transit to Mission Control from Central Hub.", targetModule: "MissionControl", completed: false },
+      { stepId: "DAY5_REVIEW_MASTER_TERRAIN", label: "Review Terrain Map", description: "Inspect Terrain Map screen in Mission Control.", targetTrigger: "MC_NAVIGATION_01", completed: false },
+      { stepId: "DAY5_SELECT_ROUTE_OR_TARGET", label: "Select Survey Target", description: "Choose a validated observation target from Master Terrain.", targetTrigger: "MC_NAVIGATION_01", completed: false },
+      { stepId: "DAY5_SAVE_ROUTE_PLAN", label: "Save Route Plan", description: "Confirm and save Route Plan to mission telemetry.", targetTrigger: "MC_NAVIGATION_01", completed: false }
+    ],
+    allowedModules: ["MissionControl", "Hub", "Habitat", "Airlock", "Terrain"],
+    completionFeedback: "Route plan registered. Target survey profile logged. You may rest in Habitat to commence Day 6 field surveys."
+  },
+  6: {
+    day: 6,
+    id: "DAY_06_GEOLOGICAL_SITE_SURVEY",
+    title: "Geological Site Survey",
+    storyContext: "Field Survey Phase. Utilizing the Day 5 route plan for an outdoor geological site survey on the Martian surface.",
+    briefing: "Mission Control has prepared your survey sortie using the Day 5 route plan. Exit through the Airlock to the Mars master terrain, navigate to the designated survey target area, inspect surface characteristics, and log the preliminary geological record.",
+    primaryObjective: "Navigate to the designated terrain survey area, inspect geological characteristics, and save preliminary field survey record.",
+    steps: [
+      { stepId: "D6_OBJ_01_REVIEW_TARGET", label: "Review survey target", description: "Review geological survey target at Mission Control navigation console.", targetTrigger: "MC_NAVIGATION_01", completed: false },
+      { stepId: "D6_OBJ_02_REACH_TARGET", label: "Reach survey area", description: "Exit via Airlock and reach designated survey area on Mars terrain.", targetModule: "Terrain", completed: false },
+      { stepId: "D6_OBJ_03_INSPECT_SURFACE", label: "Inspect surface", description: "Perform geological observation scan of surface characteristics.", completed: false },
+      { stepId: "D6_OBJ_04_SAVE_RECORD", label: "Save geological record", description: "Save preliminary GeologicalSurveyRecord to telemetry.", completed: false }
+    ],
+    allowedModules: ["MissionControl", "Hub", "Habitat", "Airlock", "Terrain"],
+    completionFeedback: "Preliminary geological record registered. Field survey complete. Return to Habitat rest area to conclude Day 6."
+  },
+  7: {
+    day: 7,
+    id: "DAY_07_SURFACE_OBSERVATION",
+    title: "Surface Observation",
+    storyContext: "Field Observation Phase. Focused outdoor surface feature inspection for tomorrow's lab analysis.",
+    briefing: "Mission Control requests a focused observation of a surface feature. Proceed through the Airlock to the terrain, perform the surface scan at the designated site, and save the observation record for Day 8 laboratory analysis.",
+    primaryObjective: "Exit through Airlock, perform surface scan at designated observation site, and save surface record for lab analysis.",
+    steps: [
+      { stepId: "D7_OBJ_01_REVIEW_TASK", label: "Review observation task", description: "Review Day 7 surface observation objectives.", completed: false },
+      { stepId: "D7_OBJ_02_USE_AIRLOCK", label: "Exit through Airlock", description: "Transit through Airlock to outdoor terrain.", targetModule: "Terrain", completed: false },
+      { stepId: "D7_OBJ_03_PERFORM_SCAN", label: "Perform surface scan", description: "Conduct focused surface observation scan on Mars terrain.", completed: false },
+      { stepId: "D7_OBJ_04_SAVE_OBSERVATION", label: "Save observation record", description: "Confirm and save SurfaceObservationRecord for lab analysis.", completed: false }
+    ],
+    allowedModules: ["Habitat", "Hub", "Airlock", "Terrain"],
+    completionFeedback: "Surface observation recorded and transferred to Research Lab. Return to Habitat rest area to conclude Day 7."
+  },
+  8: {
+    day: 8,
+    id: "DAY_08_RESEARCH_LAB_ANALYSIS",
+    title: "Research Lab Analysis",
+    storyContext: "Scientific Analysis Phase. Analysis of Day 7 surface observation in the Research Lab.",
+    briefing: "Proceed to the Research Lab. Access the Analysis console to inspect your Day 7 surface observation, cross-reference earlier geological survey notes, select a cautious scientific interpretation, and log the final analysis record.",
+    primaryObjective: "Review Day 7 surface observation in Research Lab, compare earlier survey data, select interpretation, and save scientific analysis.",
+    steps: [
+      { stepId: "D8_OBJ_01_OPEN_SOURCE_RECORD", label: "Open Day 7 record", description: "Open saved Day 7 surface observation in Research Lab interface.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
+      { stepId: "D8_OBJ_02_REVIEW_COMPARISON", label: "Review comparison data", description: "Compare surface observation with Day 6 geological survey notes.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
+      { stepId: "D8_OBJ_03_SELECT_INTERPRETATION", label: "Select interpretation", description: "Select a supported scientific interpretation.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
+      { stepId: "D8_OBJ_04_SAVE_ANALYSIS", label: "Save scientific analysis", description: "Save ScienceAnalysisRecord linked to Day 7 source data.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false }
+    ],
+    allowedModules: ["Science", "Hub", "Habitat", "MissionControl"],
+    completionFeedback: "Scientific analysis confirmed and archived. Laboratory review complete. Rest in Habitat to conclude Day 8."
+  },
+  9: {
+    day: 9,
+    id: "DAY_09_DRONE_SURVEY",
+    title: "Drone Survey",
+    storyContext: "Remote Surface Survey Phase. First-person remote FPV drone survey over Mars terrain operated from Mission Control.",
+    briefing: "Mission Control has authorized a remote aerial survey over the terrain using the scout drone. Access the Drone Operation console in Mission Control, engage first-person FPV mode, survey the designated sector, capture telemetry, and return safely to Mission Control.",
+    primaryObjective: "Engage Drone FPV mode from Mission Control, conduct aerial survey of target sector, capture survey record, and return to base.",
+    steps: [
+      { stepId: "D9_OBJ_01_REVIEW_DRONE_TASK", label: "Review drone mission", description: "Review remote survey console in Mission Control.", targetTrigger: "MC_SYSTEMS_01", completed: false },
+      { stepId: "D9_OBJ_02_ACTIVATE_FPV", label: "Activate drone FPV", description: "Engage first-person remote FPV camera view.", completed: false },
+      { stepId: "D9_OBJ_03_INSPECT_TARGET", label: "Survey target sector", description: "Maneuver drone over terrain survey sector.", completed: false },
+      { stepId: "D9_OBJ_04_SAVE_DRONE_RECORD", label: "Save drone survey record", description: "Capture and save DroneSurveyRecord telemetry.", completed: false },
+      { stepId: "D9_OBJ_05_EXIT_FPV", label: "Return to Mission Control", description: "Disengage FPV and restore astronaut controls.", completed: false }
+    ],
+    allowedModules: ["MissionControl", "Hub", "Habitat"],
+    completionFeedback: "Drone survey complete. Remote telemetry archived. Astronaut controls restored. Day 9 marks completion of Phase 3."
+  }
+};
+
+export class MissionManager {
+  private state: MissionProgressState;
+  private listeners = new Set<(state: Readonly<MissionProgressState>) => void>();
+  private isAdvancingDay = false;
+
+  constructor() {
+    this.state = this.loadState();
+  }
+
+  private loadState(): MissionProgressState {
+    if (typeof window !== "undefined") {
+      try {
+        let raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          raw = localStorage.getItem(PREV_STORAGE_KEY);
+        }
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
+          if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 9) {
+            return {
+              currentDay: parsed.currentDay as MissionDayNumber,
+              objectiveState: parsed.objectiveState ?? "not_started",
+              completedStepIds: Array.isArray(parsed.completedStepIds) ? parsed.completedStepIds : [],
+              observationRecords: Array.isArray(parsed.observationRecords) ? parsed.observationRecords : [],
+              selectedRouteTarget: parsed.selectedRouteTarget ?? null,
+              dayBriefingSeen: Boolean(parsed.dayBriefingSeen),
+              campaignFinished: Boolean(parsed.campaignFinished),
+              notification: null,
+              geologicalSurvey: (parsed.geologicalSurvey as GeologicalSurveyRecord) ?? null,
+              surfaceObservation: (parsed.surfaceObservation as SurfaceObservationRecord) ?? null,
+              scienceAnalysis: (parsed.scienceAnalysis as ScienceAnalysisRecord) ?? null,
+              droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null
+            };
+          }
+        }
+      } catch {
+        // Fall back to clean state
+      }
+    }
+
+    return {
+      currentDay: 1,
+      objectiveState: "in_progress",
+      completedStepIds: [],
+      observationRecords: [],
+      selectedRouteTarget: null,
+      dayBriefingSeen: false,
+      campaignFinished: false,
+      notification: null,
+      geologicalSurvey: null,
+      surfaceObservation: null,
+      scienceAnalysis: null,
+      droneSurvey: null
+    };
+  }
+
+  public saveState(): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+    } catch {
+      // Ignore storage errors in restricted iframe/private mode
+    }
+  }
+
+  public getState(): Readonly<MissionProgressState> {
+    return this.state;
+  }
+
+  public subscribe(listener: (state: Readonly<MissionProgressState>) => void): () => void {
+    this.listeners.add(listener);
+    listener(this.state);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(): void {
+    this.saveState();
+    for (const listener of this.listeners) {
+      try {
+        listener(this.state);
+      } catch {
+        // Guard listener failures
+      }
+    }
+  }
+
+  public getCurrentMission(): DayMissionDefinition {
+    return DAYS_CONFIG[this.state.currentDay];
+  }
+
+  public markBriefingSeen(): void {
+    if (!this.state.dayBriefingSeen) {
+      this.state.dayBriefingSeen = true;
+      if (this.state.objectiveState === "not_started") {
+        this.state.objectiveState = "in_progress";
+      }
+
+      // Day 7: reviewing briefing satisfies D7_OBJ_01_REVIEW_TASK
+      if (this.state.currentDay === 7) {
+        this.completeStep("D7_OBJ_01_REVIEW_TASK");
+      }
+
+      this.emit();
+    }
+  }
+
+  public isStepComplete(stepId: string): boolean {
+    return this.state.completedStepIds.includes(stepId);
+  }
+
+  /**
+   * Validates and records a step in the current mission. Idempotent and deterministic.
+   */
+  public completeStep(stepId: string, associatedData?: Partial<ObservationRecord>): boolean {
+    const mission = this.getCurrentMission();
+    const stepDef = mission.steps.find(s => s.stepId === stepId);
+    if (!stepDef) return false;
+
+    if (!this.state.completedStepIds.includes(stepId)) {
+      this.state.completedStepIds.push(stepId);
+
+      // Check if this step adds a generic observation record
+      if (associatedData) {
+        const record: ObservationRecord = {
+          id: `REC_${this.state.currentDay}_${stepId}_${Date.now()}`,
+          day: this.state.currentDay,
+          type: associatedData.type || "orientation",
+          sourceIdentifier: associatedData.sourceIdentifier || stepId,
+          timestamp: new Date().toISOString(),
+          isSimulated: true,
+          summary: associatedData.summary || `Simulated reading for ${stepDef.label}`,
+          details: associatedData.details || {}
+        };
+        this.state.observationRecords.push(record);
+      }
+
+      this.evaluateObjectiveCompletion();
+      this.emit();
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Contextual trigger evaluator when the player enters a module or interacts with an object.
+   */
+  public handleContextEvent(event: { type: "module_entered" | "trigger_interacted"; module: string; identifier?: string }): {
+    handled: boolean;
+    feedback?: string;
+  } {
+    const day = this.state.currentDay;
+
+    // Day 1
+    if (day === 1) {
+      if (event.type === "module_entered" && event.module === "Hub") {
+        this.completeStep("DAY1_VISIT_CENTRAL_HUB");
+        return { handled: true, feedback: "Central Hub cataloged." };
+      }
+      if (event.type === "trigger_interacted" && event.identifier === "HAB_MONITOR_01") {
+        this.completeStep("DAY1_REVIEW_CONTROLS");
+        this.completeStep("DAY1_INSPECT_BASE_AREAS");
+        this.completeStep("DAY1_CONFIRM_ORIENTATION", {
+          type: "orientation",
+          summary: "Base Orientation status verified. All initial systems operational.",
+          details: { modulesChecked: 4, telemetryNominal: true }
+        });
+        return { handled: true, feedback: "Base orientation checklist confirmed." };
+      }
+    }
+
+    // Day 2
+    if (day === 2) {
+      if (event.type === "module_entered" && event.module === "Habitat") {
+        this.completeStep("DAY2_ENTER_HABITAT");
+      }
+      if (event.type === "trigger_interacted" && event.identifier === "HAB_WATER_NUTRITION_01") {
+        this.completeStep("DAY2_INSPECT_READINESS");
+        return { handled: true, feedback: "Water & Nutrition levels inspected: 98% nominal." };
+      }
+      if (event.type === "trigger_interacted" && event.identifier === "HAB_MONITOR_01") {
+        if (this.isStepComplete("DAY2_INSPECT_READINESS")) {
+          this.completeStep("DAY2_RECORD_STATUS", {
+            type: "habitat_readiness",
+            summary: "Habitat readiness logged. Water recycling: 98%, Atmosphere: 101.3 kPa, Nutrition: 14-day store verified.",
+            details: { waterPurity: "99.8%", pressureKPa: 101.3, o2Fraction: 0.21 }
+          });
+          return { handled: true, feedback: "Habitat Readiness validation saved." };
+        } else {
+          return { handled: true, feedback: "Inspect Water & Nutrition console first before recording status." };
+        }
+      }
+    }
+
+    // Day 3
+    if (day === 3) {
+      if (event.type === "module_entered" && event.module === "Engineering") {
+        this.completeStep("DAY3_REACH_ENGINEERING");
+      }
+      if (event.type === "trigger_interacted" && event.identifier === "Engineering_PowerUnit_Trigger") {
+        this.completeStep("DAY3_INSPECT_POWER");
+        this.completeStep("DAY3_RECORD_POWER_OBSERVATION", {
+          type: "power_observation",
+          summary: "Baseline Power Observation: Solar Array Output: 48.6 kW, Capacitor Bank: 96.2%, Aux Batt: 100%.",
+          details: { solarOutputKW: 48.6, capacitorCharge: 0.962, gridVoltage: 240 }
+        });
+        return { handled: true, feedback: "Power observation recorded and saved to telemetry." };
+      }
+    }
+
+    // Day 4
+    if (day === 4) {
+      if (event.type === "module_entered" && (event.module === "Engineering" || event.module === "Habitat")) {
+        this.completeStep("DAY4_REACH_RELEVANT_MODULE");
+      }
+      if (event.type === "trigger_interacted" && (event.identifier === "Engineering_LifeSupport_Trigger" || event.identifier === "Habitat_LifeSupport_Display")) {
+        this.completeStep("DAY4_INSPECT_LIFE_SUPPORT");
+        this.completeStep("DAY4_RECORD_VERIFICATION", {
+          type: "life_support_verification",
+          summary: "Life Support Verification: CO2 scrubbers 0.04% vol, N2/O2 mix balanced, cabin temp 21.5°C.",
+          details: { co2Level: "0.04%", cabinTempC: 21.5, cabinPressureKPa: 101.2 }
+        });
+        return { handled: true, feedback: "Life support verification logged successfully." };
+      }
+    }
+
+    // Day 5
+    if (day === 5) {
+      if (event.type === "module_entered" && event.module === "MissionControl") {
+        this.completeStep("DAY5_REACH_MISSION_CONTROL");
+      }
+      if (event.type === "trigger_interacted" && (event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")) {
+        this.completeStep("DAY5_REVIEW_MASTER_TERRAIN");
+        return { handled: true, feedback: "Terrain Map console active. Select a survey route." };
+      }
+    }
+
+    // Day 6
+    if (day === 6) {
+      if (event.type === "trigger_interacted" && (event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")) {
+        this.completeStep("D6_OBJ_01_REVIEW_TARGET");
+        return { handled: true, feedback: "Day 6 Survey Target verified on navigation console." };
+      }
+      if (event.type === "module_entered" && event.module === "Terrain") {
+        this.completeStep("D6_OBJ_02_REACH_TARGET");
+        return { handled: true, feedback: "Entered Martian surface. Navigate toward survey area." };
+      }
+    }
+
+    // Day 7
+    if (day === 7) {
+      if (event.type === "module_entered" && event.module === "Terrain") {
+        this.completeStep("D7_OBJ_02_USE_AIRLOCK");
+        return { handled: true, feedback: "Airlock transit complete. Approach designated observation area." };
+      }
+    }
+
+    // Day 8
+    if (day === 8) {
+      if (
+        event.type === "trigger_interacted" &&
+        (event.identifier === "LAB_RESEARCH_ANALYSIS_01" || event.identifier === "LAB_RESEARCH_MONITORING_01")
+      ) {
+        if (!this.state.surfaceObservation) {
+          return {
+            handled: true,
+            feedback: "Prerequisite Missing: No saved Day 7 surface observation found. Complete Sol 07 before analysing."
+          };
+        }
+        this.completeStep("D8_OBJ_01_OPEN_SOURCE_RECORD");
+        this.completeStep("D8_OBJ_02_REVIEW_COMPARISON");
+        return { handled: true, feedback: "Research Lab Analysis console active. Source observation loaded." };
+      }
+    }
+
+    // Day 9
+    if (day === 9) {
+      if (
+        event.type === "trigger_interacted" &&
+        (event.identifier === "MC_SYSTEMS_01" || event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")
+      ) {
+        this.completeStep("D9_OBJ_01_REVIEW_DRONE_TASK");
+        return { handled: true, feedback: "Drone Operation console ready. Prepare for remote FPV survey." };
+      }
+    }
+
+    return { handled: false };
+  }
+
+  public selectRouteTarget(targetId: string): boolean {
+    const target = MASTER_TERRAIN_TARGETS.find(t => t.id === targetId);
+    if (!target || this.state.currentDay !== 5) return false;
+
+    this.state.selectedRouteTarget = target;
+    this.completeStep("DAY5_SELECT_ROUTE_OR_TARGET");
+    this.completeStep("DAY5_SAVE_ROUTE_PLAN", {
+      type: "route_plan",
+      summary: `Survey Route Plan confirmed: ${target.name} (${target.distanceEstimate})`,
+      details: {
+        targetId: target.id,
+        targetName: target.name,
+        targetX: target.coordinates.x,
+        targetY: target.coordinates.y,
+        targetZ: target.coordinates.z,
+        hazard: target.hazardRating
+      }
+    });
+    this.emit();
+    return true;
+  }
+
+  /**
+   * Day 6: Saves Geological Survey Record
+   */
+  public saveGeologicalSurvey(data: {
+    targetId: string;
+    observedCategories: {
+      surfaceTexture: string;
+      fragmentDistribution: string;
+      terrainShape: string;
+      dustCoverage: string;
+      followUpInterest?: string;
+    };
+    summary: string;
+  }): GeologicalSurveyRecord | null {
+    if (this.state.currentDay !== 6) return null;
+
+    const record: GeologicalSurveyRecord = {
+      id: `REC_D6_GEOLOGY_${Date.now()}`,
+      day: 6,
+      targetId: data.targetId,
+      source: "PHOBOSIA simulated field observation",
+      observedCategories: data.observedCategories,
+      summary: data.summary,
+      isSimulated: true,
+      saved: true,
+      routePlanReference: this.state.selectedRouteTarget?.id ?? null,
+      missionTimestamp: new Date().toISOString()
+    };
+
+    this.state.geologicalSurvey = record;
+    this.completeStep("D6_OBJ_03_INSPECT_SURFACE");
+    this.completeStep("D6_OBJ_04_SAVE_RECORD", {
+      type: "geological_survey",
+      sourceIdentifier: data.targetId,
+      summary: data.summary,
+      details: {
+        texture: data.observedCategories.surfaceTexture,
+        distribution: data.observedCategories.fragmentDistribution,
+        shape: data.observedCategories.terrainShape,
+        dust: data.observedCategories.dustCoverage
+      }
+    });
+
+    this.emit();
+    return record;
+  }
+
+  /**
+   * Day 7: Saves Surface Observation Record
+   */
+  public saveSurfaceObservation(data: {
+    targetId: string;
+    observedCategories: {
+      surfacePattern: string;
+      surfaceMaterialAppearance: string;
+      terrainProfile: string;
+      areaOfInterest: string;
+    };
+    followUpQuestion: string;
+    summary: string;
+  }): SurfaceObservationRecord | null {
+    if (this.state.currentDay !== 7) return null;
+
+    const record: SurfaceObservationRecord = {
+      id: `REC_D7_SURFACE_${Date.now()}`,
+      day: 7,
+      targetId: data.targetId,
+      source: "PHOBOSIA simulated surface observation",
+      observedCategories: data.observedCategories,
+      followUpQuestion: data.followUpQuestion,
+      summary: data.summary,
+      isSimulated: true,
+      saved: true,
+      missionTimestamp: new Date().toISOString(),
+      relatedGeologicalSurveyId: this.state.geologicalSurvey?.id ?? null
+    };
+
+    this.state.surfaceObservation = record;
+    this.completeStep("D7_OBJ_03_PERFORM_SCAN");
+    this.completeStep("D7_OBJ_04_SAVE_OBSERVATION", {
+      type: "surface_observation",
+      sourceIdentifier: data.targetId,
+      summary: data.summary,
+      details: {
+        pattern: data.observedCategories.surfacePattern,
+        appearance: data.observedCategories.surfaceMaterialAppearance,
+        profile: data.observedCategories.terrainProfile,
+        question: data.followUpQuestion
+      }
+    });
+
+    this.emit();
+    return record;
+  }
+
+  /**
+   * Day 8: Saves Science Analysis Record (requires Day 7 SurfaceObservationRecord)
+   */
+  public saveScienceAnalysis(data: {
+    selectedInterpretationId: string;
+    summary: string;
+  }): ScienceAnalysisRecord | null {
+    if (this.state.currentDay !== 8) return null;
+    if (!this.state.surfaceObservation) {
+      return null;
+    }
+
+    const interp = PREDEFINED_INTERPRETATIONS.find(i => i.id === data.selectedInterpretationId);
+    if (!interp) return null;
+
+    const record: ScienceAnalysisRecord = {
+      id: `REC_D8_ANALYSIS_${Date.now()}`,
+      day: 8,
+      sourceObservationId: this.state.surfaceObservation.id,
+      selectedInterpretationId: data.selectedInterpretationId,
+      summary: data.summary || `Analysis: ${interp.label}. (${interp.claimStrength} simulated interpretation).`,
+      isSimulated: true,
+      saved: true,
+      comparedSurveyId: this.state.geologicalSurvey?.id ?? null,
+      comparisonSummary: this.state.geologicalSurvey
+        ? `Cross-referenced against Sol 06 survey (${this.state.geologicalSurvey.id}).`
+        : "Solo observation analysis (Sol 06 record not found).",
+      missionTimestamp: new Date().toISOString()
+    };
+
+    this.state.scienceAnalysis = record;
+    this.completeStep("D8_OBJ_03_SELECT_INTERPRETATION");
+    this.completeStep("D8_OBJ_04_SAVE_ANALYSIS", {
+      type: "science_analysis",
+      sourceIdentifier: this.state.surfaceObservation.id,
+      summary: record.summary,
+      details: {
+        sourceId: this.state.surfaceObservation.id,
+        interpretation: interp.label,
+        comparedGeologyId: this.state.geologicalSurvey?.id ?? "none"
+      }
+    });
+
+    this.emit();
+    return record;
+  }
+
+  /**
+   * Day 9: Saves Drone Survey Record
+   */
+  public saveDroneSurvey(data: {
+    targetId: string;
+    observedCategories: {
+      viewpointTerrainShape: string;
+      visibleSurfacePattern: string;
+      followUpArea: string;
+      routeRevisit: string;
+    };
+    summary: string;
+  }): DroneSurveyRecord | null {
+    if (this.state.currentDay !== 9) return null;
+
+    const record: DroneSurveyRecord = {
+      id: `REC_D9_DRONE_${Date.now()}`,
+      day: 9,
+      targetId: data.targetId,
+      source: "PHOBOSIA simulated remote drone survey",
+      observedCategories: data.observedCategories,
+      summary: data.summary,
+      isSimulated: true,
+      saved: true,
+      missionTimestamp: new Date().toISOString(),
+      relatedGeologicalSurveyId: this.state.geologicalSurvey?.id ?? null,
+      relatedSurfaceObservationId: this.state.surfaceObservation?.id ?? null
+    };
+
+    this.state.droneSurvey = record;
+    this.completeStep("D9_OBJ_03_INSPECT_TARGET");
+    this.completeStep("D9_OBJ_04_SAVE_DRONE_RECORD", {
+      type: "drone_survey",
+      sourceIdentifier: data.targetId,
+      summary: data.summary,
+      details: {
+        target: data.targetId,
+        shape: data.observedCategories.viewpointTerrainShape,
+        pattern: data.observedCategories.visibleSurfacePattern
+      }
+    });
+
+    this.emit();
+    return record;
+  }
+
+  private evaluateObjectiveCompletion(): void {
+    const mission = this.getCurrentMission();
+    const allStepsComplete = mission.steps.every(s => this.state.completedStepIds.includes(s.stepId));
+
+    if (allStepsComplete && this.state.objectiveState !== "completed" && this.state.objectiveState !== "waiting_for_rest") {
+      this.state.objectiveState = "completed";
+      this.state.notification = `Objective Completed: ${mission.title}. Return to Habitat to rest.`;
+    }
+  }
+
+  public getRemainingSteps(): MissionStep[] {
+    const mission = this.getCurrentMission();
+    return mission.steps.filter(s => !this.state.completedStepIds.includes(s.stepId));
+  }
+
+  public canRestAndAdvance(): { canAdvance: boolean; reason: string } {
+    const mission = this.getCurrentMission();
+    const remaining = this.getRemainingSteps();
+
+    if (remaining.length > 0) {
+      const remainingLabels = remaining.map(s => s.label).join(", ");
+      return {
+        canAdvance: false,
+        reason: `Cannot rest yet. Day ${this.state.currentDay} objective incomplete. Remaining: ${remainingLabels}.`
+      };
+    }
+
+    // Specific record validations per phase
+    if (this.state.currentDay === 6 && !this.state.geologicalSurvey) {
+      return {
+        canAdvance: false,
+        reason: "Cannot rest yet. Geological survey record has not been confirmed and saved."
+      };
+    }
+
+    if (this.state.currentDay === 7 && !this.state.surfaceObservation) {
+      return {
+        canAdvance: false,
+        reason: "Cannot rest yet. Surface observation record has not been saved for lab analysis."
+      };
+    }
+
+    if (this.state.currentDay === 8) {
+      if (!this.state.surfaceObservation) {
+        return {
+          canAdvance: false,
+          reason: "Cannot rest yet. Missing prerequisite Day 7 surface observation."
+        };
+      }
+      if (!this.state.scienceAnalysis || this.state.scienceAnalysis.sourceObservationId !== this.state.surfaceObservation.id) {
+        return {
+          canAdvance: false,
+          reason: "Cannot rest yet. Scientific analysis linked to Day 7 record has not been saved."
+        };
+      }
+    }
+
+    // Day 9 concludes Phase 3
+    if (this.state.currentDay === 9) {
+      if (!this.state.droneSurvey || !this.isStepComplete("D9_OBJ_05_EXIT_FPV")) {
+        return {
+          canAdvance: false,
+          reason: "Cannot rest yet. Drone survey record must be saved and FPV mode exited."
+        };
+      }
+      return {
+        canAdvance: false,
+        reason: "Day 9 Complete. All Phase 3 geological, surface, lab analysis, and drone survey objectives achieved. Future campaign days will follow in subsequent phases."
+      };
+    }
+
+    return { canAdvance: true, reason: "Day objective validated. Ready to advance." };
+  }
+
+  /**
+   * Rest and advance to the next day. Guarded against race conditions, duplicate clicks,
+   * and accidental skips.
+   */
+  public advanceDay(forceImmediate = false): { success: boolean; message: string; newDay?: MissionDayNumber } {
+    if (this.isAdvancingDay && !forceImmediate) {
+      return { success: false, message: "Day transition already in progress." };
+    }
+
+    const check = this.canRestAndAdvance();
+    if (!check.canAdvance) {
+      return { success: false, message: check.reason };
+    }
+
+    if (this.state.currentDay >= 9) {
+      return { success: false, message: "Day 9 is the final day of Phase 3." };
+    }
+
+    this.isAdvancingDay = true;
+    const nextDay = (this.state.currentDay + 1) as MissionDayNumber;
+
+    this.state.currentDay = nextDay;
+    this.state.objectiveState = "in_progress";
+    this.state.dayBriefingSeen = false;
+    this.state.notification = `Day ${nextDay} Begun: ${DAYS_CONFIG[nextDay].title}`;
+
+    this.emit();
+
+    if (forceImmediate) {
+      this.isAdvancingDay = false;
+    } else {
+      setTimeout(() => {
+        this.isAdvancingDay = false;
+      }, 500);
+    }
+
+    return {
+      success: true,
+      message: `Rest completed. Day ${nextDay} commenced.`,
+      newDay: nextDay
+    };
+  }
+
+  public clearNotification(): void {
+    if (this.state.notification) {
+      this.state.notification = null;
+      this.emit();
+    }
+  }
+
+  public resetProgress(): void {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(PREV_STORAGE_KEY);
+      } catch {
+        // Ignore
+      }
+    }
+    this.state = {
+      currentDay: 1,
+      objectiveState: "in_progress",
+      completedStepIds: [],
+      observationRecords: [],
+      selectedRouteTarget: null,
+      dayBriefingSeen: false,
+      campaignFinished: false,
+      notification: null,
+      geologicalSurvey: null,
+      surfaceObservation: null,
+      scienceAnalysis: null,
+      droneSurvey: null
+    };
+    this.emit();
+  }
+}
