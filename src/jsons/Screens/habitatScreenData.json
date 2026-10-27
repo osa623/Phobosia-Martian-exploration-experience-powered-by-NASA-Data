@@ -335,11 +335,11 @@
         "uAxis": "x",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "modifyMeshTransform": false,
         "requireUprightText": true,
-        "note": "Verified: Width along X, Height along Y. Screen Left is minX (-0.231), Screen Right is maxX (-0.110); mirrorHorizontal=false ensures unmirrored, upright text."
+        "note": "Width runs along X and height along Y. The mesh's horizontal UV direction is reversed from the viewer-facing surface, so mirrorHorizontal=true (flipU) keeps the canvas text upright and readable."
       },
       "rendering": {
         "rendererFunction": "renderHabitatWaterNutritionDisplay",

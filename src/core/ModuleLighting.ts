@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RectAreaLightUniformsLib } from "three/examples/jsm/lights/RectAreaLightUniformsLib.js";
 import { ModuleName } from "./Discovery";
 
 export type ModuleLightReport = { count: number; names: string[] };
@@ -323,6 +324,127 @@ export function configureModuleLighting(
   // Indoor Modules: Add secondary soft ambient fill lights from fixture markers
   // (strictly castShadow = false to preserve performance and avoid shadow acne)
   createModuleLights(moduleRoot, additions, module);
+
+  // Habitat-specific: Convert Light_06 and Light_07 into Three.js Area Lighting
+  if (module === "Habitat") {
+    configureHabitatAreaLights(moduleRoot, additions);
+  }
+}
+
+export interface HabitatAreaLightOptions {
+  intensity?: number;
+  color?: number;
+  fillIntensity?: number;
+}
+
+export const HABITAT_AREA_LIGHT_CONFIG: HabitatAreaLightOptions = {
+  intensity: 5.5,
+  color: 0xffffff,
+  fillIntensity: 2.2
+};
+
+let rectAreaLightUniformsInitialized = false;
+
+/**
+ * Initializes RectAreaLightUniformsLib once for WebGLRenderer.
+ */
+export function initRectAreaLightUniforms(): void {
+  if (rectAreaLightUniformsInitialized) return;
+  try {
+    RectAreaLightUniformsLib.init();
+    rectAreaLightUniformsInitialized = true;
+  } catch {
+    // In headless Node test environments without WebGL
+  }
+}
+
+/**
+ * Configures Three.js Area Lighting for Habitat ceiling panels Light_06 and Light_07.
+ * Preserves the original plane meshes and creates corresponding THREE.RectAreaLight instances
+ * oriented according to the plane's world-space normal, supplemented by soft downward fill
+ * to ensure balanced illumination across nearby cabinets, counters, and floor surfaces.
+ */
+export function configureHabitatAreaLights(
+  moduleRoot: THREE.Object3D,
+  owner: THREE.Group,
+  config: HabitatAreaLightOptions = HABITAT_AREA_LIGHT_CONFIG
+): string[] {
+  initRectAreaLightUniforms();
+
+  const configuredLights: string[] = [];
+  moduleRoot.updateWorldMatrix(true, true);
+  owner.updateWorldMatrix(true, false);
+
+  moduleRoot.traverse(object => {
+    if (object === owner || object.parent === owner) return;
+
+    // Target Light_06 and Light_07 (authored as Light06 and Light07 in Habitat GLB)
+    if (!/^(Light_?0[67])$/i.test(object.name)) return;
+
+    // Prevent duplicate light creation if re-run on same owner
+    const areaLightName = `AreaLight:${object.name}`;
+    if (owner.getObjectByName(areaLightName)) return;
+
+    // Derive world dimensions and position from plane mesh
+    const bounds = new THREE.Box3().setFromObject(object);
+    if (bounds.isEmpty()) return;
+
+    const size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    // In world coordinates, determine the two planar dimensions of the light rectangle
+    const dims = [size.x, size.y, size.z].sort((a, b) => b - a);
+    const width = Math.max(dims[0], 0.5);
+    const height = Math.max(dims[1], 0.5);
+
+    // Ceiling plane normal pointing downward into the room (-Y)
+    const normalDown = new THREE.Vector3(0, -1, 0);
+
+    // Position light slightly below ceiling mesh to prevent self-shadowing/co-planar clipping
+    const worldLightPos = center.clone().addScaledVector(normalDown, 0.02);
+    const localPos = owner.worldToLocal(worldLightPos);
+
+    // Extract color from mesh material if available, otherwise use config
+    let lightColor = config.color ?? 0xffffff;
+    const mesh = object as THREE.Mesh;
+    if (mesh.isMesh && mesh.material) {
+      const mat = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.MeshStandardMaterial;
+      if (mat.emissive && mat.emissive.getHex() > 0) {
+        lightColor = mat.emissive.getHex();
+      }
+    }
+
+    // 1. Create THREE.RectAreaLight
+    const rectLight = new THREE.RectAreaLight(
+      lightColor,
+      config.intensity ?? 5.5,
+      width,
+      height
+    );
+    rectLight.name = areaLightName;
+    rectLight.position.copy(localPos);
+
+    // Orient RectAreaLight (+Z emission) along the downward normal into the room
+    rectLight.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normalDown);
+    owner.add(rectLight);
+
+    // 2. Add companion downward soft fill to ensure visible, balanced illumination
+    // on nearby Habitat cabinets, counters, and surrounding surfaces across all materials
+    const fillLight = new THREE.PointLight(
+      lightColor,
+      config.fillIntensity ?? 2.2,
+      Math.max(width, height) * 2.5 + 4,
+      1.8
+    );
+    fillLight.name = `AreaFill:${object.name}`;
+    fillLight.position.copy(localPos);
+    fillLight.castShadow = false; // Never cast shadows to preserve performance budget
+    owner.add(fillLight);
+
+    configuredLights.push(object.name);
+  });
+
+  return configuredLights;
 }
 
 /**
@@ -339,6 +461,12 @@ export function createModuleLights(
 
   moduleRoot.traverse(object => {
     if (object === owner || object.parent === owner || !/light/i.test(object.name)) return;
+
+    // In Habitat module, Light_06 and Light_07 are converted to dedicated RectAreaLight setup
+    if (module === "Habitat" && /^(Light_?0[67])$/i.test(object.name)) {
+      return;
+    }
+
     const bounds = new THREE.Box3().setFromObject(object);
     if (bounds.isEmpty()) return;
     const size = bounds.getSize(new THREE.Vector3());

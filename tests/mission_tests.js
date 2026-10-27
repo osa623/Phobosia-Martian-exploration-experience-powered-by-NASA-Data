@@ -45,7 +45,7 @@ const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
-const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } = require('../dist/ModuleLighting.js');
+const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -811,6 +811,72 @@ test('LIGHT-005: getModuleHemisphereConfig provides distinct outdoor vs indoor l
   assert.strictEqual(outdoor.skyColor, 0xd48858); // Mars warm sky
   assert.strictEqual(indoor.skyColor, 0x405568); // Cool indoor sci-fi base
   assert(outdoor.intensity > indoor.intensity);
+});
+
+test('LIGHT-006: configureHabitatAreaLights converts Light06 and Light07 into RectAreaLight instances', () => {
+  const root = new THREE.Group();
+  const additions = new THREE.Group();
+  root.add(additions);
+
+  // Create simulated plane meshes matching Habitat GLB setup (horizontal in XZ plane)
+  const geom6 = new THREE.PlaneGeometry(0.3398, 0.3398).rotateX(-Math.PI / 2);
+  const p6 = new THREE.Mesh(geom6);
+  p6.name = 'Light06';
+  p6.position.set(-2.548, 4.0, 0);
+  p6.scale.set(7.5, 2.0, 4.0);
+  root.add(p6);
+
+  const geom7 = new THREE.PlaneGeometry(0.3398, 0.3398).rotateX(-Math.PI / 2);
+  const p7 = new THREE.Mesh(geom7);
+  p7.name = 'Light07';
+  p7.position.set(2.548, 4.0, 0);
+  p7.scale.set(7.5, 2.0, 4.0);
+  root.add(p7);
+
+  const configured = configureHabitatAreaLights(root, additions);
+  assert.strictEqual(configured.length, 2, 'Must configure both Light06 and Light07');
+
+  // Verify RectAreaLights
+  const rect6 = additions.getObjectByName('AreaLight:Light06');
+  const rect7 = additions.getObjectByName('AreaLight:Light07');
+  assert(rect6 && rect6.isRectAreaLight, 'AreaLight:Light06 must exist and be RectAreaLight');
+  assert(rect7 && rect7.isRectAreaLight, 'AreaLight:Light07 must exist and be RectAreaLight');
+
+  // Verify dimensions
+  assert(rect6.width > 2.0, `Width (${rect6.width}) must reflect world plane width (~2.55m)`);
+  assert(rect6.height > 1.0, `Height (${rect6.height}) must reflect world plane depth (~1.36m)`);
+
+  // Verify orientation: emission (+Z) points downward (y < 0)
+  const emissionDir = new THREE.Vector3(0, 0, 1).applyQuaternion(rect6.quaternion);
+  assert(emissionDir.y < -0.99, 'Emission vector must point downward into the room (-Y)');
+
+  // Verify companion fill
+  const fill6 = additions.getObjectByName('AreaFill:Light06');
+  assert(fill6 && fill6.isPointLight, 'AreaFill:Light06 companion fill light must exist');
+
+  // Verify idempotency
+  const secondRun = configureHabitatAreaLights(root, additions);
+  assert.strictEqual(secondRun.length, 0, 'Second run must not duplicate lights');
+});
+
+test('LIGHT-007: configureModuleLighting integrates Area Lights when module is Habitat', () => {
+  const root = new THREE.Group();
+  const additions = new THREE.Group();
+  root.add(additions);
+
+  const p6 = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+  p6.name = 'Light06';
+  p6.position.set(-2.55, 4.0, 0);
+  root.add(p6);
+
+  configureModuleLighting(root, additions, 'Habitat');
+
+  const rectLights = additions.children.filter(c => c.isRectAreaLight);
+  assert.strictEqual(rectLights.length, 1, 'Habitat lighting must instantiate RectAreaLight for Light06');
+  assert.strictEqual(rectLights[0].name, 'AreaLight:Light06');
+
+  // Plane mesh must remain in scene and visible
+  assert.strictEqual(p6.visible, true, 'Original plane mesh must remain visible');
 });
 
 // Setup minimal document mock for CanvasTexture / CanvasRenderingContext2D in Node environment
