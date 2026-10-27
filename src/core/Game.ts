@@ -21,6 +21,8 @@ import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
 import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
+import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
+import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 
 type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -87,6 +89,8 @@ export class Game {
   private habitatScreenRenderer = new HabitatScreenRenderer();
   private engineeringScreenRenderer = new EngineeringScreenRenderer();
   private researchScreenRenderer = new ResearchScreenRenderer();
+  private missionControlScreenRenderer = new MissionControlScreenRenderer();
+  private centralHubScreenRenderer = new CentralHubScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -200,6 +204,10 @@ export class Game {
         this.engineeringScreenRenderer.renderAll(updated);
       } else if (this.active === "Science") {
         this.researchScreenRenderer.renderAll(updated);
+      } else if (this.active === "MissionControl") {
+        this.missionControlScreenRenderer.renderAll(updated);
+      } else if (this.active === "Hub") {
+        this.centralHubScreenRenderer.renderAll(updated);
       }
     });
 
@@ -889,6 +897,16 @@ export class Game {
     } else {
       this.researchScreenRenderer.dispose();
     }
+    if (module === "MissionControl") {
+      this.missionControlScreenRenderer.attachToMissionControl(model, this.missionManager.getState());
+    } else {
+      this.missionControlScreenRenderer.dispose();
+    }
+    if (module === "Hub") {
+      this.centralHubScreenRenderer.attachToHub(model, this.missionManager.getState());
+    } else {
+      this.centralHubScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -1508,6 +1526,8 @@ export class Game {
     this.habitatScreenRenderer.dispose();
     this.engineeringScreenRenderer.dispose();
     this.researchScreenRenderer.dispose();
+    this.missionControlScreenRenderer.dispose();
+    this.centralHubScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();

@@ -76,69 +76,27 @@ export function removeSpawnOverlaps(
  * (outer perimeter wall) and Collision Section 2 (inner central pillar).
  * Ensures walls are impassable while leaving module entrance doorways open.
  */
+/**
+ * Builds colliders for Central Hub module.
+ * Targets authored Collider_Section01 (and Collider_Section02) using standard custom collider sections,
+ * setting visibility to false and generating bounding collision hulls around the geometry.
+ */
 export function buildCentralHubColliders(root: THREE.Object3D): THREE.Box3[] {
   root.updateWorldMatrix(true, true);
-  const colliders: THREE.Box3[] = [];
 
-  // Doorway locations in Central Hub (radius ~5.2 - 5.4m)
-  const doorwayClearances: { x: number; z: number; radius: number }[] = [
-    { x: 2.27, z: -4.79, radius: 1.5 }, // Engineering
-    { x: -1.30, z: -5.12, radius: 1.5 }, // Habitat
-    { x: -4.87, z: 1.69, radius: 1.5 }, // Airlock (Main)
-    { x: 5.09, z: 1.56, radius: 1.5 }, // Mission Control
-    { x: 4.93, z: -2.25, radius: 1.5 } // Science Lab
-  ];
+  const candidateNames = ["Collider_Section01", "Collider_Section02", "Collider_Section"];
+  const presentNames: string[] = [];
 
-  const sectionNames = ["Collider_Section01", "Collider_Section02"];
-
-  for (const name of sectionNames) {
-    const mesh = root.getObjectByName(name) as THREE.Mesh | undefined;
-    if (!mesh || !mesh.geometry) continue;
-
-    mesh.visible = false;
-    const pos = mesh.geometry.attributes.position;
-    const ind = mesh.geometry.index;
-    if (!pos) continue;
-
-    const verts: THREE.Vector3[] = [];
-    for (let i = 0; i < pos.count; i++) {
-      const v = new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-      verts.push(v);
-    }
-
-    const step = ind ? 6 : 6;
-    const maxIdx = ind ? ind.count : pos.count;
-
-    for (let i = 0; i < maxIdx; i += step) {
-      const box = new THREE.Box3();
-      for (let j = 0; j < 6 && i + j < maxIdx; j++) {
-        const vIdx = ind ? ind.getX(i + j) : i + j;
-        if (vIdx < verts.length) {
-          box.expandByPoint(verts[vIdx]);
-        }
+  root.traverse(child => {
+    if (candidateNames.some(c => new RegExp(`^${c}$`, "i").test(child.name))) {
+      child.visible = false;
+      if (!presentNames.includes(child.name)) {
+        presentNames.push(child.name);
       }
-
-      if (box.isEmpty()) continue;
-
-      // Expand thickness slightly to prevent diagonal clipping
-      box.expandByVector(new THREE.Vector3(0.08, 0, 0.08));
-      box.min.y = Math.min(box.min.y, -0.6);
-      box.max.y = Math.max(box.max.y, 2.8);
-
-      // If outer wall, check if this segment intersects an open doorway
-      if (name === "Collider_Section01") {
-        const center = box.getCenter(new THREE.Vector3());
-        const isDoor = doorwayClearances.some(
-          d => Math.hypot(center.x - d.x, center.z - d.z) < d.radius
-        );
-        if (isDoor) continue; // Keep doorway corridor clear
-      }
-
-      colliders.push(box);
     }
-  }
+  });
 
-  return colliders;
+  return buildCustomColliderSections(root, presentNames.length > 0 ? presentNames : ["Collider_Section01"]);
 }
 
 /**

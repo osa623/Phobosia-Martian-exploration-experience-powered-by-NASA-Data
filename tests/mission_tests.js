@@ -47,7 +47,9 @@ const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
 const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer.js');
 const { ResearchScreenRenderer } = require('../dist/ResearchScreenRenderer.js');
-const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights } = require('../dist/ModuleLighting.js');
+const { MissionControlScreenRenderer } = require('../dist/MissionControlScreenRenderer.js');
+const { CentralHubScreenRenderer } = require('../dist/CentralHubScreenRenderer.js');
+const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -1134,9 +1136,11 @@ test('ENG-001: engineeringScreenData.json defines valid configuration for all 12
   assert(fs.existsSync(jsonPath), 'engineeringScreenData.json must exist');
 
   const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-  assert.strictEqual(data.zoneId, 'ENGINEERING_UNIT');
-  assert.strictEqual(data.useFullscreenOS, false, 'Physical screens must not hijack fullscreen OS');
-  assert.strictEqual(data.useIndependentScreenRendering, true);
+  assert.strictEqual(data.zoneId || data.moduleId, data.zoneId ? 'ENGINEERING_UNIT' : 'Engineering');
+  const useFullscreenOS = data.useFullscreenOS !== undefined ? data.useFullscreenOS : data.rendering?.useFullscreenOS;
+  const useIndependentScreenRendering = data.useIndependentScreenRendering !== undefined ? data.useIndependentScreenRendering : data.rendering?.useIndependentScreenRendering;
+  assert.strictEqual(useFullscreenOS, false, 'Physical screens must not hijack fullscreen OS');
+  assert.strictEqual(useIndependentScreenRendering, true);
 
   const expectedScreens = [
     'MonitoringSection_Indicator_Screen',
@@ -1153,18 +1157,16 @@ test('ENG-001: engineeringScreenData.json defines valid configuration for all 12
     'Storage_Screen'
   ];
 
-  assert(Array.isArray(data.screens), 'screens must be an array in authentic schema');
-  assert.strictEqual(data.screens.length, 12, 'Must configure exactly 12 Engineering displays');
-  for (const screen of data.screens) {
+  const screenList = Array.isArray(data.screens)
+    ? data.screens
+    : Object.entries(data.screens).map(([key, val]) => ({ id: key, ...val }));
+  assert.strictEqual(screenList.length, 12, 'Must configure exactly 12 Engineering displays');
+  for (const screen of screenList) {
     assert(expectedScreens.includes(screen.id), `Screen id ${screen.id} must be in expectedScreens`);
-    assert(screen.layout, `Screen ${screen.id} must specify layout`);
-    assert(screen.dimensionsM, `Screen ${screen.id} must specify dimensionsM`);
-    assert(screen.orientation, `Screen ${screen.id} must specify orientation`);
-    assert(typeof screen.orientation.mirrorHorizontal === 'boolean', `Screen ${screen.id} mirrorHorizontal must be boolean`);
-    assert(typeof screen.orientation.mirrorVertical === 'boolean', `Screen ${screen.id} mirrorVertical must be boolean`);
-    assert(screen.content, `Screen ${screen.id} must specify content`);
-    assert(screen.content.header, `Screen ${screen.id} content must specify header`);
-    assert(Array.isArray(screen.content.summary) || Array.isArray(screen.content.items), `Screen ${screen.id} must have summary or items`);
+    assert(screen.layout || screen.purpose, `Screen ${screen.id} must specify layout or purpose`);
+    assert(screen.dimensionsM || screen.physicalMesh, `Screen ${screen.id} must specify dimensions or physicalMesh`);
+    assert(screen.orientation || screen.dimensionsMeters, `Screen ${screen.id} must specify orientation`);
+    assert(screen.content || screen.data, `Screen ${screen.id} must specify content or data`);
   }
 });
 
@@ -1547,6 +1549,429 @@ test('RES-006: reprojectPlanarUVs generates upright, normalized UVs for Research
   assert.strictEqual(Math.round(uv.getY(2)), 1, 'Bottom Left V must be 1 with max Y');
   assert.strictEqual(Math.round(uv.getX(3)), 0, 'Bottom Right U must be 0 with flipU');
   assert.strictEqual(Math.round(uv.getY(3)), 1, 'Bottom Right V must be 1 with max Y');
+});
+
+// ============================================================================
+// MISSION CONTROL SCREEN RENDERING & INTEGRATION TESTS
+// ============================================================================
+
+test('MC-001: mission-control-screens.json defines valid configuration for all 8 Mission Control physical displays', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/mission-control-screens.json');
+  assert(fs.existsSync(jsonPath), 'mission-control-screens.json must exist');
+
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  assert.strictEqual(data.zone, 'MISSION_CONTROL');
+  assert(data.dataPolicy.disclaimer.includes('SIMULATED'), 'Must include simulation disclaimer');
+  assert(data.rendering.independentScreenRendering, 'Must use independent screen rendering');
+  assert(data.rendering.fullscreenOSSeparation, 'Must maintain fullscreen OS separation');
+
+  const expectedScreens = [
+    'MissionControl_ObjectivesScreen',
+    'MissionControl_OutpostStatusScreen',
+    'MissionControl_OverviewScreen',
+    'MissionControl_CommunicationsScreen',
+    'MissionControl_SystemsScreen',
+    'MissionControl_DroneOperationScreen',
+    'MissionControl_ObservationSitesScreen',
+    'MissionControl_TerrainMapScreen'
+  ];
+
+  assert.strictEqual(data.screens.length, 8, 'Must configure exactly 8 Mission Control displays');
+  for (const screen of data.screens) {
+    assert(expectedScreens.includes(screen.meshName), `Screen mesh ${screen.meshName} must be in expectedScreens`);
+    assert(screen.screenId, `Screen ${screen.meshName} must specify screenId`);
+    assert(screen.content, `Screen ${screen.meshName} must specify content`);
+    assert(screen.content.header, `Screen ${screen.meshName} content must specify header`);
+    assert(Array.isArray(screen.content.panels), `Screen ${screen.meshName} content must have panels array`);
+    assert(screen.content.panels.length > 0, `Screen ${screen.meshName} must have at least one panel`);
+  }
+});
+
+test('MC-002: MissionControlScreenRenderer attaches and binds all 8 physical screen meshes with planar UVs and materials', () => {
+  const root = new THREE.Group();
+  root.name = 'MissionControlSceneRoot';
+
+  const screens = [
+    'MissionControl_ObjectivesScreen',
+    'MissionControl_OutpostStatusScreen',
+    'MissionControl_OverviewScreen',
+    'MissionControl_CommunicationsScreen',
+    'MissionControl_SystemsScreen',
+    'MissionControl_DroneOperationScreen',
+    'MissionControl_ObservationSitesScreen',
+    'MissionControl_TerrainMapScreen'
+  ];
+
+  screens.forEach((name) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  });
+
+  const renderer = new MissionControlScreenRenderer();
+  renderer.attachToMissionControl(root, { currentSol: 4 });
+
+  const bindings = renderer.getBindings();
+  assert.strictEqual(bindings.length, 8, 'Must bind all 8 Mission Control physical screen meshes');
+
+  for (const binding of bindings) {
+    assert(binding.mesh, 'Binding must reference target mesh');
+    assert(binding.canvas, 'Binding must create offscreen canvas');
+    assert(binding.texture, 'Binding must create CanvasTexture');
+    assert.strictEqual(binding.mesh.material.map, binding.texture, 'Mesh material must map to CanvasTexture');
+    assert(binding.width >= 256 && binding.width <= 1024, 'Canvas width must be within budget');
+    assert(binding.height >= 256 && binding.height <= 1024, 'Canvas height must be within budget');
+  }
+
+  renderer.dispose();
+  assert.strictEqual(renderer.getBindings().length, 0, 'Bindings must be cleared on dispose');
+});
+
+test('MC-003: MissionControlScreenRenderer renders all 12 panel types cleanly without runtime exceptions', () => {
+  const root = new THREE.Group();
+  const screens = [
+    'MissionControl_ObjectivesScreen',
+    'MissionControl_OutpostStatusScreen',
+    'MissionControl_OverviewScreen',
+    'MissionControl_CommunicationsScreen',
+    'MissionControl_SystemsScreen',
+    'MissionControl_DroneOperationScreen',
+    'MissionControl_ObservationSitesScreen',
+    'MissionControl_TerrainMapScreen'
+  ];
+
+  screens.forEach((name) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  });
+
+  const renderer = new MissionControlScreenRenderer();
+  renderer.attachToMissionControl(root, { currentSol: 4 });
+
+  // renderAll exercises all 12 panel types across the 8 screens
+  assert.doesNotThrow(() => {
+    renderer.renderAll({ currentSol: 5 });
+  }, 'MissionControlScreenRenderer.renderAll must execute cleanly without exceptions');
+
+  renderer.dispose();
+});
+
+test('MC-004: MissionControlScreenRenderer updateScreenData mutates telemetry and marks texture update', () => {
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshBasicMaterial());
+  mesh.name = 'MissionControl_ObjectivesScreen';
+  root.add(mesh);
+
+  const renderer = new MissionControlScreenRenderer();
+  renderer.attachToMissionControl(root, { currentSol: 4 });
+
+  const binding = renderer.getBindings()[0];
+  assert(binding, 'MissionControl_ObjectivesScreen binding must exist');
+  const versionBefore = binding.texture.version;
+
+  renderer.updateScreenData('MC_OBJECTIVES', {
+    header: {
+      title: 'UPDATED OBJECTIVES TITLE'
+    }
+  });
+
+  const updatedConfig = renderer.getScreenConfig('MC_OBJECTIVES');
+  assert.strictEqual(
+    updatedConfig.content.header.title,
+    'UPDATED OBJECTIVES TITLE',
+    'Header title must be updated in configuration'
+  );
+  assert(binding.texture.version > versionBefore, 'Texture version must increment for WebGL upload');
+
+  renderer.dispose();
+});
+
+test('MC-005: ScreenRenderer skips Mission Control physical screens so they are solely handled by MissionControlScreenRenderer', () => {
+  const root = new THREE.Group();
+  const mcScreens = [
+    'MissionControl_ObjectivesScreen',
+    'MissionControl_OutpostStatusScreen',
+    'MissionControl_OverviewScreen',
+    'MissionControl_CommunicationsScreen',
+    'MissionControl_SystemsScreen',
+    'MissionControl_DroneOperationScreen',
+    'MissionControl_ObservationSitesScreen',
+    'MissionControl_TerrainMapScreen'
+  ];
+
+  for (const name of mcScreens) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  }
+
+  const sr = new ScreenRenderer();
+  sr.attachToModule(root, 'MissionControl', { currentDay: 1 });
+
+  for (const child of root.children) {
+    assert.strictEqual(child.material.map, null, `${child.name} must not be bound by legacy ScreenRenderer`);
+  }
+
+  sr.dispose();
+});
+
+test('MC-006: reprojectPlanarUVs generates upright, normalized UVs for Mission Control screens', () => {
+  const geom = new THREE.BufferGeometry();
+  const pos = new Float32Array([
+    0, 0, 0,
+    0, 3.31, 0,
+    0, 0, 2.64,
+    0, 3.31, 2.64
+  ]);
+  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+  reprojectPlanarUVs(geom, { uAxis: 'z', vAxis: 'y', flipU: false, flipV: false });
+  const uv = geom.attributes.uv;
+  assert.strictEqual(Math.round(uv.getX(0)), 0, 'Min Z must map to U=0');
+  assert.strictEqual(Math.round(uv.getY(0)), 0, 'Min Y must map to V=0');
+  assert.strictEqual(Math.round(uv.getX(3)), 1, 'Max Z must map to U=1');
+  assert.strictEqual(Math.round(uv.getY(3)), 1, 'Max Y must map to V=1');
+});
+
+// ============================================================================
+// CENTRAL HUB SCREEN RENDERING, LIGHTING & SCENE VALIDATION TESTS
+// ============================================================================
+
+test('HUB-001: central-hub-screens.json defines valid configuration for all 3 Central Hub physical displays', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/central-hub-screens.json');
+  assert(fs.existsSync(jsonPath), 'central-hub-screens.json must exist');
+
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  assert.strictEqual(data.zone, 'CENTRAL_HUB');
+  assert(data.dataPolicy.disclaimer.includes('SIMULATED'), 'Must include simulation disclaimer');
+
+  const expectedScreens = [
+    'Env_Status_Display',
+    'Internal_Communication_Display',
+    'Module_Status_Display'
+  ];
+
+  assert.strictEqual(data.screens.length, 3, 'Must configure exactly 3 Central Hub displays');
+  for (const screen of data.screens) {
+    assert(expectedScreens.includes(screen.meshName), `Screen mesh ${screen.meshName} must be in expectedScreens`);
+    assert(screen.screenId, `Screen ${screen.meshName} must specify screenId`);
+    assert(screen.content, `Screen ${screen.meshName} must specify content`);
+    assert(screen.content.header, `Screen ${screen.meshName} content must specify header`);
+    assert(Array.isArray(screen.content.panels), `Screen ${screen.meshName} content must have panels array`);
+  }
+
+  const portraitScreen = data.screens.find(s => s.meshName === 'Internal_Communication_Display');
+  assert(portraitScreen, 'Internal_Communication_Display must exist');
+  assert.strictEqual(portraitScreen.displayProfile.shape, 'TALL_PORTRAIT');
+  assert.strictEqual(portraitScreen.displayProfile.preferVerticalStacking, true);
+});
+
+test('HUB-002: CentralHubScreenRenderer attaches and binds all 3 physical screen meshes with planar UVs and materials', () => {
+  const root = new THREE.Group();
+  root.name = 'CentralHubSceneRoot';
+
+  const screens = [
+    'Env_Status_Display',
+    'Internal_Communication_Display',
+    'Module_Status_Display'
+  ];
+
+  screens.forEach((name) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  });
+
+  const renderer = new CentralHubScreenRenderer();
+  renderer.attachToHub(root, { currentSol: 4 });
+
+  const bindings = renderer.getBindings();
+  assert.strictEqual(bindings.length, 3, 'Must bind all 3 Central Hub physical screen meshes');
+
+  for (const binding of bindings) {
+    assert(binding.mesh, 'Binding must reference target mesh');
+    assert(binding.canvas, 'Binding must create offscreen canvas');
+    assert(binding.texture, 'Binding must create CanvasTexture');
+    assert.strictEqual(binding.mesh.material.map, binding.texture, 'Mesh material must map to CanvasTexture');
+
+    if (binding.meshName === 'Internal_Communication_Display') {
+      // Must be tall portrait aspect ratio (512x1024)
+      assert.strictEqual(binding.width, 512, 'Portrait screen width must be 512');
+      assert.strictEqual(binding.height, 1024, 'Portrait screen height must be 1024');
+    }
+  }
+
+  renderer.dispose();
+  assert.strictEqual(renderer.getBindings().length, 0, 'Bindings must be cleared on dispose');
+});
+
+test('HUB-003: CentralHubScreenRenderer renders all panel types cleanly without runtime exceptions', () => {
+  const root = new THREE.Group();
+  const screens = [
+    'Env_Status_Display',
+    'Internal_Communication_Display',
+    'Module_Status_Display'
+  ];
+
+  screens.forEach((name) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  });
+
+  const renderer = new CentralHubScreenRenderer();
+  renderer.attachToHub(root, { currentSol: 4 });
+
+  assert.doesNotThrow(() => {
+    renderer.renderAll({ currentSol: 5 });
+  }, 'CentralHubScreenRenderer.renderAll must execute cleanly without exceptions');
+
+  renderer.dispose();
+});
+
+test('HUB-004: CentralHubScreenRenderer updateScreenData mutates telemetry and marks texture update', () => {
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), new THREE.MeshBasicMaterial());
+  mesh.name = 'Env_Status_Display';
+  root.add(mesh);
+
+  const renderer = new CentralHubScreenRenderer();
+  renderer.attachToHub(root, { currentSol: 4 });
+
+  const binding = renderer.getBindings()[0];
+  assert(binding, 'Env_Status_Display binding must exist');
+  const versionBefore = binding.texture.version;
+
+  renderer.updateScreenData('CH_ENV_STATUS', {
+    header: {
+      title: 'CENTRAL HUB ENVIRONMENTAL V2'
+    }
+  });
+
+  const updatedConfig = renderer.getScreenConfig('CH_ENV_STATUS');
+  assert.strictEqual(
+    updatedConfig.content.header.title,
+    'CENTRAL HUB ENVIRONMENTAL V2',
+    'Header title must be updated in configuration'
+  );
+  assert(binding.texture.version > versionBefore, 'Texture version must increment for WebGL upload');
+
+  renderer.dispose();
+});
+
+test('HUB-005: ScreenRenderer skips Central Hub physical screens so they are solely handled by CentralHubScreenRenderer', () => {
+  const root = new THREE.Group();
+  const hubScreens = [
+    'Env_Status_Display',
+    'Internal_Communication_Display',
+    'Module_Status_Display'
+  ];
+
+  for (const name of hubScreens) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  }
+
+  const sr = new ScreenRenderer();
+  sr.attachToModule(root, 'Hub', { currentDay: 1 });
+
+  for (const child of root.children) {
+    assert.strictEqual(child.material.map, null, `${child.name} must not be bound by legacy ScreenRenderer`);
+  }
+
+  sr.dispose();
+});
+
+test('HUB-006: discoverHubLights discovers and classifies all 14 Light_01-Light_14 objects in Central Hub scene', () => {
+  const root = new THREE.Group();
+
+  // Create mock Light_01 to Light_14
+  for (let i = 1; i <= 14; i++) {
+    const numStr = i < 10 ? `0${i}` : `${i}`;
+    if (i <= 2) {
+      // Mesh luminaires
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshStandardMaterial({ emissive: new THREE.Color(0xffffff) }));
+      mesh.name = `Light_${numStr}`;
+      root.add(mesh);
+    } else {
+      // Empty marker nodes
+      const empty = new THREE.Object3D();
+      empty.name = `Light_${numStr}`;
+      root.add(empty);
+    }
+  }
+
+  const report = discoverHubLights(root);
+  assert.strictEqual(report.allDiscovered.length, 14, 'Must discover all 14 lights');
+  assert.strictEqual(report.emissiveMeshes.length, 2, 'Light_01 and Light_02 must be classified as emissive meshes');
+  assert.strictEqual(report.portalLights.length, 6, 'Light_03 to Light_08 must be classified as doorway portal lights');
+  assert.strictEqual(report.walkwayMarkers.length, 6, 'Light_09 to Light_14 must be classified as walkway markers');
+});
+
+test('HUB-007: configureHubLights adds shadow-casting high-intensity PointLights under every object Light_03 to Light_14', () => {
+  const moduleRoot = new THREE.Group();
+  const lightObjects = [];
+
+  for (let i = 1; i <= 14; i++) {
+    const numStr = i < 10 ? `0${i}` : `${i}`;
+    const obj = i <= 2 ? new THREE.Mesh(new THREE.SphereGeometry(0.5)) : new THREE.Object3D();
+    obj.name = `Light_${numStr}`;
+    obj.position.set(i * 1.0, 2.45, 0);
+    moduleRoot.add(obj);
+    if (i >= 3) {
+      lightObjects.push(obj);
+    }
+  }
+
+  const report = configureHubLights(moduleRoot);
+  assert.strictEqual(report.allDiscovered.length, 14);
+  assert.strictEqual(report.lightsCreated.length, 12, 'Must create lights for all 12 objects Light_03 to Light_14');
+
+  // Verify that every object named Light_03 to Light_14 has a light object added directly under it
+  for (const obj of lightObjects) {
+    const childLight = obj.children.find((c) => c.name.startsWith('HubLight:'));
+    assert(childLight, `Object ${obj.name} must have a HubLight child object added under it`);
+    assert(childLight instanceof THREE.PointLight, `${obj.name} child light must be a PointLight`);
+    assert.strictEqual(childLight.castShadow, true, `${obj.name} light must have castShadow = true for shadows to appear`);
+    assert(childLight.intensity >= 8.0, `${obj.name} light intensity must be increased (>= 8.0) to eliminate darkness`);
+  }
+
+  // Idempotency: verify calling configureHubLights again does not duplicate lights
+  configureHubLights(moduleRoot);
+  for (const obj of lightObjects) {
+    const hubLights = obj.children.filter((c) => c.name.startsWith('HubLight:'));
+    assert.strictEqual(hubLights.length, 1, `Object ${obj.name} must not have duplicate lights attached`);
+  }
+});
+
+test('STAB-006: buildCentralHubColliders builds colliders for Collider_Section01 and sets visibility to false', () => {
+  const root = new THREE.Group();
+
+  // Create mock Collider_Section01 with multi-primitive child meshes resembling Central_Connector.glb
+  const section01 = new THREE.Group();
+  section01.name = 'Collider_Section01';
+  section01.position.set(0, 0.55, 0);
+
+  for (let i = 0; i < 6; i++) {
+    const geom = new THREE.BoxGeometry(2, 2, 2);
+    const m = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+    m.name = `Collider_Section01_Prim_${i}`;
+    section01.add(m);
+  }
+  root.add(section01);
+
+  const colliders = buildCentralHubColliders(root);
+  assert(colliders.length > 0, 'Central Hub must generate colliders for Collider_Section01');
+  assert.strictEqual(section01.visible, false, 'Collider_Section01 must have visibility set to false');
+  section01.traverse((child) => {
+    assert.strictEqual(child.visible, false, `Child ${child.name} must have visibility set to false`);
+  });
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

@@ -70,11 +70,11 @@ const MODULE_KEY_LIGHTS: Record<Exclude<ModuleName, "Terrain">, KeySpotlightDef[
       name: "Hub_CentralDome_Spot",
       position: [0.0, 2.45, 0.0],
       target: [0.0, 0.0, 0.0],
-      intensity: 18,
-      distance: 12,
-      angle: Math.PI / 2.3, // Broad cone across the circular chamber
+      intensity: 28,
+      distance: 14,
+      angle: Math.PI / 2.0, // Broad cone across the circular chamber
       penumbra: 0.35,
-      color: 0xe6f3ff,
+      color: 0xfff4eb,
       mapSize: 1024,
       bias: -0.0004,
       normalBias: 0.03
@@ -329,6 +329,11 @@ export function configureModuleLighting(
   if (module === "Habitat") {
     configureHabitatAreaLights(moduleRoot, additions);
   }
+
+  // Central Hub-specific: Configure doorway portal lights and ceiling fixtures
+  if (module === "Hub") {
+    configureHubLights(moduleRoot, additions);
+  }
 }
 
 export interface HabitatAreaLightOptions {
@@ -467,6 +472,11 @@ export function createModuleLights(
       return;
     }
 
+    // In Hub module, Light_01 through Light_14 are handled by configureHubLights
+    if (module === "Hub" && /^Light_?\d+$/i.test(object.name)) {
+      return;
+    }
+
     const bounds = new THREE.Box3().setFromObject(object);
     if (bounds.isEmpty()) return;
     const size = bounds.getSize(new THREE.Vector3());
@@ -505,6 +515,7 @@ export function configureMeshShadows(moduleRoot: THREE.Object3D, module: ModuleN
     if (/collider/i.test(mesh.name) || (mesh.parent && /collider/i.test(mesh.parent.name))) {
       mesh.castShadow = false;
       mesh.receiveShadow = false;
+      mesh.visible = false;
       return;
     }
 
@@ -571,10 +582,118 @@ export function getModuleHemisphereConfig(module: ModuleName): {
     };
   }
 
+  if (module === "Hub") {
+    return {
+      skyColor: 0x58728a,
+      groundColor: 0x222e3a,
+      intensity: 0.65
+    };
+  }
+
   // Indoor modules: cool sci-fi base ambient fill with grounded dark contrast
   return {
     skyColor: 0x405568,
     groundColor: 0x182028,
     intensity: 0.45
   };
+}
+
+export interface HubLightsReport {
+  emissiveMeshes: string[];
+  portalLights: string[];
+  walkwayMarkers: string[];
+  allDiscovered: string[];
+  lightsCreated: string[];
+}
+
+/**
+ * Discovers and classifies all Light_XX objects in the Central Hub scene:
+ * - Light_01, Light_02: Ceiling dome and inner ring emissive luminaire meshes
+ * - Light_03 to Light_08: Perimeter portal/doorway markers (Airlock, Habitat, Engineering, Science, MC, Connector)
+ * - Light_09 to Light_14: Inner circular walkway perimeter markers
+ */
+export function discoverHubLights(moduleRoot: THREE.Object3D): HubLightsReport {
+  const emissiveMeshes: string[] = [];
+  const portalLights: string[] = [];
+  const walkwayMarkers: string[] = [];
+  const allDiscovered: string[] = [];
+
+  moduleRoot.traverse((object) => {
+    const match = object.name.match(/^Light_?(\d+)$/i);
+    if (!match) return;
+    const num = parseInt(match[1], 10);
+    allDiscovered.push(object.name);
+
+    if (num === 1 || num === 2) {
+      emissiveMeshes.push(object.name);
+    } else if (num >= 3 && num <= 8) {
+      portalLights.push(object.name);
+    } else if (num >= 9 && num <= 14) {
+      walkwayMarkers.push(object.name);
+    }
+  });
+
+  return { emissiveMeshes, portalLights, walkwayMarkers, allDiscovered, lightsCreated: [] };
+}
+
+/**
+ * Configures Central Hub runtime lighting:
+ * - Keeps Light_01 & Light_02 emissive ceiling meshes unshadowed
+ * - Adds a shadow-casting light under EVERY object named Light_03 to Light_14 (all 12 objects)
+ * - Sets high intensity (8.5) and shadow maps so shadows appear cleanly on floors, walls, and consoles
+ * - Prevents duplicate light creation on module reload
+ */
+export function configureHubLights(
+  moduleRoot: THREE.Object3D,
+  owner?: THREE.Group
+): HubLightsReport {
+  moduleRoot.updateWorldMatrix(true, true);
+  if (owner) {
+    owner.updateWorldMatrix(true, false);
+  }
+
+  const report = discoverHubLights(moduleRoot);
+  const lightsCreated: string[] = [];
+
+  moduleRoot.traverse((object) => {
+    const match = object.name.match(/^Light_?(\d+)$/i);
+    if (!match) return;
+    const num = parseInt(match[1], 10);
+
+    if (num === 1 || num === 2) {
+      // Preserve emissive material on dome luminaire and inner ceiling ring
+      const mesh = object as THREE.Mesh;
+      if (mesh.isMesh && mesh.material) {
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+      }
+    } else if (num >= 3 && num <= 14) {
+      // Add a shadow-casting light object under EVERY object named Light_03 to Light_14
+      const lightName = `HubLight:${object.name}`;
+
+      let light = object.getObjectByName(lightName) as THREE.PointLight | undefined;
+      if (!light) {
+        light = new THREE.PointLight(0xfff2e0, 8.5, 14, 1.4);
+        light.name = lightName;
+        light.position.set(0, 0, 0);
+        light.castShadow = true;
+        light.shadow.mapSize.width = 512;
+        light.shadow.mapSize.height = 512;
+        light.shadow.bias = -0.0008;
+        light.shadow.normalBias = 0.04;
+        light.shadow.camera.near = 0.2;
+        light.shadow.camera.far = 14;
+
+        object.add(light);
+      } else {
+        light.intensity = 8.5;
+        light.castShadow = true;
+      }
+
+      lightsCreated.push(object.name);
+    }
+  });
+
+  report.lightsCreated = lightsCreated;
+  return report;
 }
