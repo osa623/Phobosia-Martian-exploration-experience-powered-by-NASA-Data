@@ -93,6 +93,16 @@ export class ScreenRenderer {
           return;
         }
 
+        // Mission Control physical screens are handled by dedicated MissionControlScreenRenderer
+        if (moduleName === "MissionControl") {
+          return;
+        }
+
+        // Central Hub physical screens are handled by dedicated CentralHubScreenRenderer
+        if (moduleName === "Hub") {
+          return;
+        }
+
         this.bindScreen(mesh, identifier, rendererType, missionState);
       }
     });
