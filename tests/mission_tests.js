@@ -44,6 +44,7 @@ const { MissionManager } = require('../dist/MissionManager.js');
 const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
+const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
@@ -810,6 +811,242 @@ test('LIGHT-005: getModuleHemisphereConfig provides distinct outdoor vs indoor l
   assert.strictEqual(outdoor.skyColor, 0xd48858); // Mars warm sky
   assert.strictEqual(indoor.skyColor, 0x405568); // Cool indoor sci-fi base
   assert(outdoor.intensity > indoor.intensity);
+});
+
+// Setup minimal document mock for CanvasTexture / CanvasRenderingContext2D in Node environment
+if (typeof document === 'undefined') {
+  global.document = {
+    createElement: (tag) => {
+      if (tag === 'canvas') {
+        return {
+          width: 1024,
+          height: 768,
+          getContext: () => ({
+            fillStyle: '',
+            fillRect: () => {},
+            strokeStyle: '',
+            lineWidth: 1,
+            strokeRect: () => {},
+            beginPath: () => {},
+            moveTo: () => {},
+            lineTo: () => {},
+            stroke: () => {},
+            fill: () => {},
+            arc: () => {},
+            fillText: () => {},
+            font: '',
+            textAlign: ''
+          })
+        };
+      }
+      return {};
+    }
+  };
+}
+
+test('HAB-001: habitatScreenData.json defines valid configuration for all 4 Habitat physical displays', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/habitatScreenData.json');
+  assert(fs.existsSync(jsonPath), 'habitatScreenData.json must exist in src/jsons/Screens/');
+
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  assert.strictEqual(data.moduleId, 'Habitat');
+  assert.strictEqual(data.rendering.renderingSystem, 'HabitatScreenRenderer');
+
+  const requiredScreens = [
+    'Habitat_LifeSupport_Display',
+    'Habitat_Main_Status_Display',
+    'Habitat_Emergency_Status_Display',
+    'Habitat_WaterNutrition_Display'
+  ];
+
+  for (const s of requiredScreens) {
+    assert(data.screens[s], `Screen configuration for ${s} must be defined`);
+    assert.strictEqual(data.screens[s].enabled, true);
+    assert(data.screens[s].geometry, `Geometry must be specified for ${s}`);
+    assert(data.screens[s].geometry.aspectRatio > 0, `Aspect ratio must be > 0 for ${s}`);
+    assert(data.screens[s].orientation, `Orientation must be specified for ${s}`);
+    assert(data.screens[s].rendering, `Rendering settings must be specified for ${s}`);
+    assert(data.screens[s].data, `Telemetry data must be defined for ${s}`);
+  }
+});
+
+test('HAB-002: HabitatScreenRenderer attaches and binds all 4 physical screen meshes with planar UVs and materials', () => {
+  const hsr = new HabitatScreenRenderer();
+  const root = new THREE.Group();
+
+  const screens = [
+    'Habitat_LifeSupport_Display',
+    'Habitat_Main_Status_Display',
+    'Habitat_Emergency_Status_Display',
+    'Habitat_WaterNutrition_Display'
+  ];
+
+  screens.forEach(name => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+    mesh.name = name;
+    root.add(mesh);
+  });
+
+  // Non-screen mesh should not be bound
+  const chair = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5));
+  chair.name = 'Habitat_Chair';
+  root.add(chair);
+
+  hsr.attachToHabitat(root, { currentDay: 2 });
+  const bindings = hsr.getActiveBindings();
+
+  assert.strictEqual(bindings.length, 4, 'Must bind exactly the 4 Habitat physical screens');
+
+  screens.forEach(name => {
+    const b = bindings.find(item => item.screenKey === name);
+    assert(b, `Binding for ${name} must exist`);
+    assert(b.texture instanceof THREE.CanvasTexture, `Binding for ${name} must have a CanvasTexture`);
+    assert(b.material instanceof THREE.MeshBasicMaterial, `Binding for ${name} must have MeshBasicMaterial`);
+    assert.strictEqual(b.mesh.visible, true, `Bound mesh for ${name} must be visible`);
+  });
+
+  hsr.dispose();
+  assert.strictEqual(hsr.getActiveBindings().length, 0, 'Bindings must be empty after disposal');
+});
+
+test('HAB-003: HabitatScreenRenderer individual rendering functions execute cleanly', () => {
+  const hsr = new HabitatScreenRenderer();
+  const canvas = global.document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/habitatScreenData.json');
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+  // Test Life Support Renderer
+  assert.doesNotThrow(() => {
+    hsr.renderHabitatLifeSupportDisplay(ctx, data.screens.Habitat_LifeSupport_Display.data, 1024, 746, 3);
+  });
+
+  // Test Main Status Renderer
+  assert.doesNotThrow(() => {
+    hsr.renderHabitatMainStatusDisplay(ctx, data.screens.Habitat_Main_Status_Display.data, 1024, 712, 3);
+  });
+
+  // Test Emergency Status Renderer
+  assert.doesNotThrow(() => {
+    hsr.renderHabitatEmergencyStatusDisplay(ctx, data.screens.Habitat_Emergency_Status_Display.data, 800, 736, 3);
+  });
+
+  // Test Water Nutrition Renderer
+  assert.doesNotThrow(() => {
+    hsr.renderHabitatWaterNutritionDisplay(ctx, data.screens.Habitat_WaterNutrition_Display.data, 768, 808, 3);
+  });
+});
+
+test('HAB-004: HabitatScreenRenderer updateScreenData mutates telemetry and marks texture update', () => {
+  const hsr = new HabitatScreenRenderer();
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+  mesh.name = 'Habitat_LifeSupport_Display';
+  root.add(mesh);
+
+  hsr.attachToHabitat(root, { currentDay: 4 });
+  const binding = hsr.getActiveBindings().find(b => b.screenKey === 'Habitat_LifeSupport_Display');
+  assert(binding, 'Life support binding must exist');
+
+  const versionBefore = binding.texture.version;
+  hsr.updateScreenData('Habitat_LifeSupport_Display', {
+    oxygen: { label: 'OXYGEN', value: 20.8, unit: '%', status: 'NORMAL' }
+  });
+
+  const updatedConf = hsr.getScreenConfig('Habitat_LifeSupport_Display');
+  assert.strictEqual(updatedConf.data.oxygen.value, 20.8);
+  assert(binding.texture.version > versionBefore, 'Texture version must increment for GPU update');
+
+  hsr.dispose();
+});
+
+test('HAB-005: ScreenRenderer skips Habitat 4 physical screens so they are solely handled by HabitatScreenRenderer', () => {
+  const sr = new ScreenRenderer();
+  const root = new THREE.Group();
+
+  const screen1 = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+  screen1.name = 'Habitat_LifeSupport_Display';
+  root.add(screen1);
+
+  const workstation = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+  workstation.name = 'Habitat_Workstation_Display';
+  root.add(workstation);
+
+  // When attached to Habitat, ScreenRenderer binds workstation but skips the 4 physical telemetry screens
+  sr.attachToModule(root, 'Habitat', { currentDay: 1 });
+  
+  // Workstation should have a material attached by ScreenRenderer
+  assert(workstation.material instanceof THREE.MeshBasicMaterial, 'Workstation must be bound by ScreenRenderer');
+
+  // Habitat_LifeSupport_Display must NOT be bound by ScreenRenderer
+  assert.strictEqual(screen1.material.map, null, 'Physical display must not be bound by general ScreenRenderer');
+
+  sr.dispose();
+});
+
+test('HAB-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, unmirrored UVs for all Habitat screens', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/habitatScreenData.json');
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+  // Test WaterNutrition: plane on XY with minX=left, minY=bottom
+  const waterGeom = new THREE.BufferGeometry();
+  // Pos: [x, y, z]
+  const waterPos = new Float32Array([
+    -0.231, 0.161, 0.519,  // Left Top
+    -0.110, 0.161, 0.519,  // Right Top
+    -0.231, -0.329, 0.519, // Left Bottom
+    -0.110, -0.329, 0.519  // Right Bottom
+  ]);
+  waterGeom.setAttribute('position', new THREE.BufferAttribute(waterPos, 3));
+  const waterConf = data.screens.Habitat_WaterNutrition_Display.orientation;
+  reprojectPlanarUVs(waterGeom, {
+    uAxis: waterConf.uAxis,
+    vAxis: waterConf.vAxis,
+    flipU: Boolean(waterConf.mirrorHorizontal),
+    flipV: Boolean(waterConf.mirrorVertical)
+  });
+  const waterUV = waterGeom.attributes.uv;
+  assert.strictEqual(Math.round(waterUV.getX(0)), 0, 'Left Top U must be 0');
+  assert.strictEqual(Math.round(waterUV.getY(0)), 1, 'Left Top V must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(1)), 1, 'Right Top U must be 1');
+  assert.strictEqual(Math.round(waterUV.getY(1)), 1, 'Right Top V must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(2)), 0, 'Left Bottom U must be 0');
+  assert.strictEqual(Math.round(waterUV.getY(2)), 0, 'Left Bottom V must be 0');
+  assert.strictEqual(Math.round(waterUV.getX(3)), 1, 'Right Bottom U must be 1');
+  assert.strictEqual(Math.round(waterUV.getY(3)), 0, 'Right Bottom V must be 0');
+
+  // Test Emergency Display: plane on YZ with maxZ=left (-0.625), minZ=right (-0.968)
+  const emerGeom = new THREE.BufferGeometry();
+  const emerPos = new Float32Array([
+    0.174, 0.464, -0.625,  // Left Top
+    0.174, 0.464, -0.968,  // Right Top
+    0.174, -0.168, -0.625, // Left Bottom
+    0.174, -0.168, -0.968  // Right Bottom
+  ]);
+  emerGeom.setAttribute('position', new THREE.BufferAttribute(emerPos, 3));
+  const emerConf = data.screens.Habitat_Emergency_Status_Display.orientation;
+  reprojectPlanarUVs(emerGeom, {
+    uAxis: emerConf.uAxis,
+    vAxis: emerConf.vAxis,
+    flipU: Boolean(emerConf.mirrorHorizontal),
+    flipV: Boolean(emerConf.mirrorVertical)
+  });
+  const emerUV = emerGeom.attributes.uv;
+  assert.strictEqual(Math.round(emerUV.getX(0)), 0, 'Emergency Left Top U must be 0');
+  assert.strictEqual(Math.round(emerUV.getY(0)), 1, 'Emergency Left Top V must be 1');
+  assert.strictEqual(Math.round(emerUV.getX(1)), 1, 'Emergency Right Top U must be 1');
+  assert.strictEqual(Math.round(emerUV.getY(1)), 1, 'Emergency Right Top V must be 1');
+  assert.strictEqual(Math.round(emerUV.getX(2)), 0, 'Emergency Left Bottom U must be 0');
+  assert.strictEqual(Math.round(emerUV.getY(2)), 0, 'Emergency Left Bottom V must be 0');
+  assert.strictEqual(Math.round(emerUV.getX(3)), 1, 'Emergency Right Bottom U must be 1');
+  assert.strictEqual(Math.round(emerUV.getY(3)), 0, 'Emergency Right Bottom V must be 0');
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);
