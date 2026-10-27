@@ -1374,6 +1374,7 @@ export class EngineeringScreenRenderer {
         ...this.configData.screens[screenKey].data,
         ...incoming
       };
+      this.configData.screens[screenKey].content = this.configData.screens[screenKey].data;
       const binding = this.activeBindings.find((b) => b.screenKey === screenKey);
       if (binding) {
         this.renderBinding(binding);
