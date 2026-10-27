@@ -19,6 +19,10 @@ import {
 } from "./MissionManager";
 import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
+import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
+import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
+import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
+import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 
 type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -83,6 +87,10 @@ export class Game {
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
   private habitatScreenRenderer = new HabitatScreenRenderer();
+  private engineeringScreenRenderer = new EngineeringScreenRenderer();
+  private researchScreenRenderer = new ResearchScreenRenderer();
+  private missionControlScreenRenderer = new MissionControlScreenRenderer();
+  private centralHubScreenRenderer = new CentralHubScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -192,6 +200,14 @@ export class Game {
       this.screenRenderer.renderAll(this.active, updated);
       if (this.active === "Habitat") {
         this.habitatScreenRenderer.renderAll(updated);
+      } else if (this.active === "Engineering") {
+        this.engineeringScreenRenderer.renderAll(updated);
+      } else if (this.active === "Science") {
+        this.researchScreenRenderer.renderAll(updated);
+      } else if (this.active === "MissionControl") {
+        this.missionControlScreenRenderer.renderAll(updated);
+      } else if (this.active === "Hub") {
+        this.centralHubScreenRenderer.renderAll(updated);
       }
     });
 
@@ -871,6 +887,26 @@ export class Game {
     } else {
       this.habitatScreenRenderer.dispose();
     }
+    if (module === "Engineering") {
+      this.engineeringScreenRenderer.attachToEngineering(model, this.missionManager.getState());
+    } else {
+      this.engineeringScreenRenderer.dispose();
+    }
+    if (module === "Science") {
+      this.researchScreenRenderer.attachToScience(model, this.missionManager.getState());
+    } else {
+      this.researchScreenRenderer.dispose();
+    }
+    if (module === "MissionControl") {
+      this.missionControlScreenRenderer.attachToMissionControl(model, this.missionManager.getState());
+    } else {
+      this.missionControlScreenRenderer.dispose();
+    }
+    if (module === "Hub") {
+      this.centralHubScreenRenderer.attachToHub(model, this.missionManager.getState());
+    } else {
+      this.centralHubScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -1488,6 +1524,10 @@ export class Game {
     }
 
     this.habitatScreenRenderer.dispose();
+    this.engineeringScreenRenderer.dispose();
+    this.researchScreenRenderer.dispose();
+    this.missionControlScreenRenderer.dispose();
+    this.centralHubScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();
