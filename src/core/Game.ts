@@ -20,6 +20,7 @@ import {
 import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
+import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
 
 type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -85,6 +86,7 @@ export class Game {
   private screenRenderer = new ScreenRenderer();
   private habitatScreenRenderer = new HabitatScreenRenderer();
   private engineeringScreenRenderer = new EngineeringScreenRenderer();
+  private researchScreenRenderer = new ResearchScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -196,6 +198,8 @@ export class Game {
         this.habitatScreenRenderer.renderAll(updated);
       } else if (this.active === "Engineering") {
         this.engineeringScreenRenderer.renderAll(updated);
+      } else if (this.active === "Science") {
+        this.researchScreenRenderer.renderAll(updated);
       }
     });
 
@@ -880,6 +884,11 @@ export class Game {
     } else {
       this.engineeringScreenRenderer.dispose();
     }
+    if (module === "Science") {
+      this.researchScreenRenderer.attachToScience(model, this.missionManager.getState());
+    } else {
+      this.researchScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -1498,6 +1507,7 @@ export class Game {
 
     this.habitatScreenRenderer.dispose();
     this.engineeringScreenRenderer.dispose();
+    this.researchScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();

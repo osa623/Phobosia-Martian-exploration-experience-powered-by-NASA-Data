@@ -88,6 +88,11 @@ export class ScreenRenderer {
           return;
         }
 
+        // Science Lab physical screens are handled by dedicated ResearchScreenRenderer
+        if (moduleName === "Science") {
+          return;
+        }
+
         this.bindScreen(mesh, identifier, rendererType, missionState);
       }
     });
