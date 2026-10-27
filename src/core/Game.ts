@@ -18,6 +18,7 @@ import {
   type DroneSurveyRecord
 } from "./MissionManager";
 import { ScreenRenderer } from "./ScreenRenderer";
+import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 
 type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -81,6 +82,7 @@ export class Game {
 
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
+  private habitatScreenRenderer = new HabitatScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -188,6 +190,9 @@ export class Game {
     this.missionManager.subscribe(updated => {
       this.syncMissionStateToUI(updated);
       this.screenRenderer.renderAll(this.active, updated);
+      if (this.active === "Habitat") {
+        this.habitatScreenRenderer.renderAll(updated);
+      }
     });
 
     void this.loadEnvironment();
@@ -861,6 +866,11 @@ export class Game {
     }
 
     // Attach 3D screen plane rendering to actual screen meshes
+    if (module === "Habitat") {
+      this.habitatScreenRenderer.attachToHabitat(model, this.missionManager.getState());
+    } else {
+      this.habitatScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -1477,6 +1487,7 @@ export class Game {
       document.exitPointerLock();
     }
 
+    this.habitatScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();

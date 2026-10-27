@@ -70,6 +70,19 @@ export class ScreenRenderer {
 
       const rendererType = this.matchScreenType(moduleName, identifier);
       if (rendererType) {
+        // Habitat physical status displays are handled by dedicated HabitatScreenRenderer
+        if (
+          moduleName === "Habitat" &&
+          [
+            "Habitat_LifeSupport_Display",
+            "Habitat_Main_Status_Display",
+            "Habitat_Emergency_Status_Display",
+            "Habitat_WaterNutrition_Display"
+          ].some(s => identifier.includes(s))
+        ) {
+          return;
+        }
+
         this.bindScreen(mesh, identifier, rendererType, missionState);
       }
     });
