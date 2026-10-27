@@ -829,6 +829,10 @@ export class Game {
         }
       }
 
+      if (/collider/i.test(o.name)) {
+        o.visible = false;
+      }
+
       if (o.name === "PHOBOSIA_MarsTerrain_2km") {
         this.terrain = o;
       }
@@ -901,9 +905,9 @@ export class Game {
     model.updateWorldMatrix(true, true);
     marker.getWorldPosition(this.temp);
 
-    // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+    // Offset Science Lab spawn so player doesn't land on door partition or LAB_EXIT_TRIGGER
     if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
-      this.temp.z = 11.5; // Push slightly forward into lab interior (away from exit trigger at z≈13.1)
+      this.temp.z = 10.6; // Clear of doorframe partition and exit trigger
     }
     // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
     if (route.spawn === "ScienceLab_Entrance_Trigger") {
@@ -1024,9 +1028,9 @@ export class Game {
       model.updateWorldMatrix(true, true);
       marker.getWorldPosition(this.temp);
 
-      // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+      // Offset Science Lab spawn so player doesn't land on door partition or LAB_EXIT_TRIGGER
       if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
-        this.temp.z = 11.5;
+        this.temp.z = 10.6;
       }
       // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
       if (route.spawn === "ScienceLab_Entrance_Trigger") {

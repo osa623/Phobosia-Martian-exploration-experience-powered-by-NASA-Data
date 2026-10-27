@@ -42,7 +42,7 @@ global.localStorage = {
 const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = require('../dist/MissionManager.js');
 const { MissionManager } = require('../dist/MissionManager.js');
 const THREE = require('three');
-const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders } = require('../dist/Collision.js');
+const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } = require('../dist/ModuleLighting.js');
 
@@ -656,6 +656,43 @@ test('STAB-002: buildScienceLabColliders skips Collider.010 and Collider.011 at 
 
   const colliders = buildScienceLabColliders(root);
   assert.strictEqual(colliders.length, 2); // Only c1 and c15 included
+});
+
+test('STAB-004: buildScienceLabColliders builds Collider_Section01 and sets visibility to false', () => {
+  const root = new THREE.Group();
+  const c = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2));
+  c.name = 'Collider_Section01';
+  c.visible = true;
+  root.add(c);
+
+  const colliders = buildScienceLabColliders(root);
+  assert(colliders.length > 0, 'Should generate bounding boxes from Collider_Section01');
+  assert.strictEqual(c.visible, false, 'Collider_Section01 mesh must have visible = false');
+});
+
+test('STAB-005: buildHabitatColliderSection builds Collider_Section and sets visibility to false', () => {
+  const root = new THREE.Group();
+  const grp = new THREE.Group();
+  grp.name = 'Collider_Section';
+  grp.visible = true;
+
+  const m1 = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2));
+  m1.name = 'Cube035';
+  m1.visible = true;
+  grp.add(m1);
+
+  const m2 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+  m2.name = 'Collider_Section_01';
+  m2.visible = true;
+
+  root.add(grp);
+  root.add(m2);
+
+  const colliders = buildHabitatColliderSection(root);
+  assert(colliders.length > 0, 'Should generate bounding boxes from Collider_Section');
+  assert.strictEqual(grp.visible, false, 'Collider_Section group must have visible = false');
+  assert.strictEqual(m1.visible, false, 'Child mesh must have visible = false');
+  assert.strictEqual(m2.visible, false, 'Collider_Section_01 mesh must have visible = false');
 });
 
 test('STAB-003: ScreenRenderer correctly matches screen identifiers across all outpost modules', () => {

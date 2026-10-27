@@ -147,6 +147,14 @@ export function buildCentralHubColliders(root: THREE.Object3D): THREE.Box3[] {
  */
 export function buildScienceLabColliders(root: THREE.Object3D): THREE.Box3[] {
   root.updateWorldMatrix(true, true);
+
+  // If Collider_Section01 exists in Science_Zone, use the standard indoor custom collider builder and ensure it is hidden
+  const section01 = root.getObjectByName("Collider_Section01") as THREE.Mesh | undefined;
+  if (section01 && section01.isMesh) {
+    section01.visible = false;
+    return buildCustomColliderSections(root, ["Collider_Section01"]);
+  }
+
   const colliders: THREE.Box3[] = [];
 
   root.traverse(child => {
@@ -175,13 +183,52 @@ export function buildScienceLabColliders(root: THREE.Object3D): THREE.Box3[] {
 }
 
 export function buildCustomColliderSections(root: THREE.Object3D, names: readonly string[]): THREE.Box3[] {
-  const meshes = names
-    .map(name => root.getObjectByName(name) as THREE.Mesh | undefined)
-    .filter((mesh): mesh is THREE.Mesh => Boolean(mesh?.isMesh && mesh.geometry.attributes.position));
-  if (meshes.length !== names.length) return [];
+  const meshes: THREE.Mesh[] = [];
+
+  for (const name of names) {
+    const obj = root.getObjectByName(name);
+    if (obj) {
+      obj.visible = false;
+      if ((obj as THREE.Mesh).isMesh && (obj as THREE.Mesh).geometry?.attributes.position) {
+        meshes.push(obj as THREE.Mesh);
+      }
+      obj.traverse(child => {
+        if (/collider/i.test(child.name)) {
+          child.visible = false;
+        }
+        if ((child as THREE.Mesh).isMesh && (child as THREE.Mesh).geometry?.attributes.position) {
+          meshes.push(child as THREE.Mesh);
+        }
+      });
+    }
+  }
+
+  // Case-insensitive / prefix fallback if names were not matched directly
+  if (meshes.length === 0) {
+    root.traverse(child => {
+      if (names.some(n => new RegExp(`^${n}$`, "i").test(child.name))) {
+        child.visible = false;
+        if ((child as THREE.Mesh).isMesh && (child as THREE.Mesh).geometry?.attributes.position) {
+          meshes.push(child as THREE.Mesh);
+        }
+        child.traverse(sub => {
+          if (/collider/i.test(sub.name)) {
+            sub.visible = false;
+          }
+          if ((sub as THREE.Mesh).isMesh && (sub as THREE.Mesh).geometry?.attributes.position) {
+            meshes.push(sub as THREE.Mesh);
+          }
+        });
+      }
+    });
+  }
+
+  const uniqueMeshes = [...new Set(meshes)];
+  if (uniqueMeshes.length === 0) return [];
 
   root.updateWorldMatrix(true, true);
-  return meshes.flatMap(mesh => {
+  return uniqueMeshes.flatMap(mesh => {
+    mesh.visible = false;
     const position = mesh.geometry.attributes.position;
     const index = mesh.geometry.index;
     const triangles: THREE.Vector3[][] = [];
@@ -234,7 +281,10 @@ export function buildCustomColliderSections(root: THREE.Object3D, names: readonl
 }
 
 export function buildHabitatColliderSection(root: THREE.Object3D): THREE.Box3[] {
-  return buildCustomColliderSections(root, ["Collider_Section"]);
+  // Collect all Collider_Section variations (Mesh, Group, or Collider_Section_01)
+  const candidateNames = ["Collider_Section", "Collider_Section_01", "Collider_Section01"];
+  const presentNames = candidateNames.filter(n => root.getObjectByName(n) !== undefined);
+  return buildCustomColliderSections(root, presentNames.length > 0 ? presentNames : ["Collider_Section"]);
 }
 
 export interface PlanarUVOptions {
