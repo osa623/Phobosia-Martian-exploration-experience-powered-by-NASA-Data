@@ -42,12 +42,14 @@
       "orientation": {
         "mode": "VERIFY_FROM_EXISTING_MESH",
         "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
         "contentRotationDegrees": 0,
         "mirrorHorizontal": true,
         "mirrorVertical": false,
         "modifyMeshTransform": false,
         "requireUprightText": true,
-        "note": "Verified: Screen normal faces into room. Local X decreases from left to right; mirrorHorizontal=true (flipU) ensures unmirrored, upright rendering."
+        "note": "Verified: Width along X, Height along Y. Screen Left is maxX (+0.125), Screen Right is minX (-0.125); mirrorHorizontal=true (flipU) ensures unmirrored, upright text."
       },
       "rendering": {
         "rendererFunction": "renderHabitatLifeSupportDisplay",
@@ -151,12 +153,14 @@
       "orientation": {
         "mode": "VERIFY_FROM_EXISTING_MESH",
         "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": true,
+        "mirrorHorizontal": false,
         "mirrorVertical": false,
         "modifyMeshTransform": false,
         "requireUprightText": true,
-        "note": "Verified: Screen normal faces -Z. Local X decreases from left to right; mirrorHorizontal=true (flipU) ensures unmirrored, upright rendering."
+        "note": "Verified: Width along X, Height along Y. Screen Left is minX (0.206), Screen Right is maxX (0.463); mirrorHorizontal=false ensures unmirrored, upright text."
       },
       "rendering": {
         "rendererFunction": "renderHabitatMainStatusDisplay",
@@ -246,12 +250,14 @@
       "orientation": {
         "mode": "VERIFY_FROM_EXISTING_MESH",
         "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "z",
+        "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "modifyMeshTransform": false,
         "requireUprightText": true,
-        "note": "Verified: Screen normal faces -X. Local Z increases from left to right; mirrorHorizontal=false gives correct orientation."
+        "note": "Verified: Plane parallel to YZ. Width along Z, Height along Y. Screen Left is maxZ (-0.625), Screen Right is minZ (-0.968); mirrorHorizontal=true (flipU) ensures unmirrored, upright text."
       },
       "rendering": {
         "rendererFunction": "renderHabitatEmergencyStatusDisplay",
@@ -326,12 +332,14 @@
       "orientation": {
         "mode": "VERIFY_FROM_EXISTING_MESH",
         "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
         "contentRotationDegrees": 0,
         "mirrorHorizontal": false,
         "mirrorVertical": false,
         "modifyMeshTransform": false,
         "requireUprightText": true,
-        "note": "Verified: Screen normal faces +Z. Local X increases from left to right; mirrorHorizontal=false gives correct orientation."
+        "note": "Verified: Width along X, Height along Y. Screen Left is minX (-0.231), Screen Right is maxX (-0.110); mirrorHorizontal=false ensures unmirrored, upright text."
       },
       "rendering": {
         "rendererFunction": "renderHabitatWaterNutritionDisplay",

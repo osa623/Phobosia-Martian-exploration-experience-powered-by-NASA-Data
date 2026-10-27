@@ -292,6 +292,8 @@ export interface PlanarUVOptions {
   flipV?: boolean;
   swapUV?: boolean;
   rotation?: 0 | 90 | 180 | 270;
+  uAxis?: "x" | "y" | "z";
+  vAxis?: "x" | "y" | "z";
 }
 
 /**
@@ -314,11 +316,11 @@ export function reprojectPlanarUVs(
     { axis: "z" as const, size: Math.max(size.z, 0.001) }
   ].sort((a, b) => b.size - a.size);
 
-  const uAxis = dims[0].axis;
-  const vAxis = dims[1].axis;
+  const uAxis = options?.uAxis || dims[0].axis;
+  const vAxis = options?.vAxis || dims[1].axis;
 
-  const uSize = dims[0].size;
-  const vSize = dims[1].size;
+  const uSize = Math.max(size[uAxis], 0.001);
+  const vSize = Math.max(size[vAxis], 0.001);
 
   const posAttr = geometry.attributes.position;
   const uvs = new Float32Array(posAttr.count * 2);

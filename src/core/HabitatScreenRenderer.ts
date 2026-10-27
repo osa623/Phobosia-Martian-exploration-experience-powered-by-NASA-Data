@@ -150,9 +150,11 @@ export class HabitatScreenRenderer {
     const orientation = screenConf.orientation || {};
     const flipU = Boolean(orientation.mirrorHorizontal);
     const flipV = Boolean(orientation.mirrorVertical);
+    const uAxis = orientation.uAxis;
+    const vAxis = orientation.vAxis;
 
-    // 2. Reproject planar UVs across the physical mesh geometry
-    reprojectPlanarUVs(mesh.geometry, { flipU, flipV });
+    // 2. Reproject planar UVs across the physical mesh geometry with verified axis mapping
+    reprojectPlanarUVs(mesh.geometry, { uAxis, vAxis, flipU, flipV });
 
     // 3. Compute optimal canvas dimensions matching screen aspect ratio
     const geom = screenConf.geometry || {};

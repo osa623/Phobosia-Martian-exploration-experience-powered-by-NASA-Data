@@ -989,6 +989,66 @@ test('HAB-005: ScreenRenderer skips Habitat 4 physical screens so they are solel
   sr.dispose();
 });
 
+test('HAB-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, unmirrored UVs for all Habitat screens', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/habitatScreenData.json');
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+  // Test WaterNutrition: plane on XY with minX=left, minY=bottom
+  const waterGeom = new THREE.BufferGeometry();
+  // Pos: [x, y, z]
+  const waterPos = new Float32Array([
+    -0.231, 0.161, 0.519,  // Left Top
+    -0.110, 0.161, 0.519,  // Right Top
+    -0.231, -0.329, 0.519, // Left Bottom
+    -0.110, -0.329, 0.519  // Right Bottom
+  ]);
+  waterGeom.setAttribute('position', new THREE.BufferAttribute(waterPos, 3));
+  const waterConf = data.screens.Habitat_WaterNutrition_Display.orientation;
+  reprojectPlanarUVs(waterGeom, {
+    uAxis: waterConf.uAxis,
+    vAxis: waterConf.vAxis,
+    flipU: Boolean(waterConf.mirrorHorizontal),
+    flipV: Boolean(waterConf.mirrorVertical)
+  });
+  const waterUV = waterGeom.attributes.uv;
+  assert.strictEqual(Math.round(waterUV.getX(0)), 0, 'Left Top U must be 0');
+  assert.strictEqual(Math.round(waterUV.getY(0)), 1, 'Left Top V must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(1)), 1, 'Right Top U must be 1');
+  assert.strictEqual(Math.round(waterUV.getY(1)), 1, 'Right Top V must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(2)), 0, 'Left Bottom U must be 0');
+  assert.strictEqual(Math.round(waterUV.getY(2)), 0, 'Left Bottom V must be 0');
+  assert.strictEqual(Math.round(waterUV.getX(3)), 1, 'Right Bottom U must be 1');
+  assert.strictEqual(Math.round(waterUV.getY(3)), 0, 'Right Bottom V must be 0');
+
+  // Test Emergency Display: plane on YZ with maxZ=left (-0.625), minZ=right (-0.968)
+  const emerGeom = new THREE.BufferGeometry();
+  const emerPos = new Float32Array([
+    0.174, 0.464, -0.625,  // Left Top
+    0.174, 0.464, -0.968,  // Right Top
+    0.174, -0.168, -0.625, // Left Bottom
+    0.174, -0.168, -0.968  // Right Bottom
+  ]);
+  emerGeom.setAttribute('position', new THREE.BufferAttribute(emerPos, 3));
+  const emerConf = data.screens.Habitat_Emergency_Status_Display.orientation;
+  reprojectPlanarUVs(emerGeom, {
+    uAxis: emerConf.uAxis,
+    vAxis: emerConf.vAxis,
+    flipU: Boolean(emerConf.mirrorHorizontal),
+    flipV: Boolean(emerConf.mirrorVertical)
+  });
+  const emerUV = emerGeom.attributes.uv;
+  assert.strictEqual(Math.round(emerUV.getX(0)), 0, 'Emergency Left Top U must be 0');
+  assert.strictEqual(Math.round(emerUV.getY(0)), 1, 'Emergency Left Top V must be 1');
+  assert.strictEqual(Math.round(emerUV.getX(1)), 1, 'Emergency Right Top U must be 1');
+  assert.strictEqual(Math.round(emerUV.getY(1)), 1, 'Emergency Right Top V must be 1');
+  assert.strictEqual(Math.round(emerUV.getX(2)), 0, 'Emergency Left Bottom U must be 0');
+  assert.strictEqual(Math.round(emerUV.getY(2)), 0, 'Emergency Left Bottom V must be 0');
+  assert.strictEqual(Math.round(emerUV.getX(3)), 1, 'Emergency Right Bottom U must be 1');
+  assert.strictEqual(Math.round(emerUV.getY(3)), 0, 'Emergency Right Bottom V must be 0');
+});
+
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);
 if (passedTests === totalTests) {
   console.log('ALL PHASE 2 & PHASE 3 MISSION TESTS PASSED SUCCESSFULLY.');
