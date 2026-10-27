@@ -6,7 +6,7 @@ import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
 import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
-import { createModuleLights } from "./ModuleLighting";
+import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
   MissionManager,
   DAYS_CONFIG,
@@ -89,6 +89,7 @@ export class Game {
   private observer: ResizeObserver;
   private environmentTarget?: THREE.WebGLRenderTarget;
   private environmentTexture?: THREE.DataTexture;
+  private hemiLight: THREE.HemisphereLight;
 
   // Cinematic screen camera transition state
   private astronautPreTerminalState?: {
@@ -125,7 +126,9 @@ export class Game {
     host.prepend(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(0x0a1015);
-    this.scene.add(new THREE.HemisphereLight(0x9ab1c0, 0x20272b, 0.7));
+    const initialHemi = getModuleHemisphereConfig("Habitat");
+    this.hemiLight = new THREE.HemisphereLight(initialHemi.skyColor, initialHemi.groundColor, initialHemi.intensity);
+    this.scene.add(this.hemiLight);
 
     const mission = this.missionManager.getCurrentMission();
     const mState = this.missionManager.getState();
@@ -240,6 +243,11 @@ export class Game {
   }
 
   private updateEnvironment() {
+    const hemiConfig = getModuleHemisphereConfig(this.active);
+    this.hemiLight.color.setHex(hemiConfig.skyColor);
+    this.hemiLight.groundColor.setHex(hemiConfig.groundColor);
+    this.hemiLight.intensity = hemiConfig.intensity;
+
     if (this.active === "Terrain") {
       this.scene.environment = this.environmentTarget?.texture ?? null;
       this.scene.background = this.environmentTexture ?? new THREE.Color(0x101a20);
@@ -250,9 +258,53 @@ export class Game {
   }
 
   async start() {
-    await this.loadAndSpawn({ module: "Habitat", spawn: "HABITAT_SPAWN_POINT" });
+    let initialModule: ModuleName = "Habitat";
+    let initialSpawn = "HABITAT_SPAWN_POINT";
+    let hideBriefing = false;
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const mod = params.get("module") as ModuleName | null;
+      if (mod) {
+        hideBriefing = true;
+        if (mod === "Hub") {
+          initialModule = "Hub";
+          initialSpawn = "Habitat_Entrance_Trigger";
+        } else if (mod === "MissionControl") {
+          initialModule = "MissionControl";
+          initialSpawn = "MissionControl_Entrance_Trigger";
+        } else if (mod === "Science") {
+          initialModule = "Science";
+          initialSpawn = "SCIENCE_LAB_SPAWN_POINT";
+        } else if (mod === "Engineering") {
+          initialModule = "Engineering";
+          initialSpawn = "Engineering_Entrance";
+        } else if (mod === "Airlock") {
+          initialModule = "Airlock";
+          initialSpawn = "Central_Hub_Entrance_Trigger";
+        } else if (mod === "Terrain") {
+          initialModule = "Terrain";
+          initialSpawn = "Spwaning_Position";
+        }
+      }
+      if (params.get("nobriefing") === "true") {
+        hideBriefing = true;
+      }
+    }
+
+    if (hideBriefing) {
+      this.missionManager.markBriefingSeen();
+      this.set({ showBriefingModal: false, dayBriefingSeen: true });
+    }
+
+    await this.loadAndSpawn({ module: initialModule, spawn: initialSpawn });
     if (!this.disposed) {
-      this.set({ ready: true });
+      this.set({
+        ready: true,
+        module: initialModule,
+        isOutdoorTerrain: initialModule === "Terrain",
+        showBriefingModal: hideBriefing ? false : this.state.showBriefingModal
+      });
       this.loop();
     }
   }
@@ -782,9 +834,11 @@ export class Game {
       }
     });
 
-    if (module !== "Terrain") {
-      createModuleLights(model, additions);
-    }
+    // 1. Configure mesh castShadow and receiveShadow flags across the module hierarchy
+    configureMeshShadows(model, module);
+
+    // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
+    configureModuleLighting(model, additions, module);
 
     if (module === "Habitat") {
       this.colliders = buildHabitatColliderSection(model);
@@ -800,12 +854,6 @@ export class Game {
         new Set(this.interactive.map(target => target.object)),
         collisionProfiles[module]
       );
-    }
-
-    if (module === "Terrain") {
-      const sun = new THREE.DirectionalLight(0xffe2c2, 2.2);
-      sun.position.set(200, 300, 120);
-      additions.add(sun);
     }
 
     // Attach 3D screen plane rendering to actual screen meshes
@@ -862,6 +910,11 @@ export class Game {
       this.temp.x += 0.5; // Nudge inward toward hub center
       this.temp.z -= 0.5;
     }
+    // Offset Engineering spawn forward into the main walkway aisle
+    if (route.spawn === "Engineering_Entrance") {
+      this.temp.x = 0.5;
+      this.temp.z = -12.0;
+    }
 
     this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
     this.colliders = removeSpawnOverlaps(this.colliders, this.camera.position, this.player.eyeHeight);
@@ -869,6 +922,16 @@ export class Game {
     const q = new THREE.Quaternion();
     marker.getWorldQuaternion(q);
     this.player.face(q);
+
+    // Orientation corrections: face toward the room interior rather than outward doorways
+    if (route.module === "Hub") {
+      const centerDir = new THREE.Vector3(0, 0, 0).sub(this.camera.position).normalize();
+      this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), centerDir));
+    } else if (route.module === "Engineering") {
+      const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
+      this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+    }
+
     this.player.resetVelocity();
 
     // Check mission context event for entering module
@@ -970,6 +1033,11 @@ export class Game {
         this.temp.x += 0.5;
         this.temp.z -= 0.5;
       }
+      // Offset Engineering spawn forward into the main walkway aisle
+      if (route.spawn === "Engineering_Entrance") {
+        this.temp.x = 0.5;
+        this.temp.z = -12.0;
+      }
 
       this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
       this.colliders = removeSpawnOverlaps(this.colliders, this.camera.position, this.player.eyeHeight);
@@ -977,6 +1045,16 @@ export class Game {
       const q = new THREE.Quaternion();
       marker.getWorldQuaternion(q);
       this.player.face(q);
+
+      // Orientation corrections: face toward the room interior rather than outward doorways
+      if (route.module === "Hub") {
+        const centerDir = new THREE.Vector3(0, 0, 0).sub(this.camera.position).normalize();
+        this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), centerDir));
+      } else if (route.module === "Engineering") {
+        const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
+        this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+      }
+
       this.player.resetVelocity();
 
       // Trigger module entered event

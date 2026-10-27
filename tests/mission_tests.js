@@ -44,6 +44,7 @@ const { MissionManager } = require('../dist/MissionManager.js');
 const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders } = require('../dist/Collision.js');
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
+const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -681,6 +682,97 @@ test('STAB-003: ScreenRenderer correctly matches screen identifiers across all o
   // Airlock & Hub
   assert.strictEqual(sr.matchScreenType('Airlock', 'Airlock_Control_Console'), 'airlock_console');
   assert.strictEqual(sr.matchScreenType('Hub', 'Env_Status_Display'), 'hub_env');
+});
+
+test('LIGHT-001: configureModuleLighting creates shadow-casting Sun for Terrain covering base', () => {
+  const root = new THREE.Group();
+  const additions = new THREE.Group();
+  configureModuleLighting(root, additions, 'Terrain');
+
+  const sun = additions.getObjectByName('MarsSun_DirectionalLight');
+  assert(sun, 'MarsSun_DirectionalLight should exist');
+  assert.strictEqual(sun.isDirectionalLight, true);
+  assert.strictEqual(sun.castShadow, true);
+  assert.strictEqual(sun.shadow.mapSize.width, 2048);
+  assert.strictEqual(sun.shadow.mapSize.height, 2048);
+  assert(sun.target, 'Sun must have a target');
+  assert.strictEqual(sun.shadow.camera.left, -115);
+  assert.strictEqual(sun.shadow.camera.right, 115);
+});
+
+test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights for indoor modules', () => {
+  const modules = ['Habitat', 'Hub', 'MissionControl', 'Science', 'Engineering', 'Airlock'];
+
+  for (const mod of modules) {
+    const root = new THREE.Group();
+    const additions = new THREE.Group();
+    configureModuleLighting(root, additions, mod);
+
+    const spots = additions.children.filter(c => c.isSpotLight);
+    assert(spots.length >= 1, `${mod} must have at least one key SpotLight`);
+    for (const spot of spots) {
+      assert.strictEqual(spot.castShadow, true, `${spot.name} in ${mod} must cast shadows`);
+      assert.strictEqual(spot.shadow.mapSize.width, 1024);
+      assert(spot.target, `${spot.name} must have a designated target`);
+    }
+  }
+});
+
+test('LIGHT-003: configureMeshShadows correctly configures Terrain ground and structures', () => {
+  const root = new THREE.Group();
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10));
+  ground.name = 'PHOBOSIA_MarsTerrain_2km';
+  root.add(ground);
+
+  const rover = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2));
+  rover.name = 'Rover_Body_Rover_2ver_0';
+  root.add(rover);
+
+  const solar = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2));
+  solar.name = 'Solar_Panel_UpperBase';
+  root.add(solar);
+
+  configureMeshShadows(root, 'Terrain');
+
+  assert.strictEqual(ground.castShadow, false, 'Terrain ground must not cast shadow');
+  assert.strictEqual(ground.receiveShadow, true, 'Terrain ground must receive shadow');
+  assert.strictEqual(rover.castShadow, true, 'Rover must cast shadow');
+  assert.strictEqual(rover.receiveShadow, true, 'Rover must receive shadow');
+  assert.strictEqual(solar.castShadow, true, 'Solar panel must cast shadow');
+});
+
+test('LIGHT-004: configureMeshShadows sets indoor props to cast/receive shadows while excluding colliders', () => {
+  const root = new THREE.Group();
+  const desk = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+  desk.name = 'Workstation_Table';
+  root.add(desk);
+
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(1, 1));
+  screen.name = 'Habitat_Workstation_Display';
+  root.add(screen);
+
+  const collider = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
+  collider.name = 'Collider_Section01';
+  root.add(collider);
+
+  configureMeshShadows(root, 'Habitat');
+
+  assert.strictEqual(desk.castShadow, true, 'Desk must cast shadow');
+  assert.strictEqual(desk.receiveShadow, true, 'Desk must receive shadow');
+  assert.strictEqual(screen.castShadow, false, 'Screen display plane must not cast box shadow');
+  assert.strictEqual(screen.receiveShadow, true, 'Screen display plane receives shadow');
+  assert.strictEqual(collider.castShadow, false, 'Collider must not cast shadow');
+  assert.strictEqual(collider.receiveShadow, false, 'Collider must not receive shadow');
+});
+
+test('LIGHT-005: getModuleHemisphereConfig provides distinct outdoor vs indoor lighting', () => {
+  const outdoor = getModuleHemisphereConfig('Terrain');
+  const indoor = getModuleHemisphereConfig('Habitat');
+
+  assert.notStrictEqual(outdoor.skyColor, indoor.skyColor);
+  assert.strictEqual(outdoor.skyColor, 0xd48858); // Mars warm sky
+  assert.strictEqual(indoor.skyColor, 0x405568); // Cool indoor sci-fi base
+  assert(outdoor.intensity > indoor.intensity);
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);
