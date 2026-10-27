@@ -45,6 +45,7 @@ const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
+const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer.js');
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
@@ -894,6 +895,7 @@ if (typeof document === 'undefined') {
             lineWidth: 1,
             strokeRect: () => {},
             beginPath: () => {},
+            closePath: () => {},
             moveTo: () => {},
             lineTo: () => {},
             stroke: () => {},
@@ -901,7 +903,11 @@ if (typeof document === 'undefined') {
             arc: () => {},
             fillText: () => {},
             font: '',
-            textAlign: ''
+            textAlign: '',
+            setLineDash: () => {},
+            measureText: () => ({ width: 100 }),
+            save: () => {},
+            restore: () => {}
           })
         };
       }
@@ -1079,13 +1085,14 @@ test('HAB-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, u
     flipV: Boolean(waterConf.mirrorVertical)
   });
   const waterUV = waterGeom.attributes.uv;
-  assert.strictEqual(Math.round(waterUV.getX(0)), 0, 'Left Top U must be 0');
+  // With mirrorHorizontal = true (flipU = true), minX (-0.231) maps to U=1 and maxX (-0.110) maps to U=0
+  assert.strictEqual(Math.round(waterUV.getX(0)), 1, 'Right Top (minX) U must be 1 with flipU');
   assert.strictEqual(Math.round(waterUV.getY(0)), 1, 'Left Top V must be 1');
-  assert.strictEqual(Math.round(waterUV.getX(1)), 1, 'Right Top U must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(1)), 0, 'Left Top (maxX) U must be 0 with flipU');
   assert.strictEqual(Math.round(waterUV.getY(1)), 1, 'Right Top V must be 1');
-  assert.strictEqual(Math.round(waterUV.getX(2)), 0, 'Left Bottom U must be 0');
+  assert.strictEqual(Math.round(waterUV.getX(2)), 1, 'Right Bottom (minX) U must be 1 with flipU');
   assert.strictEqual(Math.round(waterUV.getY(2)), 0, 'Left Bottom V must be 0');
-  assert.strictEqual(Math.round(waterUV.getX(3)), 1, 'Right Bottom U must be 1');
+  assert.strictEqual(Math.round(waterUV.getX(3)), 0, 'Left Bottom (maxX) U must be 0 with flipU');
   assert.strictEqual(Math.round(waterUV.getY(3)), 0, 'Right Bottom V must be 0');
 
   // Test Emergency Display: plane on YZ with maxZ=left (-0.625), minZ=right (-0.968)
@@ -1113,6 +1120,236 @@ test('HAB-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, u
   assert.strictEqual(Math.round(emerUV.getY(2)), 0, 'Emergency Left Bottom V must be 0');
   assert.strictEqual(Math.round(emerUV.getX(3)), 1, 'Emergency Right Bottom U must be 1');
   assert.strictEqual(Math.round(emerUV.getY(3)), 0, 'Emergency Right Bottom V must be 0');
+});
+
+// ==========================================
+// ENGINEERING UNIT PHYSICAL SCREEN TESTS
+// ==========================================
+
+test('ENG-001: engineeringScreenData.json defines valid configuration for all 12 Engineering physical displays', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/engineeringScreenData.json');
+  assert(fs.existsSync(jsonPath), 'engineeringScreenData.json must exist');
+
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  assert.strictEqual(data.moduleId, 'Engineering');
+  assert.strictEqual(data.rendering.useFullscreenOS, false, 'Physical screens must not hijack fullscreen OS');
+  assert.strictEqual(data.rendering.useIndependentScreenRendering, true);
+
+  const expectedScreens = [
+    'MonitoringSection_Indicator_Screen',
+    'MonitoringSection_Operational_Screen',
+    'MonitoringSection_Screen',
+    'PowerUnitScreenMain',
+    'PowerUnitScreenMain02',
+    'PowerUnitScreen000',
+    'PowerUnitScreen000.001',
+    'LifeSupportUnitScreenMain04',
+    'LifeSupportUnitScreenMain02.001',
+    'LifeSupportUnitScreenMain03',
+    'DiagnosticsWorkbenchScreen_01',
+    'Storage_Screen'
+  ];
+
+  assert.strictEqual(Object.keys(data.screens).length, 12, 'Must configure exactly 12 Engineering displays');
+  for (const screenKey of expectedScreens) {
+    const screen = data.screens[screenKey];
+    assert(screen, `Screen ${screenKey} must exist in engineeringScreenData.json`);
+    assert(screen.enabled, `Screen ${screenKey} must be enabled`);
+    assert(screen.physicalMesh, `Screen ${screenKey} must have physicalMesh property`);
+    assert(screen.geometry.screenWidth > 0, `Screen ${screenKey} must have positive width`);
+    assert(screen.geometry.screenHeight > 0, `Screen ${screenKey} must have positive height`);
+    assert(screen.orientation.uAxis, `Screen ${screenKey} must specify uAxis`);
+    assert(screen.orientation.vAxis, `Screen ${screenKey} must specify vAxis`);
+    assert(typeof screen.orientation.mirrorHorizontal === 'boolean', `Screen ${screenKey} mirrorHorizontal must be boolean`);
+    assert(typeof screen.orientation.mirrorVertical === 'boolean', `Screen ${screenKey} mirrorVertical must be boolean`);
+    assert(screen.rendering.rendererFunction, `Screen ${screenKey} must specify rendererFunction`);
+  }
+});
+
+test('ENG-002: EngineeringScreenRenderer attaches and binds all 12 physical screen meshes (including dot-tolerant names)', () => {
+  const root = new THREE.Group();
+  root.name = 'EngineeringSceneRoot';
+
+  const expectedScreens = [
+    'MonitoringSection_Indicator_Screen',
+    'MonitoringSection_Operational_Screen',
+    'MonitoringSection_Screen',
+    'PowerUnitScreenMain',
+    'PowerUnitScreenMain02',
+    'PowerUnitScreen000',
+    'PowerUnitScreen000001', // glTF export stripped dot
+    'LifeSupportUnitScreenMain04',
+    'LifeSupportUnitScreenMain02001', // glTF export stripped dot
+    'LifeSupportUnitScreenMain03',
+    'DiagnosticsWorkbenchScreen_01',
+    'Storage_Screen'
+  ];
+
+  for (const name of expectedScreens) {
+    const geom = new THREE.PlaneGeometry(1, 1);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.name = name;
+    root.add(mesh);
+  }
+
+  const renderer = new EngineeringScreenRenderer();
+  renderer.renderEngineeringUnitScreens(root, { currentDay: 1 });
+
+  const bindings = renderer.getBindings();
+  assert.strictEqual(bindings.length, 12, 'Must bind all 12 Engineering screen meshes');
+
+  for (const b of bindings) {
+    assert(b.mesh, 'Binding must retain mesh reference');
+    assert(b.canvas, 'Binding must create offscreen canvas');
+    assert(b.ctx, 'Binding must provide 2D context');
+    assert(b.texture, 'Binding must create CanvasTexture');
+    assert(b.material, 'Binding must replace with MeshBasicMaterial');
+    assert.strictEqual(b.mesh.material, b.material, 'Mesh material must be updated');
+    assert.strictEqual(b.material.map, b.texture, 'Material map must be assigned canvas texture');
+    assert.strictEqual(b.material.toneMapped, false, 'toneMapped must be false for emissive clarity');
+    assert.strictEqual(b.mesh.visible, true, 'Screen mesh must remain visible');
+  }
+
+  renderer.dispose();
+  assert.strictEqual(renderer.getBindings().length, 0, 'Disposal must clear active bindings');
+});
+
+test('ENG-003: EngineeringScreenRenderer individual rendering functions execute cleanly', () => {
+  const root = new THREE.Group();
+  const screenNames = [
+    'MonitoringSection_Indicator_Screen',
+    'MonitoringSection_Operational_Screen',
+    'MonitoringSection_Screen',
+    'PowerUnitScreenMain',
+    'PowerUnitScreenMain02',
+    'PowerUnitScreen000',
+    'PowerUnitScreen000.001',
+    'LifeSupportUnitScreenMain04',
+    'LifeSupportUnitScreenMain02.001',
+    'LifeSupportUnitScreenMain03',
+    'DiagnosticsWorkbenchScreen_01',
+    'Storage_Screen'
+  ];
+
+  for (const name of screenNames) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  }
+
+  const renderer = new EngineeringScreenRenderer();
+  renderer.attachToEngineering(root, { currentDay: 2 });
+
+  // Test re-rendering across days
+  renderer.renderAll({ currentDay: 3 });
+  renderer.renderAll({ currentDay: 7 });
+
+  const bindings = renderer.getBindings();
+  assert.strictEqual(bindings.length, 12);
+  for (const b of bindings) {
+    assert(b.texture.version > 0, 'Texture version must be incremented after render');
+  }
+
+  renderer.dispose();
+});
+
+test('ENG-004: EngineeringScreenRenderer updateScreenData mutates telemetry and marks texture update', () => {
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+  mesh.name = 'PowerUnitScreenMain';
+  root.add(mesh);
+
+  const renderer = new EngineeringScreenRenderer();
+  renderer.attachToEngineering(root, { currentDay: 1 });
+
+  const binding = renderer.getBindings()[0];
+  assert(binding, 'PowerUnitScreenMain binding must exist');
+  const versionBefore = binding.texture.version;
+
+  renderer.updateScreenData('PowerUnitScreenMain', {
+    data: {
+      photovoltaicGeneration: '52.4 kW'
+    }
+  });
+
+  const updatedConfig = renderer.getConfigData();
+  assert.strictEqual(
+    updatedConfig.screens.PowerUnitScreenMain.data.photovoltaicGeneration,
+    '52.4 kW',
+    'Telemetry data must be updated in configuration'
+  );
+  assert(binding.texture.version > versionBefore, 'Texture version must increment for GPU update');
+
+  renderer.dispose();
+});
+
+test('ENG-005: ScreenRenderer skips Engineering module physical screens so they are solely handled by EngineeringScreenRenderer', () => {
+  const root = new THREE.Group();
+  const engScreens = [
+    'MonitoringSection_Indicator_Screen',
+    'MonitoringSection_Operational_Screen',
+    'MonitoringSection_Screen',
+    'PowerUnitScreenMain',
+    'PowerUnitScreenMain02',
+    'PowerUnitScreen000',
+    'LifeSupportUnitScreenMain04',
+    'LifeSupportUnitScreenMain03',
+    'DiagnosticsWorkbenchScreen_01',
+    'Storage_Screen'
+  ];
+
+  for (const name of engScreens) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    mesh.name = name;
+    root.add(mesh);
+  }
+
+  const sr = new ScreenRenderer();
+  sr.attachToModule(root, 'Engineering', { currentDay: 1 });
+
+  // None of the Engineering screens should be bound by generic ScreenRenderer
+  for (const child of root.children) {
+    assert.strictEqual(child.material.map, null, `${child.name} must not be bound by ScreenRenderer`);
+  }
+
+  sr.dispose();
+});
+
+test('ENG-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, unmirrored UVs for Engineering screens', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/engineeringScreenData.json');
+  const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+  // Test PowerUnitScreenMain: normal faces (-1, 0, 0), uAxis: z, vAxis: y
+  // Z goes from minZ to maxZ, Y goes from minY to maxY
+  const powerGeom = new THREE.BufferGeometry();
+  const powerPos = new Float32Array([
+    10.0, 3.0, 5.0,  // Top Left: max Y (3.0), min Z (5.0)
+    10.0, 3.0, 8.0,  // Top Right: max Y (3.0), max Z (8.0)
+    10.0, 1.0, 5.0,  // Bottom Left: min Y (1.0), min Z (5.0)
+    10.0, 1.0, 8.0   // Bottom Right: min Y (1.0), max Z (8.0)
+  ]);
+  powerGeom.setAttribute('position', new THREE.BufferAttribute(powerPos, 3));
+  const powerConf = data.screens.PowerUnitScreenMain.orientation;
+  reprojectPlanarUVs(powerGeom, {
+    uAxis: powerConf.uAxis,
+    vAxis: powerConf.vAxis,
+    flipU: Boolean(powerConf.mirrorHorizontal),
+    flipV: Boolean(powerConf.mirrorVertical)
+  });
+  const powerUV = powerGeom.attributes.uv;
+  assert.strictEqual(Math.round(powerUV.getX(0)), 0, 'Top Left U must be 0 (min Z)');
+  assert.strictEqual(Math.round(powerUV.getY(0)), 1, 'Top Left V must be 1 (max Y)');
+  assert.strictEqual(Math.round(powerUV.getX(1)), 1, 'Top Right U must be 1 (max Z)');
+  assert.strictEqual(Math.round(powerUV.getY(1)), 1, 'Top Right V must be 1 (max Y)');
+  assert.strictEqual(Math.round(powerUV.getX(2)), 0, 'Bottom Left U must be 0 (min Z)');
+  assert.strictEqual(Math.round(powerUV.getY(2)), 0, 'Bottom Left V must be 0 (min Y)');
+  assert.strictEqual(Math.round(powerUV.getX(3)), 1, 'Bottom Right U must be 1 (max Z)');
+  assert.strictEqual(Math.round(powerUV.getY(3)), 0, 'Bottom Right V must be 0 (min Y)');
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

@@ -1,0 +1,615 @@
+{
+  "moduleId": "Engineering",
+  "moduleName": "Engineering Unit",
+  "dataMode": "SIMULATED",
+  "version": 1,
+
+  "rendering": {
+    "renderingSystem": "EngineeringScreenRenderer",
+    "renderingTarget": "PHYSICAL_3D_SCREEN",
+    "useFullscreenOS": false,
+    "useIndependentScreenRendering": true,
+    "preservePhysicalScreenMeshes": true,
+    "preserveExistingMaterials": true,
+    "preserveExistingTransforms": true,
+    "allowPerScreenOrientation": true,
+    "allowPerScreenLayout": true,
+    "allowPerScreenData": true,
+    "defaultBackground": "#07111F",
+    "defaultTextColor": "#E8F1FA",
+    "defaultAccentColor": "#45B8E8",
+    "defaultFontFamily": "monospace",
+    "defaultRefreshIntervalMs": 1000
+  },
+
+  "screens": {
+    "MonitoringSection_Indicator_Screen": {
+      "enabled": true,
+      "displayName": "Monitoring Section Indicators",
+      "purpose": "Concise engineering subsystem status indicators and bus health.",
+      "physicalMesh": "MonitoringSection_Indicator_Screen",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 1.723,
+        "screenHeight": 1.074,
+        "aspectRatio": 1.604,
+        "layout": "landscape"
+      },
+      "orientation": {
+        "uAxis": "x",
+        "vAxis": "z",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": true,
+        "note": "Aisle facing wall monitor. Width along X, Height along Z. mirrorVertical=true aligns top with -Z."
+      },
+      "rendering": {
+        "rendererFunction": "renderMonitoringIndicatorScreen",
+        "layout": "indicator_matrix",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942",
+        "critical": "#FF5252"
+      },
+      "data": {
+        "header": "SUBSYSTEM HEALTH MONITOR",
+        "indicators": [
+          { "label": "REACTOR CORE", "status": "NOMINAL", "code": "RC-01" },
+          { "label": "COOLANT PUMP", "status": "NOMINAL", "code": "CP-A" },
+          { "label": "POWER BUS A", "status": "NOMINAL", "code": "PB-A" },
+          { "label": "POWER BUS B", "status": "NOMINAL", "code": "PB-B" },
+          { "label": "ECLSS BUS", "status": "NOMINAL", "code": "EC-04" },
+          { "label": "AIR SCRUBBER", "status": "NOMINAL", "code": "AS-02" },
+          { "label": "AUX CONDENSER", "status": "STANDBY", "code": "AC-01" },
+          { "label": "UPLINK BUS", "status": "ONLINE", "code": "UL-09" }
+        ],
+        "systemState": "ALL SYSTEMS NOMINAL"
+      },
+      "footer": {
+        "leftText": "ENGINEERING BUS MONITOR",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "MonitoringSection_Operational_Screen": {
+      "enabled": true,
+      "displayName": "Monitoring Operational Display",
+      "purpose": "Operational overview and real-time load trend graph.",
+      "physicalMesh": "MonitoringSection_Operational_Screen",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 4.186,
+        "screenHeight": 2.258,
+        "aspectRatio": 1.854,
+        "layout": "wide_landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Main wall display. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderMonitoringOperationalScreen",
+        "layout": "operational_graph_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942"
+      },
+      "data": {
+        "header": "OPERATIONAL TELEMETRY & TREND",
+        "subsystemLoad": 74.2,
+        "thermalState": "STABLE",
+        "coolingEfficiency": 96.5,
+        "trendHistory": [45, 52, 58, 62, 70, 68, 74, 73, 76, 74, 75, 74],
+        "activeProcesses": 18
+      },
+      "footer": {
+        "leftText": "SECTION 01 // OPERATIONAL OVERVIEW",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "MonitoringSection_Screen": {
+      "enabled": true,
+      "displayName": "Monitoring Network Display",
+      "purpose": "Monitoring network and system overview.",
+      "physicalMesh": "MonitoringSection_Screen",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 4.486,
+        "screenHeight": 2.158,
+        "aspectRatio": 2.079,
+        "layout": "wide_landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Side wall monitor. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderMonitoringMainScreen",
+        "layout": "network_overview_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "NETWORK MONITORING OVERVIEW",
+        "networkNodes": [
+          { "node": "HABITAT-01", "ping": "1.2ms", "status": "CONNECTED" },
+          { "node": "SCIENCE-LAB", "ping": "1.8ms", "status": "CONNECTED" },
+          { "node": "AIRLOCK-01", "ping": "0.9ms", "status": "CONNECTED" },
+          { "node": "MISSION-CTL", "ping": "2.4ms", "status": "CONNECTED" },
+          { "node": "SOLAR-ARRAY", "ping": "3.1ms", "status": "CONNECTED" },
+          { "node": "TERRAIN-HUB", "ping": "4.2ms", "status": "STANDBY" }
+        ],
+        "packetsPerSec": 4820,
+        "busLoad": 38.6
+      },
+      "footer": {
+        "leftText": "TELEMETRY NETWORK BUS",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "PowerUnitScreenMain": {
+      "enabled": true,
+      "displayName": "Power Unit Main Display",
+      "purpose": "Generation, consumption, battery storage, and distribution.",
+      "physicalMesh": "PowerUnitScreenMain",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 3.261,
+        "screenHeight": 2.342,
+        "aspectRatio": 1.392,
+        "layout": "landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Power unit primary display. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderPowerMainScreen",
+        "layout": "power_generation_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942"
+      },
+      "data": {
+        "header": "PRIMARY POWER GENERATION",
+        "reactorOutput": 98.4,
+        "solarGeneration": 42.1,
+        "totalConsumption": 118.6,
+        "batteryStorage": 88.5,
+        "gridEfficiency": 97.8,
+        "busVoltage": 400.2
+      },
+      "footer": {
+        "leftText": "POWER MANAGEMENT // UNIT 01",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "PowerUnitScreenMain02": {
+      "enabled": true,
+      "displayName": "Power Secondary Main Display",
+      "purpose": "Power diagnostics, subsystem consumption, and load trend.",
+      "physicalMesh": "PowerUnitScreenMain02",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 4.261,
+        "screenHeight": 2.342,
+        "aspectRatio": 1.820,
+        "layout": "wide_landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Power diagnostics wall display. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderPowerSecondaryMainScreen",
+        "layout": "power_diagnostics_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "LOAD DISTRIBUTION & DIAGNOSTICS",
+        "modules": [
+          { "name": "HABITAT MODULE", "loadKw": 32.4, "pct": 27 },
+          { "name": "SCIENCE RESEARCH", "loadKw": 41.2, "pct": 35 },
+          { "name": "ENGINEERING UNIT", "loadKw": 24.8, "pct": 21 },
+          { "name": "AIRLOCK & COMMS", "loadKw": 20.2, "pct": 17 }
+        ],
+        "loadTrend": [112, 115, 114, 118, 120, 119, 118, 119],
+        "thermalDissipation": 14.8
+      },
+      "footer": {
+        "leftText": "POWER DIAGNOSTICS // GRID B",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "PowerUnitScreen000": {
+      "enabled": true,
+      "displayName": "Power Compact Column",
+      "purpose": "Concise power status and voltage telemetry.",
+      "physicalMesh": "PowerUnitScreen000",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 0.426,
+        "screenHeight": 2.566,
+        "aspectRatio": 0.166,
+        "layout": "vertical_column"
+      },
+      "orientation": {
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "note": "Narrow vertical pillar display. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
+      },
+      "rendering": {
+        "rendererFunction": "renderPowerCompactColumnScreen",
+        "layout": "vertical_meter_column",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "BUS V",
+        "voltageA": 401.2,
+        "voltageB": 399.8,
+        "currentA": 148.5,
+        "frequency": 60.02,
+        "status": "NOM"
+      },
+      "footer": {
+        "leftText": "BUS",
+        "rightText": "OK"
+      }
+    },
+
+    "PowerUnitScreen000.001": {
+      "enabled": true,
+      "displayName": "Power Substation Compact Screen",
+      "purpose": "Battery bank status and charge rate.",
+      "physicalMesh": "PowerUnitScreen000.001",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 1.654,
+        "screenHeight": 1.402,
+        "aspectRatio": 1.180,
+        "layout": "near_square"
+      },
+      "orientation": {
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "note": "Compact console display. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
+      },
+      "rendering": {
+        "rendererFunction": "renderPowerCompactScreen",
+        "layout": "battery_compact_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "BATTERY STORAGE BANK",
+        "chargePct": 88.5,
+        "chargeRateKw": 14.2,
+        "cellTemp": 21.8,
+        "cycles": 412,
+        "status": "CHARGING"
+      },
+      "footer": {
+        "leftText": "SUBSTATION 02",
+        "rightText": "NOMINAL"
+      }
+    },
+
+    "LifeSupportUnitScreenMain04": {
+      "enabled": true,
+      "displayName": "Life Support Main Unit Display",
+      "purpose": "Environmental conditions and gas generation.",
+      "physicalMesh": "LifeSupportUnitScreenMain04",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 1.369,
+        "screenHeight": 2.260,
+        "aspectRatio": 0.606,
+        "layout": "portrait"
+      },
+      "orientation": {
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "note": "Portrait life support console. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
+      },
+      "rendering": {
+        "rendererFunction": "renderLifeSupportMainScreen",
+        "layout": "portrait_eclss_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "ECLSS PRIMARY GENERATION",
+        "o2Rate": 4.8,
+        "co2ScrubEfficiency": 99.4,
+        "circulationCfm": 850,
+        "condensationLPerSol": 18.2,
+        "status": "OPERATIONAL"
+      },
+      "footer": {
+        "leftText": "ECLSS UNIT 04",
+        "rightText": "TELEMETRY"
+      }
+    },
+
+    "LifeSupportUnitScreenMain02.001": {
+      "enabled": true,
+      "displayName": "Life Support Resource Display",
+      "purpose": "Water, filtration, recycling, and resource availability.",
+      "physicalMesh": "LifeSupportUnitScreenMain02.001",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 4.261,
+        "screenHeight": 2.342,
+        "aspectRatio": 1.820,
+        "layout": "wide_landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Resource wall monitor. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderLifeSupportResourceScreen",
+        "layout": "resource_recycling_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "RESOURCE RECYCLING & WATER LOOP",
+        "potableReservePct": 84.0,
+        "greywaterRecyclePct": 92.5,
+        "catalyticOxidizer": "ACTIVE",
+        "filterLifeRemainingDays": 64,
+        "waterBufferLitres": 3200
+      },
+      "footer": {
+        "leftText": "RESOURCE SUBSYSTEM",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "LifeSupportUnitScreenMain03": {
+      "enabled": true,
+      "displayName": "Life Support Diagnostics Display",
+      "purpose": "Airflow, filter load, and system integrity.",
+      "physicalMesh": "LifeSupportUnitScreenMain03",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 1.654,
+        "screenHeight": 1.402,
+        "aspectRatio": 1.180,
+        "layout": "near_square"
+      },
+      "orientation": {
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "note": "Diagnostics console. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
+      },
+      "rendering": {
+        "rendererFunction": "renderLifeSupportDiagnosticsScreen",
+        "layout": "airflow_diagnostics_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "AIRFLOW & DUCT INTEGRITY",
+        "velocityMPerS": 3.4,
+        "particulatePpm": 0.04,
+        "ductDifferentialKPa": 0.12,
+        "hepaFilterLoadPct": 28,
+        "sealIntegrity": "100% NOMINAL"
+      },
+      "footer": {
+        "leftText": "ECLSS DIAGNOSTICS",
+        "rightText": "STABLE"
+      }
+    },
+
+    "DiagnosticsWorkbenchScreen_01": {
+      "enabled": true,
+      "displayName": "Diagnostics Workbench Display",
+      "purpose": "Diagnostic results, fault status, component health, and trend.",
+      "physicalMesh": "DiagnosticsWorkbenchScreen_01",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 4.261,
+        "screenHeight": 2.342,
+        "aspectRatio": 1.820,
+        "layout": "wide_landscape"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Workbench primary testing display. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderDiagnosticsWorkbenchScreen",
+        "layout": "workbench_diagnostics_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942"
+      },
+      "data": {
+        "header": "DIAGNOSTICS WORKBENCH HARNESS",
+        "testSlot": "SLOT-03 [PUMP RELAY MODULE]",
+        "testStatus": "PASSED (NO FAULTS)",
+        "impedanceOhms": 48.2,
+        "signalToNoiseDb": 92.4,
+        "componentHealthPct": 99.1,
+        "waveformHistory": [10, 40, 25, 75, 45, 90, 30, 60, 50, 48]
+      },
+      "footer": {
+        "leftText": "WORKBENCH HARNESS // BENCH 01",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+
+    "Storage_Screen": {
+      "enabled": true,
+      "displayName": "Storage Inventory Display",
+      "purpose": "Inventory and equipment availability.",
+      "physicalMesh": "Storage_Screen",
+      "geometry": {
+        "dimensionUnit": "m",
+        "screenWidth": 1.576,
+        "screenHeight": 2.424,
+        "aspectRatio": 0.650,
+        "layout": "portrait"
+      },
+      "orientation": {
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "note": "Storage bay inventory terminal. Width along Z, Height along Y."
+      },
+      "rendering": {
+        "rendererFunction": "renderStorageScreen",
+        "layout": "inventory_storage_dashboard",
+        "fitMode": "contain",
+        "refreshIntervalMs": 2000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392"
+      },
+      "data": {
+        "header": "EQUIPMENT & SPARES INVENTORY",
+        "items": [
+          { "name": "HEPA FILTER CARTRIDGE", "count": 12, "status": "IN STOCK" },
+          { "name": "RELAY CONTROLLER M4", "count": 6, "status": "IN STOCK" },
+          { "name": "COOLANT SEAL RING V2", "count": 24, "status": "IN STOCK" },
+          { "name": "EVA SUIT O2 REGULATOR", "count": 4, "status": "RESERVED" },
+          { "name": "PRESSURE SENSOR T-40", "count": 8, "status": "IN STOCK" },
+          { "name": "VALVE ACTUATOR PNEUMATIC", "count": 3, "status": "LOW STOCK" }
+        ],
+        "totalUnits": 57,
+        "bayCapacityPct": 68
+      },
+      "footer": {
+        "leftText": "ENGINEERING STORAGE BAY 01",
+        "rightText": "INVENTORY OK"
+      }
+    }
+  }
+}

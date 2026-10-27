@@ -83,6 +83,11 @@ export class ScreenRenderer {
           return;
         }
 
+        // Engineering physical screens are handled by dedicated EngineeringScreenRenderer
+        if (moduleName === "Engineering") {
+          return;
+        }
+
         this.bindScreen(mesh, identifier, rendererType, missionState);
       }
     });
