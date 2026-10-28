@@ -1348,13 +1348,15 @@ test('ENG-006: reprojectPlanarUVs with verified uAxis/vAxis generates upright, u
     flipV: Boolean(powerConf.mirrorVertical)
   });
   const powerUV = powerGeom.attributes.uv;
-  assert.strictEqual(Math.round(powerUV.getX(0)), 0, 'Top Left U must be 0 (min Z)');
+  const expectedMinZ_U = powerConf.mirrorHorizontal ? 1 : 0;
+  const expectedMaxZ_U = powerConf.mirrorHorizontal ? 0 : 1;
+  assert.strictEqual(Math.round(powerUV.getX(0)), expectedMinZ_U, 'Top Left U matching mirrorHorizontal');
   assert.strictEqual(Math.round(powerUV.getY(0)), 1, 'Top Left V must be 1 (max Y)');
-  assert.strictEqual(Math.round(powerUV.getX(1)), 1, 'Top Right U must be 1 (max Z)');
+  assert.strictEqual(Math.round(powerUV.getX(1)), expectedMaxZ_U, 'Top Right U matching mirrorHorizontal');
   assert.strictEqual(Math.round(powerUV.getY(1)), 1, 'Top Right V must be 1 (max Y)');
-  assert.strictEqual(Math.round(powerUV.getX(2)), 0, 'Bottom Left U must be 0 (min Z)');
+  assert.strictEqual(Math.round(powerUV.getX(2)), expectedMinZ_U, 'Bottom Left U matching mirrorHorizontal');
   assert.strictEqual(Math.round(powerUV.getY(2)), 0, 'Bottom Left V must be 0 (min Y)');
-  assert.strictEqual(Math.round(powerUV.getX(3)), 1, 'Bottom Right U must be 1 (max Z)');
+  assert.strictEqual(Math.round(powerUV.getX(3)), expectedMaxZ_U, 'Bottom Right U matching mirrorHorizontal');
   assert.strictEqual(Math.round(powerUV.getY(3)), 0, 'Bottom Right V must be 0 (min Y)');
 });
 

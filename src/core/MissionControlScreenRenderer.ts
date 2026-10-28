@@ -113,14 +113,14 @@ const VERIFIED_MC_MAPPINGS: Record<
   string,
   { uAxis: "x" | "y" | "z"; vAxis: "x" | "y" | "z"; flipU: boolean; flipV: boolean; aspect: number }
 > = {
-  MissionControl_ObjectivesScreen: { uAxis: "z", vAxis: "y", flipU: false, flipV: false, aspect: 1.69 },
-  MissionControl_OutpostStatusScreen: { uAxis: "z", vAxis: "y", flipU: false, flipV: false, aspect: 1.69 },
-  MissionControl_OverviewScreen: { uAxis: "z", vAxis: "y", flipU: false, flipV: false, aspect: 1.69 },
-  MissionControl_CommunicationsScreen: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, aspect: 1.9 },
-  MissionControl_SystemsScreen: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, aspect: 1.9 },
-  MissionControl_DroneOperationScreen: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, aspect: 1.0 },
-  MissionControl_ObservationSitesScreen: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, aspect: 1.0 },
-  MissionControl_TerrainMapScreen: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, aspect: 1.0 }
+  MissionControl_ObjectivesScreen: { uAxis: "z", vAxis: "y", flipU: true, flipV: false, aspect: 1.69 },
+  MissionControl_OutpostStatusScreen: { uAxis: "z", vAxis: "y", flipU: true, flipV: false, aspect: 1.69 },
+  MissionControl_OverviewScreen: { uAxis: "z", vAxis: "y", flipU: true, flipV: false, aspect: 1.69 },
+  MissionControl_CommunicationsScreen: { uAxis: "x", vAxis: "y", flipU: true, flipV: false, aspect: 1.9 },
+  MissionControl_SystemsScreen: { uAxis: "x", vAxis: "y", flipU: true, flipV: false, aspect: 1.9 },
+  MissionControl_DroneOperationScreen: { uAxis: "x", vAxis: "y", flipU: false, flipV: false, aspect: 1.0 },
+  MissionControl_ObservationSitesScreen: { uAxis: "x", vAxis: "y", flipU: false, flipV: false, aspect: 1.0 },
+  MissionControl_TerrainMapScreen: { uAxis: "x", vAxis: "y", flipU: false, flipV: false, aspect: 1.0 }
 };
 
 // Dynamic resolver for Node CommonJS tests vs Next.js Webpack bundler
