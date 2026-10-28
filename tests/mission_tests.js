@@ -51,6 +51,8 @@ const { MissionControlScreenRenderer } = require('../dist/MissionControlScreenRe
 const { CentralHubScreenRenderer } = require('../dist/CentralHubScreenRenderer.js');
 const { AirlockScreenRenderer } = require('../dist/AirlockScreenRenderer.js');
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/ModuleLighting.js');
+const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/Day1Config.js');
+const { CameraPresentationManager } = require('../dist/CameraPresentation.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -2092,6 +2094,245 @@ test('AIR-005: ScreenRenderer skips Airlock physical screens so they are solely 
   );
 
   sr.dispose();
+});
+
+// ============================================================
+// DAY 1 ACCEPTANCE TESTS (AT_D1_001 to AT_D1_012)
+// ============================================================
+
+test('AT_D1_001: The player begins at the existing Habitat spawn', () => {
+  const day1Config = DAYS_CONFIG[1];
+  assert.strictEqual(day1Config.allowedModules[0], 'Habitat', 'Initial module must be Habitat');
+  assert.strictEqual(day1Config.id, 'DAY_01_OUTPOST_ORIENTATION');
+});
+
+test('AT_D1_002: The Habitat introduction plays once at the start of Day 1', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+  assert.strictEqual(mm.hasSeenIntroduction('INTRO_HABITAT'), false);
+  mm.markIntroductionSeen('INTRO_HABITAT');
+  assert.strictEqual(mm.hasSeenIntroduction('INTRO_HABITAT'), true);
+
+  // Persistence across reloads
+  const mm2 = new MissionManager();
+  assert.strictEqual(mm2.hasSeenIntroduction('INTRO_HABITAT'), true);
+});
+
+test('AT_D1_003: The player presses Enter during an introduction to skip', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(1, 1.65, 2);
+  camera.quaternion.set(0, 0, 0, 1);
+
+  const manager = new CameraPresentationManager(camera);
+  const started = manager.startPresentation({
+    id: 'CAM_HABITAT_OVERVIEW',
+    title: 'Welcome to the Habitat',
+    description: 'This is the crew living area.',
+    durationSeconds: 5,
+    skipKey: 'Enter',
+    targetWorldPosition: new THREE.Vector3(5, 1.65, 5)
+  });
+
+  assert.strictEqual(started, true);
+  assert.strictEqual(manager.isPresentationActive(), true);
+
+  // Advance time partially
+  manager.update(1.0);
+  assert.strictEqual(manager.isPresentationActive(), true);
+
+  // Player presses Enter to skip
+  manager.skip();
+  assert.strictEqual(manager.isPresentationActive(), false);
+  assert.strictEqual(camera.position.x, 1);
+  assert.strictEqual(camera.position.y, 1.65);
+  assert.strictEqual(camera.position.z, 2);
+});
+
+test('AT_D1_004: Camera movement is slow and horizontal (constant Y, pitch unchanged, roll 0)', () => {
+  const camera = new THREE.PerspectiveCamera();
+  const initialEyeHeight = 1.65;
+  camera.position.set(0, initialEyeHeight, 0);
+  camera.quaternion.set(0, 0, 0, 1);
+
+  const manager = new CameraPresentationManager(camera);
+  manager.startPresentation({
+    id: 'CAM_HAB_LIFE_SUPPORT_WIDE',
+    title: 'Habitat Status and Life Support',
+    description: 'Review Habitat displays',
+    durationSeconds: 4,
+    targetWorldPosition: new THREE.Vector3(3, 0.5, 3) // Target has lower Y in world
+  });
+
+  // Verify across multiple time steps that Y remains strictly constant at eye height
+  for (let t = 0.5; t <= 3.5; t += 0.5) {
+    manager.update(0.5);
+    assert.strictEqual(
+      Math.round(camera.position.y * 1000) / 1000,
+      initialEyeHeight,
+      `Camera Y must remain strictly horizontal at eye height ${initialEyeHeight}`
+    );
+
+    const euler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+    assert.strictEqual(
+      Math.abs(euler.x) < 0.0001,
+      true,
+      'Camera pitch must remain 0 during horizontal presentation'
+    );
+    assert.strictEqual(
+      Math.abs(euler.z) < 0.0001,
+      true,
+      'Camera roll must remain 0 during horizontal presentation'
+    );
+  }
+});
+
+test('AT_D1_005: Habitat shared monitor trigger presents all three status displays as one group', () => {
+  const group = TRIGGER_TO_GROUP_MAP['HAB_MONITOR_01'];
+  assert(group, 'HAB_MONITOR_01 must resolve to an interaction group');
+  assert.strictEqual(group.id, 'HAB_LIFE_SUPPORT_GROUP');
+  assert.strictEqual(group.screenObjectNames.length, 3);
+  assert(group.screenObjectNames.includes('Habitat_LifeSupport_Display'));
+  assert(group.screenObjectNames.includes('Habitat_Main_Status_Display'));
+  assert(group.screenObjectNames.includes('Habitat_Emergency_Status_Display'));
+  assert.strictEqual(group.cameraFraming.includes('wide horizontal view'), true);
+});
+
+test('AT_D1_006: Engineering shared triggers present wide views for multi-screen sections', () => {
+  const monGroup = TRIGGER_TO_GROUP_MAP['Engineering_Monitoring_Trigger'];
+  assert.strictEqual(monGroup.screenObjectNames.length, 3);
+  assert.strictEqual(monGroup.cameraPresentationId, 'CAM_ENGINEERING_MONITORING_WIDE');
+
+  const pwrGroup = TRIGGER_TO_GROUP_MAP['Engineering_PowerUnit_Trigger'];
+  assert.strictEqual(pwrGroup.screenObjectNames.length, 4);
+  assert.strictEqual(pwrGroup.cameraPresentationId, 'CAM_ENGINEERING_POWER_WIDE');
+
+  const lsGroup = TRIGGER_TO_GROUP_MAP['Engineering_LifeSupport_Trigger'];
+  assert.strictEqual(lsGroup.screenObjectNames.length, 3);
+  assert.strictEqual(lsGroup.cameraPresentationId, 'CAM_ENGINEERING_LIFE_SUPPORT_WIDE');
+});
+
+test('AT_D1_007: Skipping a presentation does not complete its associated task', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(0, 1.65, 0);
+
+  const manager = new CameraPresentationManager(camera);
+  manager.startPresentation({
+    id: 'CAM_HAB_WATER_NUTRITION',
+    title: 'Water and Nutrition',
+    description: 'Review water and nutrition',
+    durationSeconds: 3,
+    skipKey: 'Enter'
+  });
+
+  // Skip presentation
+  manager.skip();
+
+  // Task must still be incomplete
+  assert.strictEqual(mm.isStepComplete('D1_HAB_WATER_NUTRITION'), false);
+});
+
+test('AT_D1_008: Revisiting a section preserves completion and prevents duplicate progress', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+
+  const res1 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
+  assert.strictEqual(res1, true);
+  assert.strictEqual(mm.isStepComplete('D1_HUB_ENVIRONMENT_STATUS'), true);
+  assert.strictEqual(mm.getState().completedStepIds.length, 1);
+
+  // Second interaction must not duplicate
+  const res2 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
+  assert.strictEqual(res2, false);
+  assert.strictEqual(mm.getState().completedStepIds.length, 1);
+});
+
+test('AT_D1_009: Rest trigger is blocked while required Day 1 tasks remain incomplete', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+
+  // Only complete 1 of 22 tasks
+  mm.completeStep('D1_HAB_LIFE_SUPPORT');
+
+  const check = mm.canRestAndAdvance();
+  assert.strictEqual(check.canAdvance, false);
+  assert.strictEqual(check.reason.includes('Complete the remaining outpost orientation tasks before resting'), true);
+  assert.strictEqual(check.reason.includes('21 of 22 tasks remaining'), true);
+
+  const adv = mm.advanceDay();
+  assert.strictEqual(adv.success, false);
+  assert.strictEqual(mm.getState().currentDay, 1);
+});
+
+test('AT_D1_010: Player rests after completing every required task, advancing to Day 2 exactly once', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+
+  // Complete all 22 tasks
+  for (const t of DAY1_TASKS) {
+    mm.completeStep(t.taskId);
+  }
+
+  assert.strictEqual(mm.getState().completedStepIds.length, 22);
+  assert.strictEqual(mm.getState().objectiveState, 'completed');
+
+  const check = mm.canRestAndAdvance();
+  assert.strictEqual(check.canAdvance, true);
+
+  const adv = mm.advanceDay();
+  assert.strictEqual(adv.success, true);
+  assert.strictEqual(adv.newDay, 2);
+  assert.strictEqual(mm.getState().currentDay, 2);
+
+  // Duplicate rest does not advance past Day 2
+  const check2 = mm.canRestAndAdvance();
+  assert.strictEqual(check2.canAdvance, false, 'Day 2 objectives must now be completed before resting again');
+});
+
+test('AT_D1_011: Unresolved target fallback runs presentation without camera motion', () => {
+  const camera = new THREE.PerspectiveCamera();
+  camera.position.set(3, 1.65, 4);
+  camera.quaternion.set(0, 0, 0, 1);
+
+  const manager = new CameraPresentationManager(camera);
+  manager.startPresentation({
+    id: 'CAM_MISSING_TARGET',
+    title: 'Unresolved Screen',
+    description: 'Target mesh is null',
+    durationSeconds: 3,
+    targetMesh: null,
+    targetWorldPosition: null
+  });
+
+  manager.update(1.5);
+  // Position should have zero translation
+  assert.strictEqual(camera.position.x, 3);
+  assert.strictEqual(camera.position.y, 1.65);
+  assert.strictEqual(camera.position.z, 4);
+
+  manager.update(2.0);
+  assert.strictEqual(manager.isPresentationActive(), false);
+});
+
+test('AT_D1_012: All 22 tasks are uniquely configured, mapped, and validated', () => {
+  assert.strictEqual(DAY1_TASKS.length, 22, 'Must have exactly 22 Day 1 orientation tasks');
+  const taskSet = new Set(DAY1_TASKS.map(t => t.taskId));
+  assert.strictEqual(taskSet.size, 22, 'All 22 task IDs must be unique');
+
+  const day1Steps = DAYS_CONFIG[1].steps;
+  assert.strictEqual(day1Steps.length, 22, 'DAYS_CONFIG[1].steps must define all 22 tasks');
+
+  // Verify all zones are accounted for
+  assert.strictEqual(DAY1_ZONES.length, 6, 'Must define all 6 outpost zones');
+  const zoneSet = new Set(DAY1_ZONES.map(z => z.zoneId));
+  assert.strictEqual(zoneSet.size, 6);
+  assert(zoneSet.has('HABITAT'));
+  assert(zoneSet.has('CENTRAL_HUB'));
+  assert(zoneSet.has('ENGINEERING_UNIT'));
+  assert(zoneSet.has('RESEARCH_LAB'));
+  assert(zoneSet.has('MISSION_CONTROL'));
+  assert(zoneSet.has('AIRLOCK'));
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

@@ -24,6 +24,13 @@ import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
 import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
+import { CameraPresentationManager } from "./CameraPresentation";
+import {
+  DAY1_ZONES,
+  TRIGGER_TO_GROUP_MAP,
+  MODULE_TO_ZONE_MAP,
+  ZONE_TO_INTRO_MAP
+} from "./Day1Config";
 
 export type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -115,6 +122,9 @@ export class Game {
   private cinematicProgress = 0;
   private cinematicGliding = false;
 
+  // Day 1 Camera Presentation Manager
+  private cameraPresentationManager: CameraPresentationManager;
+
   // Drone FPV Mode State
   private droneModeActive = false;
   private astronautStateBeforeDrone?: {
@@ -188,8 +198,11 @@ export class Game {
 
       showCinematicOverlay: false,
       showOSDesktop: false,
-      osInitialApp: undefined
+      osInitialApp: undefined,
+      cameraPresentation: null
     };
+
+    this.cameraPresentationManager = new CameraPresentationManager(this.camera);
 
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(host);
@@ -715,7 +728,8 @@ export class Game {
       this.state.showDroneConsoleModal ||
       this.state.restFeedback ||
       this.state.showCinematicOverlay ||
-      this.state.showOSDesktop;
+      this.state.showOSDesktop ||
+      this.cameraPresentationManager.isPresentationActive();
 
     if (isModalOpen) return;
 
@@ -731,6 +745,14 @@ export class Game {
   private keyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | undefined;
     if (target?.matches("input,textarea,[contenteditable='true']")) return;
+
+    // Day 1 Camera Presentation Skip with Enter
+    if (this.cameraPresentationManager.isPresentationActive() && e.code === "Enter") {
+      e.preventDefault();
+      this.cameraPresentationManager.skip();
+      this.set({ cameraPresentation: null });
+      return;
+    }
 
     if (this.state.transition === "video" && e.code === "Enter" && !e.repeat) {
       e.preventDefault();
@@ -1077,6 +1099,49 @@ export class Game {
     // Check mission context event for entering module
     this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
 
+    // Day 1 Zone-Entry Introduction (play once per day on first entry)
+    if (this.state.missionDay === 1) {
+      const zoneId = MODULE_TO_ZONE_MAP[route.module];
+      if (zoneId) {
+        const intro = ZONE_TO_INTRO_MAP[zoneId];
+        if (intro && !this.missionManager.hasSeenIntroduction(intro.id)) {
+          this.missionManager.markIntroductionSeen(intro.id);
+
+          let targetMesh: THREE.Object3D | null = null;
+          if (this.current) {
+            const zoneDef = DAY1_ZONES.find(z => z.zoneId === zoneId);
+            if (zoneDef && zoneDef.interactionGroups[0]?.screenObjectNames[0]) {
+              targetMesh = this.current.getObjectByName(zoneDef.interactionGroups[0].screenObjectNames[0]) || null;
+            }
+          }
+
+          this.cameraPresentationManager.startPresentation(
+            {
+              id: intro.cameraPresentationId,
+              title: intro.title,
+              description: intro.description,
+              durationSeconds: intro.durationSeconds,
+              skipKey: "Enter",
+              targetMesh: targetMesh,
+              targetWorldPosition: targetMesh ? undefined : this.camera.position.clone().add(new THREE.Vector3(0, 0, -2))
+            },
+            () => {
+              this.set({ cameraPresentation: null });
+            }
+          );
+
+          this.set({
+            cameraPresentation: {
+              active: true,
+              title: intro.title,
+              description: intro.description,
+              skipPrompt: "[ENTER] Skip"
+            }
+          });
+        }
+      }
+    }
+
     this.set({
       module: labels[route.module],
       isOutdoorTerrain: route.module === "Terrain"
@@ -1261,6 +1326,9 @@ export class Game {
     // 2. Habitat Rest & Day Advance
     if (this.nearby.identifier === "HAB_REST_01") {
       document.exitPointerLock();
+      if (this.state.missionDay === 1) {
+        this.missionManager.completeStep("D1_HAB_REST_INTRODUCTION");
+      }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
         this.set({
@@ -1278,6 +1346,53 @@ export class Game {
         }
       }
       return;
+    }
+
+    // 2B. Day 1 Screen / Group Inspection & Horizontal Camera Presentation
+    if (this.state.missionDay === 1) {
+      const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
+      if (group) {
+        this.missionManager.completeStep(group.taskId);
+        let targetMesh: THREE.Object3D | null = null;
+        if (this.current) {
+          for (const sName of group.screenObjectNames) {
+            const found = this.current.getObjectByName(sName);
+            if (found) {
+              targetMesh = found;
+              break;
+            }
+          }
+        }
+
+        const started = this.cameraPresentationManager.startPresentation(
+          {
+            id: group.cameraPresentationId,
+            title: group.friendlyName,
+            description: group.description,
+            durationSeconds: group.cameraDurationSeconds,
+            skipKey: "Enter",
+            targetMesh: targetMesh,
+            targetWorldPosition: this.nearby.center
+          },
+          () => {
+            this.set({ cameraPresentation: null });
+          }
+        );
+
+        if (started) {
+          this.set({
+            prompt: "",
+            notification: `Task Complete: ${group.friendlyName}`,
+            cameraPresentation: {
+              active: true,
+              title: group.friendlyName,
+              description: group.description,
+              skipPrompt: "[ENTER] Skip"
+            }
+          });
+          return;
+        }
+      }
     }
 
     // 3. Mission Control Day 5 Route Planning & Day 6 Target Review & Day 9 Drone Console
@@ -1458,9 +1573,9 @@ export class Game {
 
     const route = transitions[this.active][best.identifier];
     if (route) {
-      this.set({ prompt: `Press E to travel to ${labels[route.module]}` });
+      this.set({ prompt: `[E] TRAVEL TO ${labels[route.module].toUpperCase()}` });
     } else if (best.identifier === "HAB_REST_01") {
-      this.set({ prompt: `Press E to Rest & Conclude Day ${this.state.missionDay}` });
+      this.set({ prompt: `[E] REST · CREW REST AREA` });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
       if (this.state.missionDay === 5) {
         this.set({ prompt: "Press E to Access Terrain Survey Planning" });
@@ -1469,22 +1584,33 @@ export class Game {
       } else if (this.state.missionDay === 9) {
         this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
       } else {
-        this.set({ prompt: "Press E to Access Navigation Console" });
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Terrain & Reconnaissance Systems";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
       }
     } else if (
       this.active === "Science" &&
       (best.identifier === "LAB_RESEARCH_ANALYSIS_01" || best.identifier === "LAB_RESEARCH_MONITORING_01")
     ) {
-      this.set({ prompt: "Press E to Access Scientific Analysis Console" });
+      if (this.state.missionDay === 8) {
+        this.set({ prompt: "Press E to Access Scientific Analysis Console" });
+      } else {
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Research Analysis Display";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
+      }
     } else if (this.active === "MissionControl" && best.identifier === "MC_SYSTEMS_01") {
       if (this.state.missionDay === 9) {
         this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
       } else {
-        this.set({ prompt: "Press E to Inspect Mission Systems Console" });
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Communications & Systems";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
       }
     } else {
-      const title = screenActions[best.identifier] || "Terminal Display";
-      this.set({ prompt: `[E] ACCESS DISPLAY · ${title.toUpperCase()}` });
+      const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+      const title = group ? group.friendlyName : (screenActions[best.identifier] || "Terminal Display");
+      this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
     }
   }
 
@@ -1559,7 +1685,9 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
-    if (this.cinematicGliding) {
+    if (this.cameraPresentationManager.isPresentationActive()) {
+      this.cameraPresentationManager.update(dt);
+    } else if (this.cinematicGliding) {
       this.cinematicProgress = Math.min(1, this.cinematicProgress + dt * 2.0);
       const t = 0.5 - 0.5 * Math.cos(Math.PI * this.cinematicProgress);
       this.camera.position.lerpVectors(this.cinematicStartPos, this.cinematicTargetPos, t);
@@ -1584,7 +1712,8 @@ export class Game {
         this.state.showDroneConsoleModal ||
         this.state.restFeedback ||
         this.state.showCinematicOverlay ||
-        this.state.showOSDesktop;
+        this.state.showOSDesktop ||
+        this.cameraPresentationManager.isPresentationActive();
 
       if (!isModalOpen) {
         this.player.update(dt, this.canOccupy, this.groundHeight);
