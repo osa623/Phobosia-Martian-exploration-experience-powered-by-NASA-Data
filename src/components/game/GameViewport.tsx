@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
 import { PhobosiaOS } from "./PhobosiaOS";
+import { SpeedTravelBar } from "./SpeedTravelBar";
 import {
   MASTER_TERRAIN_TARGETS,
   PREDEFINED_INTERPRETATIONS,
@@ -22,16 +23,16 @@ const initialState: GameState = {
   transitionProgress: null,
 
   missionDay: 1,
-  missionTitle: "Base Orientation",
+  missionTitle: "Outpost Orientation",
   objectiveTitle: "Complete base orientation checklist",
   objectiveState: "in_progress",
   completedStepCount: 0,
-  totalStepCount: 4,
+  totalStepCount: 22,
   dayBriefingSeen: false,
   showBriefingModal: true,
   briefingText:
-    "Welcome to Mars Outpost PHOBOSIA. Review base operations, inspect primary connected modules through the Central Hub, and confirm orientation status.",
-  primaryObjective: "Complete base orientation checklist by reviewing controls and visiting primary operational modules.",
+    "Welcome to Mars Outpost PHOBOSIA. Before commencing scientific field observations, explore the base, inspect each operational zone and system console, and complete the Day 1 orientation checklist.",
+  primaryObjective: "Explore the outpost, inspect all 22 operational displays and consoles across all modules, and complete the orientation checklist.",
   controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock",
   isOutdoorTerrain: false,
   showRoutePlanning: false,
@@ -54,7 +55,8 @@ const initialState: GameState = {
 
   showCinematicOverlay: false,
   showOSDesktop: false,
-  osInitialApp: undefined
+  osInitialApp: undefined,
+  cameraPresentation: null
 };
 
 export function GameViewport() {
@@ -112,10 +114,16 @@ export function GameViewport() {
     !state.droneModeActive &&
     !state.restFeedback &&
     !state.showCinematicOverlay &&
-    !state.showOSDesktop;
+    !state.showOSDesktop &&
+    !state.cameraPresentation;
 
   return (
     <div id="game" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove) */}
+      <SpeedTravelBar
+        activeModule={state.module}
+        onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
+      />
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
       {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
         <div className="helmet-visor" aria-hidden="true">
@@ -198,6 +206,24 @@ export function GameViewport() {
             >
               ENTER HABITAT
             </button>
+          </div>
+        )}
+
+        {/* 2B. DAY 1 CAMERA PRESENTATION OVERLAY BANNER */}
+        {state.cameraPresentation && (
+          <div className="camera-presentation-overlay" aria-live="polite">
+            <div className="presentation-letterbox-bar top" />
+            <div className="presentation-banner">
+              <div className="presentation-header">
+                <span className="presentation-badge">DAY 1 · OUTPOST ORIENTATION</span>
+                <h2 className="presentation-title">{state.cameraPresentation.title}</h2>
+              </div>
+              <p className="presentation-desc">{state.cameraPresentation.description}</p>
+              <div className="presentation-skip-hint">
+                <span className="key-badge">ENTER</span> Skip Presentation
+              </div>
+            </div>
+            <div className="presentation-letterbox-bar bottom" />
           </div>
         )}
 

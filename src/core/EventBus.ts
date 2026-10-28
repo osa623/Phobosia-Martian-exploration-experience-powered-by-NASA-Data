@@ -64,6 +64,14 @@ export interface GameState {
   showCinematicOverlay: boolean;
   showOSDesktop: boolean;
   osInitialApp?: string;
+
+  // Day 1 Camera Presentation Banner
+  cameraPresentation: {
+    active: boolean;
+    title: string;
+    description: string;
+    skipPrompt: string;
+  } | null;
 }
 
 export type SetState = (value: GameState) => void;

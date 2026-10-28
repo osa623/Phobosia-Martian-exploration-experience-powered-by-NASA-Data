@@ -1,0 +1,63 @@
+{
+  "task": "PHOBOSIA Airlock screen rendering and Central Connector collider fix",
+  "constraints": {
+    "preserve_existing_3d_models": true,
+    "preserve_existing_screen_renderers": true,
+    "preserve_existing_json_configs_unless_explicitly_required": true,
+    "avoid_unrelated_refactors": true,
+    "inspect_existing_implementations_before_editing": true
+  },
+  "airlock": {
+    "screens": [
+      {
+        "name": "Airlock_Control_Console",
+        "position_m": {
+          "x": 1.69497,
+          "y": 0.0,
+          "z": 1.73859
+        },
+        "task": "Add screen rendering using the established pattern used by Habitat, Engineering, Research Lab, Central Console, and Mission Control.",
+        "behavior": "Inspect the existing Airlock screen behavior and implement appropriate UI and interactions consistent with the project's current screen architecture. Do not invent unrelated functionality.",
+        "requirements": [
+          "Use the exact screen object/name and supplied position as the reference.",
+          "Reuse existing rendering utilities, materials, interaction handling, and lifecycle conventions where applicable.",
+          "Keep the Airlock renderer modular and consistent with separate per-zone screen renderers.",
+          "Do not replace or merge the physical screen renderer with the fullscreen PHOBOSIA OS.",
+          "Ensure the screen is visible on the intended console and behaves correctly during interaction.",
+          "Avoid duplicate event listeners, duplicate render loops, and resource leaks."
+        ]
+      }
+    ]
+  },
+  "central_connector": {
+    "colliders": [
+      {
+        "name": "Collider_Section02",
+        "status": "Existing collider; use as the reference implementation."
+      },
+      {
+        "name": "Collider_Section01",
+        "status": "Collider missing or not functioning; needs collision added.",
+        "mesh_description": "Existing ring/circle-like mesh with a cut through the middle, a border, and approximately six vertical plane-like sections merged into one object.",
+        "task": "Inspect the actual mesh appearance and geometry first, then apply an appropriate collider to Collider_Section01 using the same collider setup and collision conventions as Collider_Section02.",
+        "requirements": [
+          "Do not alter the visible mesh, topology, transform, or object name unless strictly necessary and explicitly justified.",
+          "Inspect Collider_Section02 collider type, dimensions, layers, masks, and collision behavior before copying the approach.",
+          "Account for the ring-like shape, central cut, border, and six merged vertical sections; do not blindly use a solid collider if it blocks valid movement through the opening.",
+          "Prevent the player from moving outside the intended hall boundary while allowing legitimate movement through designed openings.",
+          "Keep Collider_Section02 behavior unchanged.",
+          "Check collider alignment, scale, rotation, and parent transforms.",
+          "Test collision from multiple approach directions and verify Collider_Section01 behaves like Collider_Section02 where geometry is equivalent."
+        ]
+      }
+    ]
+  },
+  "validation": [
+    "Confirm Airlock_Control_Console renders at the intended console and its interactions work.",
+    "Confirm other zone screens still render and behave as before.",
+    "Confirm Collider_Section01 has a working collider and Collider_Section02 remains unchanged.",
+    "Confirm the player cannot cross the intended hall boundary through the unprotected section.",
+    "Confirm valid passages remain traversable.",
+    "Report files changed, implementation approach, and tests performed."
+  ]
+}
