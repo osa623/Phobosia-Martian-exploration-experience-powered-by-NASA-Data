@@ -94,7 +94,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Main wall display. Width along Z, Height along Y."
       },
@@ -142,7 +142,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Side wall monitor. Width along Z, Height along Y."
       },
@@ -194,7 +194,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Power unit primary display. Width along Z, Height along Y."
       },
@@ -243,7 +243,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Power diagnostics wall display. Width along Z, Height along Y."
       },
@@ -293,7 +293,7 @@
         "uAxis": "x",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": true,
+        "mirrorHorizontal": false,
         "mirrorVertical": false,
         "note": "Narrow vertical pillar display. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
       },
@@ -339,7 +339,7 @@
         "uAxis": "x",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": true,
+        "mirrorHorizontal": false,
         "mirrorVertical": false,
         "note": "Compact console display. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
       },
@@ -386,7 +386,7 @@
         "uAxis": "x",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": true,
+        "mirrorHorizontal": false,
         "mirrorVertical": false,
         "note": "Portrait life support console. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
       },
@@ -433,7 +433,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Resource wall monitor. Width along Z, Height along Y."
       },
@@ -480,7 +480,7 @@
         "uAxis": "x",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": true,
+        "mirrorHorizontal": false,
         "mirrorVertical": false,
         "note": "Diagnostics console. Width along X, Height along Y. mirrorHorizontal=true (flipU)."
       },
@@ -576,7 +576,7 @@
         "uAxis": "z",
         "vAxis": "y",
         "contentRotationDegrees": 0,
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "note": "Storage bay inventory terminal. Width along Z, Height along Y."
       },

@@ -202,8 +202,8 @@
         "z": 1.99435
       },
       "orientation": {
-        "mirrorHorizontal": false,
-        "mirrorVertical": false,
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
         "rotationDegrees": 0,
         "verifyAgainstBlender": true
       },
@@ -322,7 +322,7 @@
         "z": 1.0501
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
         "verifyAgainstBlender": true

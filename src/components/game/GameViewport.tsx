@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
 import { PhobosiaOS } from "./PhobosiaOS";
+import { SpeedTravelBar } from "./SpeedTravelBar";
 import {
   MASTER_TERRAIN_TARGETS,
   PREDEFINED_INTERPRETATIONS,
@@ -116,6 +117,11 @@ export function GameViewport() {
 
   return (
     <div id="game" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove) */}
+      <SpeedTravelBar
+        activeModule={state.module}
+        onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
+      />
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
       {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
         <div className="helmet-visor" aria-hidden="true">

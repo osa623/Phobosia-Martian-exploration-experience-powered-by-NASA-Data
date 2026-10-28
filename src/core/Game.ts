@@ -25,7 +25,7 @@ import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 
-type ModuleName = keyof typeof assetPaths;
+export type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
 type InteractionTarget = { object: THREE.Object3D; identifier: string; center: THREE.Vector3; range: number };
 
@@ -356,6 +356,87 @@ export class Game {
   closePanel() {
     this.set({ panel: "" });
     this.lock();
+  }
+
+  // =========================================================================
+  // SPEED TRAVEL / DEV TELEPORT SYSTEM (SEPARATE REMOVABLE FUNCTION)
+  // =========================================================================
+  /**
+   * Activates instant speed travel to any outpost module.
+   * Directly loads the model, switches scene, attaches screens, and spawns the player.
+   * Can be removed when dev modifications are complete.
+   */
+  public async speedTravel(targetModule: ModuleName | string): Promise<boolean> {
+    if (this.disposed) return false;
+
+    // Release mouse pointer lock so user can interact with the UI
+    if (typeof document !== "undefined" && document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    // Reset controls and ongoing transitions
+    this.player.keys.clear();
+    this.transitioning = false;
+    this.pending = undefined;
+
+    const spawnMap: Record<string, string> = {
+      Habitat: "HABITAT_SPAWN_POINT",
+      Hub: "Habitat_Entrance_Trigger",
+      Airlock: "Central_Hub_Entrance_Trigger",
+      Engineering: "Engineering_Entrance",
+      Science: "SCIENCE_LAB_SPAWN_POINT",
+      MissionControl: "MissionControl_Entrance_Trigger",
+      Terrain: "Spwaning_Position"
+    };
+
+    const mod = targetModule as ModuleName;
+    const spawn = spawnMap[mod];
+    if (!spawn) {
+      console.warn(`[SpeedTravel] Unknown module "${targetModule}". Valid modules: ${Object.keys(spawnMap).join(", ")}`);
+      return false;
+    }
+
+    // Close any open modals or terminals
+    this.set({
+      showBriefingModal: false,
+      showRoutePlanning: false,
+      showGeologicalForm: false,
+      showSurfaceObservationForm: false,
+      showScienceAnalysisModal: false,
+      showDroneConsoleModal: false,
+      showCinematicOverlay: false,
+      showOSDesktop: false,
+      droneModeActive: false,
+      panel: "",
+      prompt: "",
+      error: "",
+      transition: "loading",
+      transitionLabel: labels[mod] || String(mod),
+      transitionProgress: this.loaded.has(mod) ? 100 : null
+    });
+
+    try {
+      await this.loadAndSpawn({ module: mod, spawn });
+
+      this.set({
+        module: labels[mod] || String(mod),
+        transition: "",
+        transitionProgress: null,
+        transitionLabel: "",
+        error: "",
+        prompt: "",
+        isOutdoorTerrain: mod === "Terrain",
+        notification: `⚡ Speed traveled to ${labels[mod] || mod}`
+      });
+      return true;
+    } catch (error) {
+      console.error("[SpeedTravel] Failed to teleport to", mod, error);
+      this.set({
+        transition: "error",
+        error: error instanceof Error ? error.message : `Could not speed travel to ${labels[mod] || mod}`
+      });
+      return false;
+    }
   }
 
   dismissBriefing() {
