@@ -1,0 +1,1535 @@
+
+{
+  "project": "PHOBOSIA",
+  "zone": "RESEARCH_SCIENCE_LAB",
+  "configVersion": "1.0.0",
+  "description": "High-detail simulated scientific research, seed preservation, water nutrition and plant cultivation dashboard configuration for physical 3D screens.",
+  "dataPolicy": {
+    "dataMode": "SIMULATED_DEMO",
+    "displayDisclaimer": true,
+    "disclaimerText": "SIMULATED RESEARCH DATA - NOT LIVE NASA TELEMETRY",
+    "nasaAlignment": "NASA-inspired scientific workflows and Mars mission research concepts",
+    "realDataIntegrationRequired": true,
+    "allowUnverifiedLiveClaims": false,
+    "unitsRequired": true,
+    "timestampRequired": true,
+    "missingValueDisplay": "N/A",
+    "telemetryUpdateMode": "SIMULATED_INTERVAL",
+    "defaultRefreshSeconds": 5,
+    "preserveHistoricalSamples": true
+  },
+  "rendering": {
+    "renderMode": "IMAGE_AND_TEXT",
+    "rendererArchitecture": "ONE_INDEPENDENT_RENDERER_PER_PHYSICAL_SCREEN",
+    "separateFromFullScreenOS": true,
+    "useDedicatedCanvasPerScreen": true,
+    "useDedicatedTexturePerScreen": true,
+    "showHeader": true,
+    "showFooter": true,
+    "showScreenTitle": true,
+    "showSubsystemLabel": true,
+    "showTimestamp": true,
+    "showTelemetryState": true,
+    "showUnits": true,
+    "showLegends": true,
+    "showGridLines": true,
+    "showDataQualityIndicators": true,
+    "showAlertSeverity": true,
+    "showPageIndicators": true,
+    "showLoadingState": true,
+    "showErrorState": true,
+    "showNoDataState": true,
+    "showOfflineState": true,
+    "verifyMeshTransformBeforeRendering": true,
+    "orientationSource": "CONFIG",
+    "allowPerScreenOrientation": true,
+    "preserveScreenAspectRatio": true,
+    "avoidDistortingText": true,
+    "avoidExcessiveBloom": true,
+    "avoidNeonOveruse": true,
+    "renderPriority": "VISIBLE_PHYSICAL_SCREENS",
+    "fallbackOnRendererFailure": "SHOW_LOCAL_ERROR_PANEL",
+    "sharedDataDoesNotMeanSharedRenderer": true
+  },
+  "visualTheme": {
+    "background": "#07111F",
+    "backgroundSecondary": "#0B1B2B",
+    "panel": "#102438",
+    "panelElevated": "#152D42",
+    "border": "#29465E",
+    "textPrimary": "#E8F1FA",
+    "textSecondary": "#91A6BC",
+    "accentCyan": "#36C5E8",
+    "accentBlue": "#5B9DFF",
+    "accentGreen": "#53D6A0",
+    "accentOrange": "#FFB547",
+    "accentRed": "#FF5353",
+    "accentPurple": "#B6A0FF",
+    "soilColor": "#B88B63",
+    "plantColor": "#80C98B",
+    "waterColor": "#50BFE8",
+    "gridColor": "#1B354B",
+    "fontStyle": "TECHNICAL_SCIENTIFIC_SANS",
+    "numericFontStyle": "MONOSPACED",
+    "panelStyle": "COMPACT_TELEMETRY_DASHBOARD",
+    "cornerStyle": "SUBTLE",
+    "chartStyle": "THIN_LINES_WITH_CLEAR_LEGENDS",
+    "warningStyle": "COLOR_AND_TEXT_LABEL",
+    "criticalStyle": "COLOR_AND_TEXT_LABEL",
+    "animationStyle": "SUBTLE_INSTRUMENT_ANIMATION"
+  },
+  "globalLayout": {
+    "headerHeightPercent": 11,
+    "footerHeightPercent": 7,
+    "contentHeightPercent": 82,
+    "minimumReadableText": true,
+    "responsiveLayout": true,
+    "preferPanelsOverOversizedNumbers": true,
+    "showPrimaryMetricProminently": true,
+    "showSecondaryMetricsCompactly": true,
+    "chartLabelsMustRemainReadable": true,
+    "preventPanelOverflow": true,
+    "preventTextClipping": true,
+    "reduceContentBeforeReducingLegibility": true,
+    "compactScreenStrategy": "PRIORITIZE_STATUS_AND_PRIMARY_METRICS",
+    "wideScreenStrategy": "MULTI_COLUMN_SCIENTIFIC_DASHBOARD",
+    "smallScreenStrategy": "STACKED_PANELS_AND_COMPACT_TABLES"
+  },
+  "orientationDefaults": {
+    "mirrorHorizontal": false,
+    "mirrorVertical": false,
+    "rotationDegrees": 0
+  },
+  "screens": [
+    {
+      "screenId": "research_monitoring_main",
+      "meshName": "ResearchMonitoring_MainScreen",
+      "rendererId": "ResearchMonitoringMainRenderer",
+      "subsystem": "RESEARCH_MONITORING",
+      "dimensionsMeters": {
+        "x": 1.38,
+        "y": 2.72,
+        "z": null,
+        "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
+        "rotationDegrees": 0
+      },
+      "purpose": "Primary scientific monitoring dashboard for Mars field observations, sample analysis and research progress.",
+      "layout": {
+        "type": "SCIENTIFIC_OVERVIEW",
+        "columns": 3,
+        "rows": 3,
+        "primaryPanel": "MISSION_RESEARCH_STATUS",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "RESEARCH MONITORING",
+          "subtitle": "MARS SCIENCE OPERATIONS",
+          "zone": "RESEARCH LAB",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "activeExperiments",
+            "label": "Active Experiments",
+            "value": 8,
+            "unit": "experiments",
+            "status": "NORMAL"
+          },
+          {
+            "id": "samplesProcessed",
+            "label": "Samples Processed",
+            "value": 124,
+            "unit": "samples",
+            "status": "NORMAL"
+          },
+          {
+            "id": "pendingAnalysis",
+            "label": "Pending Analysis",
+            "value": 12,
+            "unit": "samples",
+            "status": "INFO"
+          },
+          {
+            "id": "instrumentAvailability",
+            "label": "Instrument Availability",
+            "value": 96.4,
+            "unit": "%",
+            "status": "NORMAL"
+          },
+          {
+            "id": "researchDataCompleteness",
+            "label": "Data Completeness",
+            "value": 98.1,
+            "unit": "%",
+            "status": "NORMAL"
+          },
+          {
+            "id": "sampleStorageCapacity",
+            "label": "Sample Storage Used",
+            "value": 64,
+            "unit": "%",
+            "status": "NORMAL"
+          }
+        ],
+        "panels": [
+          {
+            "id": "MISSION_RESEARCH_STATUS",
+            "title": "Research Status",
+            "type": "STATUS_MATRIX",
+            "items": [
+              {
+                "name": "Soil Mineralogy",
+                "state": "RUNNING"
+              },
+              {
+                "name": "Regolith Imaging",
+                "state": "RUNNING"
+              },
+              {
+                "name": "Water Sample Analysis",
+                "state": "QUEUED"
+              },
+              {
+                "name": "Seed Viability Study",
+                "state": "RUNNING"
+              },
+              {
+                "name": "Cultivation Trial A",
+                "state": "RUNNING"
+              },
+              {
+                "name": "Instrument Calibration",
+                "state": "SCHEDULED"
+              }
+            ]
+          },
+          {
+            "id": "SAMPLE_ANALYSIS_QUEUE",
+            "title": "Sample Analysis Queue",
+            "type": "DATA_TABLE",
+            "columns": [
+              "Sample ID",
+              "Sample Type",
+              "Priority",
+              "Stage",
+              "Data Quality"
+            ],
+            "rows": [
+              ["R-SOL-014", "Regolith", "HIGH", "Mineralogy", "GOOD"],
+              ["R-ICE-006", "Ice Analog", "MEDIUM", "Imaging", "GOOD"],
+              ["R-WTR-021", "Water Analog", "HIGH", "Chemistry", "PENDING"],
+              ["R-SED-009", "Sediment", "LOW", "Archive", "GOOD"]
+            ]
+          },
+          {
+            "id": "RESEARCH_TREND",
+            "title": "Research Activity — Last 8 Hours",
+            "type": "LINE_CHART",
+            "xAxis": "Elapsed mission hours",
+            "yAxis": "Completed analysis tasks",
+            "series": [
+              {
+                "name": "Completed",
+                "unit": "tasks",
+                "color": "#36C5E8",
+                "data": [3, 5, 4, 7, 8, 9, 11, 13]
+              },
+              {
+                "name": "Queued",
+                "unit": "tasks",
+                "color": "#FFB547",
+                "data": [8, 9, 7, 8, 6, 5, 4, 4]
+              }
+            ]
+          },
+          {
+            "id": "INSTRUMENT_HEALTH",
+            "title": "Instrument Health",
+            "type": "COMPONENT_STATUS",
+            "items": [
+              {
+                "name": "Spectrometer",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Microscope",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Sample Imaging Unit",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Analytical Balance",
+                "state": "CHECK_SCHEDULED"
+              }
+            ]
+          },
+          {
+            "id": "OBSERVATION_LOG",
+            "title": "Latest Observations",
+            "type": "EVENT_FEED",
+            "items": [
+              {
+                "time": "SOL 004 / 08:10",
+                "event": "Regolith image set archived",
+                "severity": "INFO"
+              },
+              {
+                "time": "SOL 004 / 08:24",
+                "event": "Mineralogy analysis completed",
+                "severity": "INFO"
+              },
+              {
+                "time": "SOL 004 / 08:37",
+                "event": "Water sample awaiting analysis",
+                "severity": "NOTICE"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "RESEARCH NETWORK: SIMULATED",
+          "center": "SAMPLE ARCHIVE: NOMINAL",
+          "right": "DEMO DATA"
+        }
+      }
+    },
+    {
+      "screenId": "research_monitoring_system",
+      "meshName": "ResearchMonitoring_SystemScreen",
+      "rendererId": "ResearchMonitoringSystemRenderer",
+      "subsystem": "RESEARCH_SYSTEMS",
+      "dimensionsMeters": {
+        "x": 1.38,
+        "y": 2.72,
+        "z": null,
+        "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
+        "rotationDegrees": 0
+      },
+      "purpose": "Research instrument orchestration, laboratory system health, experiment scheduling and data pipeline monitoring.",
+      "layout": {
+        "type": "SYSTEMS_AND_WORKFLOW",
+        "columns": 3,
+        "rows": 3,
+        "primaryPanel": "EXPERIMENT_WORKFLOW",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "RESEARCH SYSTEMS",
+          "subtitle": "INSTRUMENTS / DATA PIPELINE / TASK CONTROL",
+          "zone": "SCIENCE LAB",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "systemsOnline",
+            "label": "Systems Online",
+            "value": 11,
+            "unit": "of 12",
+            "status": "NORMAL"
+          },
+          {
+            "id": "dataPackets",
+            "label": "Data Packets",
+            "value": 8420,
+            "unit": "packets",
+            "status": "NORMAL"
+          },
+          {
+            "id": "pipelineLatency",
+            "label": "Pipeline Latency",
+            "value": 0.42,
+            "unit": "s",
+            "status": "NORMAL"
+          },
+          {
+            "id": "storageRemaining",
+            "label": "Research Storage Remaining",
+            "value": 68.2,
+            "unit": "%",
+            "status": "NORMAL"
+          },
+          {
+            "id": "failedJobs",
+            "label": "Failed Analysis Jobs",
+            "value": 1,
+            "unit": "job",
+            "status": "NOTICE"
+          },
+          {
+            "id": "scheduledJobs",
+            "label": "Scheduled Jobs",
+            "value": 17,
+            "unit": "jobs",
+            "status": "NORMAL"
+          }
+        ],
+        "panels": [
+          {
+            "id": "EXPERIMENT_WORKFLOW",
+            "title": "Experiment Workflow",
+            "type": "WORKFLOW_GRAPH",
+            "nodes": [
+              {
+                "id": "sampleIntake",
+                "label": "Sample Intake",
+                "state": "READY"
+              },
+              {
+                "id": "preparation",
+                "label": "Preparation",
+                "state": "RUNNING"
+              },
+              {
+                "id": "measurement",
+                "label": "Measurement",
+                "state": "RUNNING"
+              },
+              {
+                "id": "validation",
+                "label": "Quality Validation",
+                "state": "QUEUED"
+              },
+              {
+                "id": "archive",
+                "label": "Research Archive",
+                "state": "READY"
+              }
+            ],
+            "edges": [
+              ["sampleIntake", "preparation"],
+              ["preparation", "measurement"],
+              ["measurement", "validation"],
+              ["validation", "archive"]
+            ]
+          },
+          {
+            "id": "SYSTEM_HEALTH",
+            "title": "Subsystem Health",
+            "type": "HEALTH_GRID",
+            "items": [
+              {
+                "name": "Instrument Bus",
+                "health": 98,
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Sample Handling",
+                "health": 95,
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Research Storage",
+                "health": 91,
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Data Processing",
+                "health": 97,
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Environmental Sensors",
+                "health": 94,
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Backup Archive",
+                "health": 89,
+                "state": "CHECK_SCHEDULED"
+              }
+            ]
+          },
+          {
+            "id": "PIPELINE_TREND",
+            "title": "Data Throughput",
+            "type": "LINE_CHART",
+            "xAxis": "Recent intervals",
+            "yAxis": "Packets per interval",
+            "series": [
+              {
+                "name": "Incoming",
+                "unit": "packets",
+                "color": "#36C5E8",
+                "data": [72, 81, 76, 94, 102, 98, 110, 116]
+              },
+              {
+                "name": "Processed",
+                "unit": "packets",
+                "color": "#53D6A0",
+                "data": [68, 78, 75, 90, 99, 96, 107, 113]
+              }
+            ]
+          },
+          {
+            "id": "JOB_QUEUE",
+            "title": "Analysis Job Queue",
+            "type": "DATA_TABLE",
+            "columns": [
+              "Job ID",
+              "Task",
+              "Priority",
+              "State",
+              "Elapsed"
+            ],
+            "rows": [
+              ["JOB-031", "Mineral Classification", "HIGH", "RUNNING", "04:12"],
+              ["JOB-032", "Image Reconstruction", "MEDIUM", "QUEUED", "--:--"],
+              ["JOB-033", "Water Chemistry", "HIGH", "VALIDATION", "02:38"],
+              ["JOB-034", "Seed Viability", "MEDIUM", "QUEUED", "--:--"]
+            ]
+          },
+          {
+            "id": "SYSTEM_EVENTS",
+            "title": "System Events",
+            "type": "EVENT_FEED",
+            "items": [
+              {
+                "time": "08:21",
+                "event": "Research archive synchronization complete",
+                "severity": "INFO"
+              },
+              {
+                "time": "08:29",
+                "event": "Analysis job JOB-030 retry scheduled",
+                "severity": "NOTICE"
+              },
+              {
+                "time": "08:35",
+                "event": "Instrument self-check passed",
+                "severity": "INFO"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "PIPELINE: SIMULATED",
+          "center": "INSTRUMENT CONTROL: DEMO",
+          "right": "NOT LIVE TELEMETRY"
+        }
+      }
+    },
+    {
+      "screenId": "seed_storage_inventory",
+      "meshName": "SeedStorage_InventoryScreen",
+      "rendererId": "SeedStorageInventoryRenderer",
+      "subsystem": "SEED_STORAGE_AND_BIOLOGICAL_ARCHIVE",
+      "dimensionsMeters": {
+        "x": 2.97,
+        "y": 1.31,
+        "z": null,
+        "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
+        "rotationDegrees": 0
+      },
+      "purpose": "Track seed lots, biological inventory, storage environment, viability test schedules and traceability.",
+      "layout": {
+        "type": "INVENTORY_AND_STORAGE",
+        "columns": 4,
+        "rows": 2,
+        "primaryPanel": "SEED_INVENTORY",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "SEED STORAGE / BIOLOGICAL INVENTORY",
+          "subtitle": "LOT TRACEABILITY AND PRESERVATION",
+          "zone": "SEED STORAGE",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "storedLots",
+            "label": "Stored Lots",
+            "value": 24,
+            "unit": "lots",
+            "status": "NORMAL"
+          },
+          {
+            "id": "speciesCatalogued",
+            "label": "Catalogued Types",
+            "value": 8,
+            "unit": "types",
+            "status": "NORMAL"
+          },
+          {
+            "id": "viabilityTestsDue",
+            "label": "Viability Tests Due",
+            "value": 3,
+            "unit": "tests",
+            "status": "NOTICE"
+          },
+          {
+            "id": "storageOccupancy",
+            "label": "Storage Occupancy",
+            "value": 62,
+            "unit": "%",
+            "status": "NORMAL"
+          },
+          {
+            "id": "coldStorageTemperature",
+            "label": "Storage Temperature",
+            "value": 4.0,
+            "unit": "°C",
+            "status": "NORMAL"
+          },
+          {
+            "id": "humidity",
+            "label": "Storage Humidity",
+            "value": 32,
+            "unit": "% RH",
+            "status": "NORMAL"
+          }
+        ],
+        "panels": [
+          {
+            "id": "SEED_INVENTORY",
+            "title": "Seed Lot Inventory",
+            "type": "DATA_TABLE",
+            "columns": [
+              "Lot ID",
+              "Type",
+              "Quantity",
+              "Storage",
+              "Viability Status"
+            ],
+            "rows": [
+              ["SD-001", "Leafy Crop A", "240 seeds", "Rack A1", "TEST DUE"],
+              ["SD-002", "Legume Crop B", "180 seeds", "Rack A2", "GOOD"],
+              ["SD-003", "Root Crop C", "120 seeds", "Rack B1", "GOOD"],
+              ["SD-004", "Model Plant D", "96 seeds", "Rack B2", "UNDER STUDY"],
+              ["SD-005", "Control Batch", "150 seeds", "Rack C1", "GOOD"]
+            ]
+          },
+          {
+            "id": "STORAGE_MAP",
+            "title": "Storage Rack Map",
+            "type": "RACK_HEATMAP",
+            "rows": 3,
+            "columns": 4,
+            "cells": [
+              {
+                "id": "A1",
+                "label": "A1",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "A2",
+                "label": "A2",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "A3",
+                "label": "A3",
+                "state": "AVAILABLE"
+              },
+              {
+                "id": "A4",
+                "label": "A4",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "B1",
+                "label": "B1",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "B2",
+                "label": "B2",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "B3",
+                "label": "B3",
+                "state": "INSPECTION"
+              },
+              {
+                "id": "B4",
+                "label": "B4",
+                "state": "AVAILABLE"
+              },
+              {
+                "id": "C1",
+                "label": "C1",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "C2",
+                "label": "C2",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "C3",
+                "label": "C3",
+                "state": "OCCUPIED"
+              },
+              {
+                "id": "C4",
+                "label": "C4",
+                "state": "AVAILABLE"
+              }
+            ]
+          },
+          {
+            "id": "STORAGE_TREND",
+            "title": "Storage Temperature History",
+            "type": "LINE_CHART",
+            "xAxis": "Recent intervals",
+            "yAxis": "Temperature",
+            "series": [
+              {
+                "name": "Measured",
+                "unit": "°C",
+                "color": "#36C5E8",
+                "data": [4.1, 4.0, 4.0, 4.2, 4.1, 4.0, 4.0, 4.1]
+              },
+              {
+                "name": "Reference",
+                "unit": "°C",
+                "color": "#FFB547",
+                "data": [4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]
+              }
+            ]
+          },
+          {
+            "id": "VIABILITY_SCHEDULE",
+            "title": "Upcoming Viability Tests",
+            "type": "SCHEDULE_LIST",
+            "items": [
+              {
+                "lotId": "SD-001",
+                "task": "Germination trial",
+                "due": "SOL 005",
+                "priority": "HIGH"
+              },
+              {
+                "lotId": "SD-004",
+                "task": "Control comparison",
+                "due": "SOL 006",
+                "priority": "MEDIUM"
+              },
+              {
+                "lotId": "SD-007",
+                "task": "Repeat viability measurement",
+                "due": "SOL 007",
+                "priority": "MEDIUM"
+              }
+            ]
+          },
+          {
+            "id": "PRESERVATION_ALERTS",
+            "title": "Preservation Alerts",
+            "type": "ALERT_LIST",
+            "items": [
+              {
+                "severity": "NOTICE",
+                "message": "Three seed lots are approaching scheduled viability testing."
+              },
+              {
+                "severity": "INFO",
+                "message": "Storage rack B3 inspection is scheduled."
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "BIOLOGICAL INVENTORY: SIMULATED",
+          "center": "LOT TRACEABILITY ENABLED",
+          "right": "DEMO DATA"
+        }
+      }
+    },
+    {
+      "screenId": "water_nutrition_mixing",
+      "meshName": "WaterNutrition_MixingScreen",
+      "rendererId": "WaterNutritionMixingRenderer",
+      "subsystem": "WATER_AND_NUTRIENT_PREPARATION",
+      "dimensionsMeters": {
+        "x": 0.59824,
+        "y": 1.011,
+        "z": null,
+        "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
+        "rotationDegrees": 0
+      },
+      "purpose": "Monitor water and nutrient preparation, recipe stages, mixing equipment, resource consumption and batch traceability.",
+      "layout": {
+        "type": "PROCESS_CONTROL",
+        "columns": 2,
+        "rows": 3,
+        "primaryPanel": "MIXING_SEQUENCE",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "WATER / NUTRIENT MIXING",
+          "subtitle": "BATCH PREPARATION CONTROL",
+          "zone": "WATER AND NUTRITION",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "activeBatch",
+            "label": "Active Batch",
+            "value": "N-024",
+            "unit": "ID",
+            "status": "RUNNING"
+          },
+          {
+            "id": "tankVolume",
+            "label": "Batch Volume",
+            "value": 18.5,
+            "unit": "L",
+            "status": "NORMAL"
+          },
+          {
+            "id": "mixingProgress",
+            "label": "Mixing Progress",
+            "value": 72,
+            "unit": "%",
+            "status": "RUNNING"
+          },
+          {
+            "id": "solutionTemperature",
+            "label": "Solution Temperature",
+            "value": 21.4,
+            "unit": "°C",
+            "status": "NORMAL"
+          },
+          {
+            "id": "solutionPH",
+            "label": "Solution pH",
+            "value": 6.1,
+            "unit": "pH",
+            "status": "NORMAL"
+          },
+          {
+            "id": "solutionEC",
+            "label": "Electrical Conductivity",
+            "value": 1.4,
+            "unit": "mS/cm",
+            "status": "NORMAL"
+          }
+        ],
+        "panels": [
+          {
+            "id": "MIXING_SEQUENCE",
+            "title": "Mixing Sequence",
+            "type": "PROCESS_STEPS",
+            "steps": [
+              {
+                "step": 1,
+                "label": "Water Intake",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 2,
+                "label": "Initial Quality Check",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 3,
+                "label": "Nutrient Addition",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 4,
+                "label": "Solution Mixing",
+                "state": "RUNNING"
+              },
+              {
+                "step": 5,
+                "label": "Final Quality Check",
+                "state": "QUEUED"
+              },
+              {
+                "step": 6,
+                "label": "Release to Cultivation",
+                "state": "LOCKED_PENDING_VALIDATION"
+              }
+            ]
+          },
+          {
+            "id": "BATCH_RECIPE",
+            "title": "Active Batch Recipe",
+            "type": "DATA_TABLE",
+            "columns": [
+              "Component",
+              "Target",
+              "Simulated Actual",
+              "State"
+            ],
+            "rows": [
+              ["Water", "18.5 L", "18.5 L", "COMPLETE"],
+              ["Nutrient A", "Recipe-defined", "Recorded", "COMPLETE"],
+              ["Nutrient B", "Recipe-defined", "Recorded", "COMPLETE"],
+              ["pH Adjustment", "As required", "Not applied", "PENDING"],
+              ["Final Validation", "Required", "Pending", "WAITING"]
+            ],
+            "note": "Recipe quantities are illustrative. Do not use as real crop-production or mission operating instructions."
+          },
+          {
+            "id": "MIXING_TREND",
+            "title": "Solution Condition Trend",
+            "type": "MULTI_LINE_CHART",
+            "xAxis": "Elapsed minutes",
+            "series": [
+              {
+                "name": "pH",
+                "unit": "pH",
+                "color": "#36C5E8",
+                "data": [6.4, 6.3, 6.2, 6.2, 6.1, 6.1]
+              },
+              {
+                "name": "Temperature",
+                "unit": "°C",
+                "color": "#FFB547",
+                "data": [20.8, 21.0, 21.2, 21.3, 21.4, 21.4]
+              }
+            ]
+          },
+          {
+            "id": "EQUIPMENT_STATUS",
+            "title": "Mixing Equipment",
+            "type": "COMPONENT_STATUS",
+            "items": [
+              {
+                "name": "Water Feed Valve",
+                "state": "OPEN_SIMULATED"
+              },
+              {
+                "name": "Mixing Pump",
+                "state": "RUNNING_SIMULATED"
+              },
+              {
+                "name": "Agitation Unit",
+                "state": "RUNNING_SIMULATED"
+              },
+              {
+                "name": "pH Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "EC Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Release Valve",
+                "state": "LOCKED_PENDING_VALIDATION"
+              }
+            ]
+          },
+          {
+            "id": "RESOURCE_BALANCE",
+            "title": "Resource Balance",
+            "type": "RESOURCE_BARS",
+            "items": [
+              {
+                "name": "Water Available",
+                "value": 76,
+                "unit": "%"
+              },
+              {
+                "name": "Nutrient Stock A",
+                "value": 64,
+                "unit": "%"
+              },
+              {
+                "name": "Nutrient Stock B",
+                "value": 58,
+                "unit": "%"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "BATCH N-024",
+          "center": "RELEASE REQUIRES VALIDATION",
+          "right": "SIMULATED PROCESS"
+        }
+      }
+    },
+    {
+      "screenId": "water_nutrition_quality",
+      "meshName": "WaterNutrition_QualityScreen",
+      "rendererId": "WaterNutritionQualityRenderer",
+      "subsystem": "WATER_QUALITY_AND_RECYCLING",
+      "dimensionsMeters": {
+        "x": 0.956209,
+        "y": 0.000161,
+        "z": 1.37693,
+        "dimensionStatus": "VERIFY_AXIS_ORDER_AND_THICKNESS_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0
+      },
+      "purpose": "Display simulated water chemistry, sample quality, filtration stages, sensor health and water recovery trends.",
+      "layout": {
+        "type": "QUALITY_ANALYSIS",
+        "columns": 3,
+        "rows": 2,
+        "primaryPanel": "QUALITY_INDICATORS",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "WATER QUALITY ANALYSIS",
+          "subtitle": "CHEMISTRY / FILTRATION / SAMPLE VALIDATION",
+          "zone": "WATER AND NUTRITION",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "sampleId",
+            "label": "Current Sample",
+            "value": "WQ-018",
+            "unit": "ID",
+            "status": "UNDER_ANALYSIS"
+          },
+          {
+            "id": "ph",
+            "label": "pH",
+            "value": 6.8,
+            "unit": "pH",
+            "status": "INFO"
+          },
+          {
+            "id": "conductivity",
+            "label": "Conductivity",
+            "value": 420,
+            "unit": "µS/cm",
+            "status": "INFO"
+          },
+          {
+            "id": "turbidity",
+            "label": "Turbidity",
+            "value": 0.6,
+            "unit": "NTU",
+            "status": "INFO"
+          },
+          {
+            "id": "filterStatus",
+            "label": "Filter Status",
+            "value": "NOMINAL",
+            "unit": "",
+            "status": "NORMAL"
+          },
+          {
+            "id": "sampleValidation",
+            "label": "Validation",
+            "value": "PENDING",
+            "unit": "",
+            "status": "NOTICE"
+          }
+        ],
+        "panels": [
+          {
+            "id": "QUALITY_INDICATORS",
+            "title": "Measured Quality Indicators",
+            "type": "METRIC_GRID",
+            "items": [
+              {
+                "name": "pH",
+                "value": 6.8,
+                "unit": "pH",
+                "state": "SIMULATED"
+              },
+              {
+                "name": "Conductivity",
+                "value": 420,
+                "unit": "µS/cm",
+                "state": "SIMULATED"
+              },
+              {
+                "name": "Turbidity",
+                "value": 0.6,
+                "unit": "NTU",
+                "state": "SIMULATED"
+              },
+              {
+                "name": "Temperature",
+                "value": 20.9,
+                "unit": "°C",
+                "state": "SIMULATED"
+              },
+              {
+                "name": "Dissolved Oxygen",
+                "value": 7.4,
+                "unit": "mg/L",
+                "state": "SIMULATED"
+              },
+              {
+                "name": "Total Dissolved Solids",
+                "value": 280,
+                "unit": "mg/L",
+                "state": "SIMULATED"
+              }
+            ],
+            "note": "These example values are not a declaration that the sample is safe or suitable for drinking or cultivation."
+          },
+          {
+            "id": "FILTRATION_STAGES",
+            "title": "Filtration Process",
+            "type": "PROCESS_STEPS",
+            "steps": [
+              {
+                "step": 1,
+                "label": "Sample Intake",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 2,
+                "label": "Particle Filtration",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 3,
+                "label": "Treatment Stage",
+                "state": "RUNNING"
+              },
+              {
+                "step": 4,
+                "label": "Sensor Measurement",
+                "state": "COMPLETE"
+              },
+              {
+                "step": 5,
+                "label": "Quality Review",
+                "state": "PENDING"
+              },
+              {
+                "step": 6,
+                "label": "Sample Release",
+                "state": "LOCKED_PENDING_REVIEW"
+              }
+            ]
+          },
+          {
+            "id": "QUALITY_HISTORY",
+            "title": "Water Quality History",
+            "type": "LINE_CHART",
+            "xAxis": "Sample sequence",
+            "yAxis": "Conductivity",
+            "series": [
+              {
+                "name": "Conductivity",
+                "unit": "µS/cm",
+                "color": "#36C5E8",
+                "data": [460, 448, 440, 435, 428, 420, 422, 420]
+              }
+            ]
+          },
+          {
+            "id": "SENSOR_HEALTH",
+            "title": "Quality Sensor Health",
+            "type": "COMPONENT_STATUS",
+            "items": [
+              {
+                "name": "pH Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Conductivity Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Turbidity Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Temperature Sensor",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Sampling Line",
+                "state": "INSPECTION_SCHEDULED"
+              }
+            ]
+          },
+          {
+            "id": "QUALITY_REVIEW",
+            "title": "Quality Review Checklist",
+            "type": "CHECKLIST",
+            "items": [
+              {
+                "label": "Required measurements recorded",
+                "state": "COMPLETE"
+              },
+              {
+                "label": "Sensor calibration verified",
+                "state": "COMPLETE"
+              },
+              {
+                "label": "Contamination screening",
+                "state": "PENDING"
+              },
+              {
+                "label": "Sample release approval",
+                "state": "LOCKED"
+              }
+            ]
+          },
+          {
+            "id": "WATER_ALERTS",
+            "title": "Quality Alerts",
+            "type": "ALERT_LIST",
+            "items": [
+              {
+                "severity": "NOTICE",
+                "message": "Sample WQ-018 has not completed final validation."
+              },
+              {
+                "severity": "INFO",
+                "message": "All displayed measurements are simulated demonstration values."
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "SAMPLE WQ-018",
+          "center": "QUALITY VALIDATION PENDING",
+          "right": "SIMULATED DATA"
+        }
+      }
+    },
+    {
+      "screenId": "cultivation_environment",
+      "meshName": "Cultivation_EnvironmentScreen",
+      "rendererId": "CultivationEnvironmentRenderer",
+      "subsystem": "PLANT_CULTIVATION_AND_GROWTH",
+      "dimensionsMeters": {
+        "x": null,
+        "y": 1.15934,
+        "z": 2.40276,
+        "dimensionStatus": "X_NOT_PROVIDED_VERIFY_AXIS_ORDER_IN_BLENDER"
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0
+      },
+      "purpose": "Monitor plant growth chambers, cultivation environmental conditions, lighting cycles, irrigation status and experiment observations.",
+      "layout": {
+        "type": "CULTIVATION_CONTROL",
+        "columns": 3,
+        "rows": 3,
+        "primaryPanel": "GROWTH_CHAMBER_OVERVIEW",
+        "density": "HIGH"
+      },
+      "content": {
+        "header": {
+          "title": "CULTIVATION ENVIRONMENT",
+          "subtitle": "GROWTH CHAMBERS / ENVIRONMENTAL MONITORING",
+          "zone": "CULTIVATION",
+          "dataMode": "SIMULATED DEMO"
+        },
+        "primaryMetrics": [
+          {
+            "id": "activeChambers",
+            "label": "Active Chambers",
+            "value": 4,
+            "unit": "chambers",
+            "status": "NORMAL"
+          },
+          {
+            "id": "airTemperature",
+            "label": "Air Temperature",
+            "value": 22.4,
+            "unit": "°C",
+            "status": "NORMAL"
+          },
+          {
+            "id": "relativeHumidity",
+            "label": "Relative Humidity",
+            "value": 58,
+            "unit": "% RH",
+            "status": "NORMAL"
+          },
+          {
+            "id": "lightCycle",
+            "label": "Light Cycle",
+            "value": "DAY",
+            "unit": "",
+            "status": "NORMAL"
+          },
+          {
+            "id": "rootZoneMoisture",
+            "label": "Root-Zone Moisture",
+            "value": 42,
+            "unit": "%",
+            "status": "INFO"
+          },
+          {
+            "id": "growthTrialProgress",
+            "label": "Growth Trial Progress",
+            "value": 61,
+            "unit": "%",
+            "status": "RUNNING"
+          }
+        ],
+        "panels": [
+          {
+            "id": "GROWTH_CHAMBER_OVERVIEW",
+            "title": "Growth Chamber Status",
+            "type": "CHAMBER_GRID",
+            "chambers": [
+              {
+                "id": "CH-A",
+                "label": "Chamber A",
+                "crop": "Leafy Crop A",
+                "state": "RUNNING",
+                "temperatureC": 22.4,
+                "humidityPercent": 58,
+                "lightState": "DAY"
+              },
+              {
+                "id": "CH-B",
+                "label": "Chamber B",
+                "crop": "Legume Crop B",
+                "state": "RUNNING",
+                "temperatureC": 21.8,
+                "humidityPercent": 55,
+                "lightState": "DAY"
+              },
+              {
+                "id": "CH-C",
+                "label": "Chamber C",
+                "crop": "Control Group",
+                "state": "RUNNING",
+                "temperatureC": 22.1,
+                "humidityPercent": 57,
+                "lightState": "NIGHT"
+              },
+              {
+                "id": "CH-D",
+                "label": "Chamber D",
+                "crop": "Experimental Group",
+                "state": "CHECK_REQUIRED",
+                "temperatureC": 23.0,
+                "humidityPercent": 61,
+                "lightState": "DAY"
+              }
+            ]
+          },
+          {
+            "id": "ENVIRONMENTAL_TRENDS",
+            "title": "Environmental Trends",
+            "type": "MULTI_LINE_CHART",
+            "xAxis": "Recent intervals",
+            "series": [
+              {
+                "name": "Air Temperature",
+                "unit": "°C",
+                "color": "#FFB547",
+                "data": [21.9, 22.0, 22.1, 22.3, 22.2, 22.4, 22.4, 22.4]
+              },
+              {
+                "name": "Relative Humidity",
+                "unit": "%",
+                "color": "#36C5E8",
+                "data": [56, 56, 57, 57, 58, 57, 58, 58]
+              }
+            ]
+          },
+          {
+            "id": "LIGHTING_CONTROL",
+            "title": "Lighting Cycle",
+            "type": "TIMELINE",
+            "currentPhase": "DAY",
+            "phases": [
+              {
+                "name": "Light",
+                "durationHours": 16,
+                "state": "ACTIVE"
+              },
+              {
+                "name": "Dark",
+                "durationHours": 8,
+                "state": "SCHEDULED"
+              }
+            ],
+            "note": "Illustrative research schedule; actual crop protocols require species-specific validation."
+          },
+          {
+            "id": "PLANT_GROWTH_LOG",
+            "title": "Plant Growth Observations",
+            "type": "DATA_TABLE",
+            "columns": [
+              "Chamber",
+              "Observation",
+              "Value",
+              "Trend",
+              "State"
+            ],
+            "rows": [
+              ["CH-A", "Canopy Height", "12.4 cm", "INCREASING", "RECORDED"],
+              ["CH-A", "Leaf Count", "8", "INCREASING", "RECORDED"],
+              ["CH-B", "Canopy Height", "10.8 cm", "INCREASING", "RECORDED"],
+              ["CH-C", "Canopy Height", "11.6 cm", "STABLE", "RECORDED"],
+              ["CH-D", "Sensor Check", "REQUIRED", "N/A", "NOTICE"]
+            ]
+          },
+          {
+            "id": "IRRIGATION_STATUS",
+            "title": "Water Delivery and Root Zone",
+            "type": "COMPONENT_STATUS",
+            "items": [
+              {
+                "name": "Chamber A Delivery",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Chamber B Delivery",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Chamber C Delivery",
+                "state": "NOMINAL"
+              },
+              {
+                "name": "Chamber D Delivery",
+                "state": "CHECK_REQUIRED"
+              },
+              {
+                "name": "Root-Zone Sensor Network",
+                "state": "NOMINAL"
+              }
+            ]
+          },
+          {
+            "id": "CULTIVATION_ALERTS",
+            "title": "Cultivation Alerts",
+            "type": "ALERT_LIST",
+            "items": [
+              {
+                "severity": "NOTICE",
+                "message": "Chamber D requires an environmental sensor check."
+              },
+              {
+                "severity": "INFO",
+                "message": "Control and experimental groups are tracked separately."
+              }
+            ]
+          },
+          {
+            "id": "EXPERIMENT_COMPARISON",
+            "title": "Control vs Experimental Group",
+            "type": "BAR_CHART",
+            "xKey": "group",
+            "yKey": "growthIndex",
+            "series": [
+              {
+                "name": "Growth Index",
+                "unit": "relative index",
+                "color": "#53D6A0"
+              }
+            ],
+            "data": [
+              {
+                "group": "Control",
+                "growthIndex": 100
+              },
+              {
+                "group": "Experimental",
+                "growthIndex": 108
+              }
+            ],
+            "note": "Illustrative normalized index, not a measured biological result."
+          }
+        ],
+        "footer": {
+          "left": "CULTIVATION TRIAL: SIMULATED",
+          "center": "CHAMBER D CHECK REQUIRED",
+          "right": "NOT LIVE TELEMETRY"
+        }
+      }
+    }
+  ],
+  "rendererRules": {
+    "oneScreenOneRenderer": true,
+    "rendererIdMustBeUnique": true,
+    "screenIdMustBeUnique": true,
+    "meshNameMustMatchExactly": true,
+    "neverReplacePhysicalScreenWithFullscreenOS": true,
+    "neverRenderSameCanvasOnAllScreensByDefault": true,
+    "allowSharedDataProvider": true,
+    "allowIndependentScreenRefresh": true,
+    "allowIndependentScreenOrientation": true,
+    "allowIndependentErrorHandling": true,
+    "allowIndependentVisibility": true,
+    "useFallbackIfScreenContentMissing": true,
+    "fallbackContent": {
+      "title": "RESEARCH DISPLAY",
+      "message": "SCREEN CONFIGURATION OR DATA UNAVAILABLE",
+      "showDataMode": true
+    },
+    "validateBeforeRendering": [
+      "screenId",
+      "meshName",
+      "rendererId",
+      "dimensionsMeters",
+      "orientation",
+      "content.header",
+      "content.primaryMetrics",
+      "content.panels",
+      "content.footer"
+    ],
+    "validatePanelTypes": [
+      "STATUS_MATRIX",
+      "DATA_TABLE",
+      "LINE_CHART",
+      "MULTI_LINE_CHART",
+      "BAR_CHART",
+      "COMPONENT_STATUS",
+      "EVENT_FEED",
+      "HEALTH_GRID",
+      "WORKFLOW_GRAPH",
+      "RACK_HEATMAP",
+      "SCHEDULE_LIST",
+      "ALERT_LIST",
+      "PROCESS_STEPS",
+      "RESOURCE_BARS",
+      "METRIC_GRID",
+      "CHECKLIST",
+      "CHAMBER_GRID",
+      "TIMELINE"
+    ],
+    "unknownPanelTypeBehavior": "SHOW_PANEL_UNSUPPORTED_MESSAGE",
+    "unknownMetricBehavior": "SHOW_NA",
+    "invalidDimensionBehavior": "LOG_WARNING_AND_REQUIRE_MESH_VERIFICATION",
+    "invalidOrientationBehavior": "USE_ORIENTATION_DEFAULTS",
+    "demoDataLabelMustRemainVisible": true
+  },
+  "performance": {
+    "target": "LOW_TO_MID_RANGE_GPU",
+    "avoidHeavyPostProcessing": true,
+    "avoidContinuousExpensiveRebuilds": true,
+    "reuseFontsAndMaterialsWhereSafe": true,
+    "limitChartPointCount": 60,
+    "limitEventFeedItems": 5,
+    "updateOnlyChangedUIElements": true,
+    "pauseUpdatesWhenScreenNotVisible": true,
+    "useTextureResolutionBasedOnMeshSize": true,
+    "preferReadableTextOverDecorativeAnimation": true,
+    "disposeRendererResourcesWhenScreenRemoved": true
+  }
+}

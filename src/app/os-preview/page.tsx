@@ -41,7 +41,8 @@ const mockState: GameState = {
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
   showCinematicOverlay: false,
   showOSDesktop: true,
-  osInitialApp: undefined
+  osInitialApp: undefined,
+  cameraPresentation: null
 };
 
 export default function OSPreviewPage() {

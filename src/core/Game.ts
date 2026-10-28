@@ -6,7 +6,7 @@ import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
 import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
-import { createModuleLights } from "./ModuleLighting";
+import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
   MissionManager,
   DAYS_CONFIG,
@@ -18,8 +18,21 @@ import {
   type DroneSurveyRecord
 } from "./MissionManager";
 import { ScreenRenderer } from "./ScreenRenderer";
+import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
+import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
+import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
+import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
+import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
+import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
+import { CameraPresentationManager } from "./CameraPresentation";
+import {
+  DAY1_ZONES,
+  TRIGGER_TO_GROUP_MAP,
+  MODULE_TO_ZONE_MAP,
+  ZONE_TO_INTRO_MAP
+} from "./Day1Config";
 
-type ModuleName = keyof typeof assetPaths;
+export type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
 type InteractionTarget = { object: THREE.Object3D; identifier: string; center: THREE.Vector3; range: number };
 
@@ -81,6 +94,12 @@ export class Game {
 
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
+  private habitatScreenRenderer = new HabitatScreenRenderer();
+  private engineeringScreenRenderer = new EngineeringScreenRenderer();
+  private researchScreenRenderer = new ResearchScreenRenderer();
+  private missionControlScreenRenderer = new MissionControlScreenRenderer();
+  private centralHubScreenRenderer = new CentralHubScreenRenderer();
+  private airlockScreenRenderer = new AirlockScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -89,6 +108,7 @@ export class Game {
   private observer: ResizeObserver;
   private environmentTarget?: THREE.WebGLRenderTarget;
   private environmentTexture?: THREE.DataTexture;
+  private hemiLight: THREE.HemisphereLight;
 
   // Cinematic screen camera transition state
   private astronautPreTerminalState?: {
@@ -101,6 +121,9 @@ export class Game {
   private cinematicStartQuat = new THREE.Quaternion();
   private cinematicProgress = 0;
   private cinematicGliding = false;
+
+  // Day 1 Camera Presentation Manager
+  private cameraPresentationManager: CameraPresentationManager;
 
   // Drone FPV Mode State
   private droneModeActive = false;
@@ -125,7 +148,9 @@ export class Game {
     host.prepend(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(0x0a1015);
-    this.scene.add(new THREE.HemisphereLight(0x9ab1c0, 0x20272b, 0.7));
+    const initialHemi = getModuleHemisphereConfig("Habitat");
+    this.hemiLight = new THREE.HemisphereLight(initialHemi.skyColor, initialHemi.groundColor, initialHemi.intensity);
+    this.scene.add(this.hemiLight);
 
     const mission = this.missionManager.getCurrentMission();
     const mState = this.missionManager.getState();
@@ -173,8 +198,11 @@ export class Game {
 
       showCinematicOverlay: false,
       showOSDesktop: false,
-      osInitialApp: undefined
+      osInitialApp: undefined,
+      cameraPresentation: null
     };
+
+    this.cameraPresentationManager = new CameraPresentationManager(this.camera);
 
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(host);
@@ -185,6 +213,19 @@ export class Game {
     this.missionManager.subscribe(updated => {
       this.syncMissionStateToUI(updated);
       this.screenRenderer.renderAll(this.active, updated);
+      if (this.active === "Habitat") {
+        this.habitatScreenRenderer.renderAll(updated);
+      } else if (this.active === "Engineering") {
+        this.engineeringScreenRenderer.renderAll(updated);
+      } else if (this.active === "Science") {
+        this.researchScreenRenderer.renderAll(updated);
+      } else if (this.active === "MissionControl") {
+        this.missionControlScreenRenderer.renderAll(updated);
+      } else if (this.active === "Hub") {
+        this.centralHubScreenRenderer.renderAll(updated);
+      } else if (this.active === "Airlock") {
+        this.airlockScreenRenderer.renderAll(updated);
+      }
     });
 
     void this.loadEnvironment();
@@ -240,6 +281,11 @@ export class Game {
   }
 
   private updateEnvironment() {
+    const hemiConfig = getModuleHemisphereConfig(this.active);
+    this.hemiLight.color.setHex(hemiConfig.skyColor);
+    this.hemiLight.groundColor.setHex(hemiConfig.groundColor);
+    this.hemiLight.intensity = hemiConfig.intensity;
+
     if (this.active === "Terrain") {
       this.scene.environment = this.environmentTarget?.texture ?? null;
       this.scene.background = this.environmentTexture ?? new THREE.Color(0x101a20);
@@ -250,9 +296,53 @@ export class Game {
   }
 
   async start() {
-    await this.loadAndSpawn({ module: "Habitat", spawn: "HABITAT_SPAWN_POINT" });
+    let initialModule: ModuleName = "Habitat";
+    let initialSpawn = "HABITAT_SPAWN_POINT";
+    let hideBriefing = false;
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const mod = params.get("module") as ModuleName | null;
+      if (mod) {
+        hideBriefing = true;
+        if (mod === "Hub") {
+          initialModule = "Hub";
+          initialSpawn = "Habitat_Entrance_Trigger";
+        } else if (mod === "MissionControl") {
+          initialModule = "MissionControl";
+          initialSpawn = "MissionControl_Entrance_Trigger";
+        } else if (mod === "Science") {
+          initialModule = "Science";
+          initialSpawn = "SCIENCE_LAB_SPAWN_POINT";
+        } else if (mod === "Engineering") {
+          initialModule = "Engineering";
+          initialSpawn = "Engineering_Entrance";
+        } else if (mod === "Airlock") {
+          initialModule = "Airlock";
+          initialSpawn = "Central_Hub_Entrance_Trigger";
+        } else if (mod === "Terrain") {
+          initialModule = "Terrain";
+          initialSpawn = "Spwaning_Position";
+        }
+      }
+      if (params.get("nobriefing") === "true") {
+        hideBriefing = true;
+      }
+    }
+
+    if (hideBriefing) {
+      this.missionManager.markBriefingSeen();
+      this.set({ showBriefingModal: false, dayBriefingSeen: true });
+    }
+
+    await this.loadAndSpawn({ module: initialModule, spawn: initialSpawn });
     if (!this.disposed) {
-      this.set({ ready: true });
+      this.set({
+        ready: true,
+        module: initialModule,
+        isOutdoorTerrain: initialModule === "Terrain",
+        showBriefingModal: hideBriefing ? false : this.state.showBriefingModal
+      });
       this.loop();
     }
   }
@@ -279,6 +369,87 @@ export class Game {
   closePanel() {
     this.set({ panel: "" });
     this.lock();
+  }
+
+  // =========================================================================
+  // SPEED TRAVEL / DEV TELEPORT SYSTEM (SEPARATE REMOVABLE FUNCTION)
+  // =========================================================================
+  /**
+   * Activates instant speed travel to any outpost module.
+   * Directly loads the model, switches scene, attaches screens, and spawns the player.
+   * Can be removed when dev modifications are complete.
+   */
+  public async speedTravel(targetModule: ModuleName | string): Promise<boolean> {
+    if (this.disposed) return false;
+
+    // Release mouse pointer lock so user can interact with the UI
+    if (typeof document !== "undefined" && document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+
+    // Reset controls and ongoing transitions
+    this.player.keys.clear();
+    this.transitioning = false;
+    this.pending = undefined;
+
+    const spawnMap: Record<string, string> = {
+      Habitat: "HABITAT_SPAWN_POINT",
+      Hub: "Habitat_Entrance_Trigger",
+      Airlock: "Central_Hub_Entrance_Trigger",
+      Engineering: "Engineering_Entrance",
+      Science: "SCIENCE_LAB_SPAWN_POINT",
+      MissionControl: "MissionControl_Entrance_Trigger",
+      Terrain: "Spwaning_Position"
+    };
+
+    const mod = targetModule as ModuleName;
+    const spawn = spawnMap[mod];
+    if (!spawn) {
+      console.warn(`[SpeedTravel] Unknown module "${targetModule}". Valid modules: ${Object.keys(spawnMap).join(", ")}`);
+      return false;
+    }
+
+    // Close any open modals or terminals
+    this.set({
+      showBriefingModal: false,
+      showRoutePlanning: false,
+      showGeologicalForm: false,
+      showSurfaceObservationForm: false,
+      showScienceAnalysisModal: false,
+      showDroneConsoleModal: false,
+      showCinematicOverlay: false,
+      showOSDesktop: false,
+      droneModeActive: false,
+      panel: "",
+      prompt: "",
+      error: "",
+      transition: "loading",
+      transitionLabel: labels[mod] || String(mod),
+      transitionProgress: this.loaded.has(mod) ? 100 : null
+    });
+
+    try {
+      await this.loadAndSpawn({ module: mod, spawn });
+
+      this.set({
+        module: labels[mod] || String(mod),
+        transition: "",
+        transitionProgress: null,
+        transitionLabel: "",
+        error: "",
+        prompt: "",
+        isOutdoorTerrain: mod === "Terrain",
+        notification: `⚡ Speed traveled to ${labels[mod] || mod}`
+      });
+      return true;
+    } catch (error) {
+      console.error("[SpeedTravel] Failed to teleport to", mod, error);
+      this.set({
+        transition: "error",
+        error: error instanceof Error ? error.message : `Could not speed travel to ${labels[mod] || mod}`
+      });
+      return false;
+    }
   }
 
   dismissBriefing() {
@@ -557,7 +728,8 @@ export class Game {
       this.state.showDroneConsoleModal ||
       this.state.restFeedback ||
       this.state.showCinematicOverlay ||
-      this.state.showOSDesktop;
+      this.state.showOSDesktop ||
+      this.cameraPresentationManager.isPresentationActive();
 
     if (isModalOpen) return;
 
@@ -573,6 +745,14 @@ export class Game {
   private keyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | undefined;
     if (target?.matches("input,textarea,[contenteditable='true']")) return;
+
+    // Day 1 Camera Presentation Skip with Enter
+    if (this.cameraPresentationManager.isPresentationActive() && e.code === "Enter") {
+      e.preventDefault();
+      this.cameraPresentationManager.skip();
+      this.set({ cameraPresentation: null });
+      return;
+    }
 
     if (this.state.transition === "video" && e.code === "Enter" && !e.repeat) {
       e.preventDefault();
@@ -777,14 +957,20 @@ export class Game {
         }
       }
 
+      if (/collider/i.test(o.name)) {
+        o.visible = false;
+      }
+
       if (o.name === "PHOBOSIA_MarsTerrain_2km") {
         this.terrain = o;
       }
     });
 
-    if (module !== "Terrain") {
-      createModuleLights(model, additions);
-    }
+    // 1. Configure mesh castShadow and receiveShadow flags across the module hierarchy
+    configureMeshShadows(model, module);
+
+    // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
+    configureModuleLighting(model, additions, module);
 
     if (module === "Habitat") {
       this.colliders = buildHabitatColliderSection(model);
@@ -802,13 +988,37 @@ export class Game {
       );
     }
 
-    if (module === "Terrain") {
-      const sun = new THREE.DirectionalLight(0xffe2c2, 2.2);
-      sun.position.set(200, 300, 120);
-      additions.add(sun);
-    }
-
     // Attach 3D screen plane rendering to actual screen meshes
+    if (module === "Habitat") {
+      this.habitatScreenRenderer.attachToHabitat(model, this.missionManager.getState());
+    } else {
+      this.habitatScreenRenderer.dispose();
+    }
+    if (module === "Engineering") {
+      this.engineeringScreenRenderer.attachToEngineering(model, this.missionManager.getState());
+    } else {
+      this.engineeringScreenRenderer.dispose();
+    }
+    if (module === "Science") {
+      this.researchScreenRenderer.attachToScience(model, this.missionManager.getState());
+    } else {
+      this.researchScreenRenderer.dispose();
+    }
+    if (module === "MissionControl") {
+      this.missionControlScreenRenderer.attachToMissionControl(model, this.missionManager.getState());
+    } else {
+      this.missionControlScreenRenderer.dispose();
+    }
+    if (module === "Hub") {
+      this.centralHubScreenRenderer.attachToHub(model, this.missionManager.getState());
+    } else {
+      this.centralHubScreenRenderer.dispose();
+    }
+    if (module === "Airlock") {
+      this.airlockScreenRenderer.attachToAirlock(model, this.missionManager.getState());
+    } else {
+      this.airlockScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -853,14 +1063,19 @@ export class Game {
     model.updateWorldMatrix(true, true);
     marker.getWorldPosition(this.temp);
 
-    // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+    // Offset Science Lab spawn so player doesn't land on door partition or LAB_EXIT_TRIGGER
     if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
-      this.temp.z = 11.5; // Push slightly forward into lab interior (away from exit trigger at z≈13.1)
+      this.temp.z = 10.6; // Clear of doorframe partition and exit trigger
     }
     // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
     if (route.spawn === "ScienceLab_Entrance_Trigger") {
       this.temp.x += 0.5; // Nudge inward toward hub center
       this.temp.z -= 0.5;
+    }
+    // Offset Engineering spawn forward into the main walkway aisle
+    if (route.spawn === "Engineering_Entrance") {
+      this.temp.x = 0.5;
+      this.temp.z = -12.0;
     }
 
     this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
@@ -869,10 +1084,63 @@ export class Game {
     const q = new THREE.Quaternion();
     marker.getWorldQuaternion(q);
     this.player.face(q);
+
+    // Orientation corrections: face toward the room interior rather than outward doorways
+    if (route.module === "Hub") {
+      const centerDir = new THREE.Vector3(0, 0, 0).sub(this.camera.position).normalize();
+      this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), centerDir));
+    } else if (route.module === "Engineering") {
+      const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
+      this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+    }
+
     this.player.resetVelocity();
 
     // Check mission context event for entering module
     this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
+
+    // Day 1 Zone-Entry Introduction (play once per day on first entry)
+    if (this.state.missionDay === 1) {
+      const zoneId = MODULE_TO_ZONE_MAP[route.module];
+      if (zoneId) {
+        const intro = ZONE_TO_INTRO_MAP[zoneId];
+        if (intro && !this.missionManager.hasSeenIntroduction(intro.id)) {
+          this.missionManager.markIntroductionSeen(intro.id);
+
+          let targetMesh: THREE.Object3D | null = null;
+          if (this.current) {
+            const zoneDef = DAY1_ZONES.find(z => z.zoneId === zoneId);
+            if (zoneDef && zoneDef.interactionGroups[0]?.screenObjectNames[0]) {
+              targetMesh = this.current.getObjectByName(zoneDef.interactionGroups[0].screenObjectNames[0]) || null;
+            }
+          }
+
+          this.cameraPresentationManager.startPresentation(
+            {
+              id: intro.cameraPresentationId,
+              title: intro.title,
+              description: intro.description,
+              durationSeconds: intro.durationSeconds,
+              skipKey: "Enter",
+              targetMesh: targetMesh,
+              targetWorldPosition: targetMesh ? undefined : this.camera.position.clone().add(new THREE.Vector3(0, 0, -2))
+            },
+            () => {
+              this.set({ cameraPresentation: null });
+            }
+          );
+
+          this.set({
+            cameraPresentation: {
+              active: true,
+              title: intro.title,
+              description: intro.description,
+              skipPrompt: "[ENTER] Skip"
+            }
+          });
+        }
+      }
+    }
 
     this.set({
       module: labels[route.module],
@@ -961,14 +1229,19 @@ export class Game {
       model.updateWorldMatrix(true, true);
       marker.getWorldPosition(this.temp);
 
-      // Offset Science Lab spawn so player doesn't land exactly on LAB_EXIT_TRIGGER
+      // Offset Science Lab spawn so player doesn't land on door partition or LAB_EXIT_TRIGGER
       if (route.spawn === "SCIENCE_LAB_SPAWN_POINT") {
-        this.temp.z = 11.5;
+        this.temp.z = 10.6;
       }
       // Offset Hub spawn when arriving from Science Lab to avoid re-triggering entrance
       if (route.spawn === "ScienceLab_Entrance_Trigger") {
         this.temp.x += 0.5;
         this.temp.z -= 0.5;
+      }
+      // Offset Engineering spawn forward into the main walkway aisle
+      if (route.spawn === "Engineering_Entrance") {
+        this.temp.x = 0.5;
+        this.temp.z = -12.0;
       }
 
       this.camera.position.copy(this.temp).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
@@ -977,6 +1250,16 @@ export class Game {
       const q = new THREE.Quaternion();
       marker.getWorldQuaternion(q);
       this.player.face(q);
+
+      // Orientation corrections: face toward the room interior rather than outward doorways
+      if (route.module === "Hub") {
+        const centerDir = new THREE.Vector3(0, 0, 0).sub(this.camera.position).normalize();
+        this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), centerDir));
+      } else if (route.module === "Engineering") {
+        const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
+        this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+      }
+
       this.player.resetVelocity();
 
       // Trigger module entered event
@@ -1043,6 +1326,9 @@ export class Game {
     // 2. Habitat Rest & Day Advance
     if (this.nearby.identifier === "HAB_REST_01") {
       document.exitPointerLock();
+      if (this.state.missionDay === 1) {
+        this.missionManager.completeStep("D1_HAB_REST_INTRODUCTION");
+      }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
         this.set({
@@ -1060,6 +1346,53 @@ export class Game {
         }
       }
       return;
+    }
+
+    // 2B. Day 1 Screen / Group Inspection & Horizontal Camera Presentation
+    if (this.state.missionDay === 1) {
+      const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
+      if (group) {
+        this.missionManager.completeStep(group.taskId);
+        let targetMesh: THREE.Object3D | null = null;
+        if (this.current) {
+          for (const sName of group.screenObjectNames) {
+            const found = this.current.getObjectByName(sName);
+            if (found) {
+              targetMesh = found;
+              break;
+            }
+          }
+        }
+
+        const started = this.cameraPresentationManager.startPresentation(
+          {
+            id: group.cameraPresentationId,
+            title: group.friendlyName,
+            description: group.description,
+            durationSeconds: group.cameraDurationSeconds,
+            skipKey: "Enter",
+            targetMesh: targetMesh,
+            targetWorldPosition: this.nearby.center
+          },
+          () => {
+            this.set({ cameraPresentation: null });
+          }
+        );
+
+        if (started) {
+          this.set({
+            prompt: "",
+            notification: `Task Complete: ${group.friendlyName}`,
+            cameraPresentation: {
+              active: true,
+              title: group.friendlyName,
+              description: group.description,
+              skipPrompt: "[ENTER] Skip"
+            }
+          });
+          return;
+        }
+      }
     }
 
     // 3. Mission Control Day 5 Route Planning & Day 6 Target Review & Day 9 Drone Console
@@ -1240,9 +1573,9 @@ export class Game {
 
     const route = transitions[this.active][best.identifier];
     if (route) {
-      this.set({ prompt: `Press E to travel to ${labels[route.module]}` });
+      this.set({ prompt: `[E] TRAVEL TO ${labels[route.module].toUpperCase()}` });
     } else if (best.identifier === "HAB_REST_01") {
-      this.set({ prompt: `Press E to Rest & Conclude Day ${this.state.missionDay}` });
+      this.set({ prompt: `[E] REST · CREW REST AREA` });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
       if (this.state.missionDay === 5) {
         this.set({ prompt: "Press E to Access Terrain Survey Planning" });
@@ -1251,22 +1584,33 @@ export class Game {
       } else if (this.state.missionDay === 9) {
         this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
       } else {
-        this.set({ prompt: "Press E to Access Navigation Console" });
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Terrain & Reconnaissance Systems";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
       }
     } else if (
       this.active === "Science" &&
       (best.identifier === "LAB_RESEARCH_ANALYSIS_01" || best.identifier === "LAB_RESEARCH_MONITORING_01")
     ) {
-      this.set({ prompt: "Press E to Access Scientific Analysis Console" });
+      if (this.state.missionDay === 8) {
+        this.set({ prompt: "Press E to Access Scientific Analysis Console" });
+      } else {
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Research Analysis Display";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
+      }
     } else if (this.active === "MissionControl" && best.identifier === "MC_SYSTEMS_01") {
       if (this.state.missionDay === 9) {
         this.set({ prompt: "Press E to Access Remote Drone Survey Console" });
       } else {
-        this.set({ prompt: "Press E to Inspect Mission Systems Console" });
+        const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+        const title = group ? group.friendlyName : "Communications & Systems";
+        this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
       }
     } else {
-      const title = screenActions[best.identifier] || "Terminal Display";
-      this.set({ prompt: `[E] ACCESS DISPLAY · ${title.toUpperCase()}` });
+      const group = TRIGGER_TO_GROUP_MAP[best.identifier];
+      const title = group ? group.friendlyName : (screenActions[best.identifier] || "Terminal Display");
+      this.set({ prompt: `[E] INSPECT · ${title.toUpperCase()}` });
     }
   }
 
@@ -1341,7 +1685,9 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
 
-    if (this.cinematicGliding) {
+    if (this.cameraPresentationManager.isPresentationActive()) {
+      this.cameraPresentationManager.update(dt);
+    } else if (this.cinematicGliding) {
       this.cinematicProgress = Math.min(1, this.cinematicProgress + dt * 2.0);
       const t = 0.5 - 0.5 * Math.cos(Math.PI * this.cinematicProgress);
       this.camera.position.lerpVectors(this.cinematicStartPos, this.cinematicTargetPos, t);
@@ -1366,7 +1712,8 @@ export class Game {
         this.state.showDroneConsoleModal ||
         this.state.restFeedback ||
         this.state.showCinematicOverlay ||
-        this.state.showOSDesktop;
+        this.state.showOSDesktop ||
+        this.cameraPresentationManager.isPresentationActive();
 
       if (!isModalOpen) {
         this.player.update(dt, this.canOccupy, this.groundHeight);
@@ -1395,6 +1742,12 @@ export class Game {
       document.exitPointerLock();
     }
 
+    this.habitatScreenRenderer.dispose();
+    this.engineeringScreenRenderer.dispose();
+    this.researchScreenRenderer.dispose();
+    this.missionControlScreenRenderer.dispose();
+    this.centralHubScreenRenderer.dispose();
+    this.airlockScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();
