@@ -49,6 +49,7 @@ const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer
 const { ResearchScreenRenderer } = require('../dist/ResearchScreenRenderer.js');
 const { MissionControlScreenRenderer } = require('../dist/MissionControlScreenRenderer.js');
 const { CentralHubScreenRenderer } = require('../dist/CentralHubScreenRenderer.js');
+const { AirlockScreenRenderer } = require('../dist/AirlockScreenRenderer.js');
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/ModuleLighting.js');
 
 let passedTests = 0;
@@ -1972,6 +1973,123 @@ test('STAB-006: buildCentralHubColliders builds colliders for Collider_Section01
   section01.traverse((child) => {
     assert.strictEqual(child.visible, false, `Child ${child.name} must have visibility set to false`);
   });
+});
+
+// =========================================================================
+// AIRLOCK SCREEN RENDERING TESTS
+// =========================================================================
+
+test('AIR-001: airlock-screen-data.json defines valid configuration for Airlock_Control_Console', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const jsonPath = path.resolve(__dirname, '../src/jsons/Screens/airlock-screen-data.json');
+  assert(fs.existsSync(jsonPath), 'airlock-screen-data.json must exist');
+  const raw = fs.readFileSync(jsonPath, 'utf8');
+  const data = JSON.parse(raw);
+  assert.strictEqual(data.project, 'PHOBOSIA');
+  assert.strictEqual(data.zone, 'AIRLOCK');
+  assert(Array.isArray(data.screens), 'screens must be an array');
+  assert.strictEqual(data.screens.length, 1, 'Must configure exactly 1 Airlock display');
+  const screen = data.screens[0];
+  assert.strictEqual(screen.meshName, 'Airlock_Control_Console');
+  assert.strictEqual(screen.screenId, 'AL_CONTROL_CONSOLE');
+  assert(screen.content, 'Screen must provide content object');
+  assert(screen.content.header, 'Screen must provide header content');
+  assert(Array.isArray(screen.content.panels), 'Screen must provide panels array');
+});
+
+test('AIR-002: AirlockScreenRenderer attaches and binds Airlock_Control_Console with planar UVs and CanvasTexture', () => {
+  const root = new THREE.Group();
+  root.name = 'AirlockSceneRoot';
+  const geom = new THREE.PlaneGeometry(1.5, 1.0);
+  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+  mesh.name = 'Airlock_Control_Console';
+  root.add(mesh);
+
+  const renderer = new AirlockScreenRenderer();
+  renderer.attachToAirlock(root, { currentSol: 4 });
+
+  const bindings = renderer.getBindings();
+  assert.strictEqual(bindings.length, 1, 'Must bind Airlock_Control_Console physical screen mesh');
+  const binding = bindings[0];
+  assert.strictEqual(binding.meshName, 'Airlock_Control_Console');
+  assert.strictEqual(binding.screenId, 'AL_CONTROL_CONSOLE');
+  assert(binding.material, 'Must assign MeshBasicMaterial');
+  assert(binding.texture, 'Must assign CanvasTexture');
+  assert.strictEqual(binding.width, 640);
+  assert.strictEqual(binding.height, 512);
+
+  renderer.dispose();
+  assert.strictEqual(renderer.getBindings().length, 0, 'Bindings must be emptied after dispose');
+});
+
+test('AIR-003: AirlockScreenRenderer renders all panel types cleanly without runtime exceptions', () => {
+  const root = new THREE.Group();
+  const geom = new THREE.PlaneGeometry(1.5, 1.0);
+  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+  mesh.name = 'Airlock_Control_Console';
+  root.add(mesh);
+
+  const renderer = new AirlockScreenRenderer();
+  renderer.attachToAirlock(root, { currentSol: 4 });
+
+  assert.doesNotThrow(() => {
+    renderer.renderAll({ currentSol: 5 });
+  }, 'AirlockScreenRenderer.renderAll must execute cleanly without exceptions');
+
+  renderer.dispose();
+});
+
+test('AIR-004: AirlockScreenRenderer updateScreenData mutates telemetry and marks texture update', () => {
+  const root = new THREE.Group();
+  const geom = new THREE.PlaneGeometry(1.5, 1.0);
+  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+  mesh.name = 'Airlock_Control_Console';
+  root.add(mesh);
+
+  const renderer = new AirlockScreenRenderer();
+  renderer.attachToAirlock(root, { currentSol: 4 });
+
+  renderer.updateScreenData('AL_CONTROL_CONSOLE', {
+    header: {
+      title: 'AIRLOCK DEPRESSURIZATION ACTIVE',
+      status: 'CYCLING'
+    }
+  });
+
+  const conf = renderer.getScreenConfig('AL_CONTROL_CONSOLE');
+  assert.strictEqual(
+    conf.content.header.title,
+    'AIRLOCK DEPRESSURIZATION ACTIVE',
+    'updateScreenData must update screen title in config'
+  );
+  assert.strictEqual(
+    conf.content.header.status,
+    'CYCLING',
+    'updateScreenData must update status in config'
+  );
+
+  renderer.dispose();
+});
+
+test('AIR-005: ScreenRenderer skips Airlock physical screens so they are solely handled by AirlockScreenRenderer', () => {
+  const root = new THREE.Group();
+  const geom = new THREE.PlaneGeometry(1.5, 1.0);
+  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial());
+  mesh.name = 'Airlock_Control_Console';
+  root.add(mesh);
+
+  const sr = new ScreenRenderer();
+  sr.attachToModule(root, 'Airlock', { currentDay: 1 });
+
+  // Generic ScreenRenderer must NOT bind the screen because moduleName === 'Airlock'
+  assert.strictEqual(
+    mesh.material.map,
+    null,
+    'Generic ScreenRenderer must skip Airlock physical screens'
+  );
+
+  sr.dispose();
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

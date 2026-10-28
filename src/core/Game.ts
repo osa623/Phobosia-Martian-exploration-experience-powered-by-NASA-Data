@@ -23,6 +23,7 @@ import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
 import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
 import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
+import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 
 type ModuleName = keyof typeof assetPaths;
 type Transition = { module: ModuleName; spawn: string };
@@ -91,6 +92,7 @@ export class Game {
   private researchScreenRenderer = new ResearchScreenRenderer();
   private missionControlScreenRenderer = new MissionControlScreenRenderer();
   private centralHubScreenRenderer = new CentralHubScreenRenderer();
+  private airlockScreenRenderer = new AirlockScreenRenderer();
 
   private state: GameState;
   private frame = 0;
@@ -208,6 +210,8 @@ export class Game {
         this.missionControlScreenRenderer.renderAll(updated);
       } else if (this.active === "Hub") {
         this.centralHubScreenRenderer.renderAll(updated);
+      } else if (this.active === "Airlock") {
+        this.airlockScreenRenderer.renderAll(updated);
       }
     });
 
@@ -907,6 +911,11 @@ export class Game {
     } else {
       this.centralHubScreenRenderer.dispose();
     }
+    if (module === "Airlock") {
+      this.airlockScreenRenderer.attachToAirlock(model, this.missionManager.getState());
+    } else {
+      this.airlockScreenRenderer.dispose();
+    }
     this.screenRenderer.attachToModule(model, module, this.missionManager.getState());
   }
 
@@ -1528,6 +1537,7 @@ export class Game {
     this.researchScreenRenderer.dispose();
     this.missionControlScreenRenderer.dispose();
     this.centralHubScreenRenderer.dispose();
+    this.airlockScreenRenderer.dispose();
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();

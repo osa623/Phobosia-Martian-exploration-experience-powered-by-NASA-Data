@@ -6,7 +6,7 @@
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
-    "test": "node node_modules/typescript/bin/tsc --module commonjs --target es2022 --outDir dist/ src/core/Discovery.ts src/core/MissionManager.ts src/core/Collision.ts src/core/ScreenRenderer.ts src/core/HabitatScreenRenderer.ts src/core/EngineeringScreenRenderer.ts src/core/ResearchScreenRenderer.ts src/core/MissionControlScreenRenderer.ts src/core/CentralHubScreenRenderer.ts src/core/ModuleLighting.ts && node tests/mission_tests.js"
+    "test": "node node_modules/typescript/bin/tsc --module commonjs --target es2022 --outDir dist/ src/core/Discovery.ts src/core/MissionManager.ts src/core/Collision.ts src/core/ScreenRenderer.ts src/core/HabitatScreenRenderer.ts src/core/EngineeringScreenRenderer.ts src/core/ResearchScreenRenderer.ts src/core/MissionControlScreenRenderer.ts src/core/CentralHubScreenRenderer.ts src/core/AirlockScreenRenderer.ts src/core/ModuleLighting.ts && node tests/mission_tests.js"
   },
   "dependencies": { "next": "15.2.4", "react": "19.0.0", "react-dom": "19.0.0", "three": "0.174.0" },
   "devDependencies": { "@types/node": "22.13.10", "@types/react": "19.0.10", "@types/react-dom": "19.0.4", "@types/three": "0.174.0", "typescript": "5.8.2" }
