@@ -111,9 +111,11 @@
         "z": 2.64
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Show the current mission objective, progress, completion criteria, and next available action.",
@@ -222,9 +224,11 @@
         "z": 2.64
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Provide a high-level operational picture of habitat, power, environmental control, research, and rover availability.",
@@ -351,9 +355,11 @@
         "z": 2.64
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Show a unified mission snapshot combining timeline, science progress, asset readiness, and the next major milestone.",
@@ -481,9 +487,11 @@
         "z": 2.12675
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Monitor communication links, message queues, signal quality, and simulated communication events.",
@@ -608,9 +616,11 @@
         "z": 2.12675
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Display subsystem health, power distribution, thermal conditions, fault history, and maintenance needs.",
@@ -749,6 +759,8 @@
         "mirrorHorizontal": false,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Show drone readiness, battery, mission assignment, navigation progress, and recent flight events.",
@@ -862,6 +874,8 @@
         "mirrorHorizontal": false,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "List observation locations, scientific objectives, access status, and collected evidence.",
@@ -994,6 +1008,8 @@
         "mirrorHorizontal": false,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Display a compact terrain overview, navigation markers, elevation information, and rover/drone routes.",

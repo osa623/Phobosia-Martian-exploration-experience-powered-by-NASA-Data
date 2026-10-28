@@ -78,6 +78,8 @@
         "mirrorHorizontal": false,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Show a quick shared environmental snapshot for habitat safety and outpost monitoring.",
@@ -202,9 +204,11 @@
         "z": 1.99435
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "displayProfile": {
@@ -322,9 +326,11 @@
         "z": 1.0501
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
         "verifyAgainstBlender": true
       },
       "purpose": "Provide a single-glance overview of the five main operational modules and their alerts.",

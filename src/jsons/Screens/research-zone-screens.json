@@ -113,8 +113,8 @@
         "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
       },
       "orientation": {
-        "mirrorHorizontal": false,
-        "mirrorVertical": false,
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
         "rotationDegrees": 0
       },
       "purpose": "Primary scientific monitoring dashboard for Mars field observations, sample analysis and research progress.",
@@ -312,8 +312,8 @@
         "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
       },
       "orientation": {
-        "mirrorHorizontal": false,
-        "mirrorVertical": false,
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
         "rotationDegrees": 0
       },
       "purpose": "Research instrument orchestration, laboratory system health, experiment scheduling and data pipeline monitoring.",
@@ -532,8 +532,8 @@
         "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
       },
       "orientation": {
-        "mirrorHorizontal": false,
-        "mirrorVertical": false,
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
         "rotationDegrees": 0
       },
       "purpose": "Track seed lots, biological inventory, storage environment, viability test schedules and traceability.",
@@ -765,8 +765,8 @@
         "dimensionStatus": "VERIFY_AXIS_AND_DEPTH_IN_BLENDER"
       },
       "orientation": {
-        "mirrorHorizontal": false,
-        "mirrorVertical": false,
+        "mirrorHorizontal": true,
+        "mirrorVertical": true,
         "rotationDegrees": 0
       },
       "purpose": "Monitor water and nutrient preparation, recipe stages, mixing equipment, resource consumption and batch traceability.",
@@ -1223,7 +1223,7 @@
         "dimensionStatus": "X_NOT_PROVIDED_VERIFY_AXIS_ORDER_IN_BLENDER"
       },
       "orientation": {
-        "mirrorHorizontal": false,
+        "mirrorHorizontal": true,
         "mirrorVertical": false,
         "rotationDegrees": 0
       },

@@ -113,9 +113,9 @@ const VERIFIED_HUB_MAPPINGS: Record<
   string,
   { uAxis: "x" | "y" | "z"; vAxis: "x" | "y" | "z"; flipU: boolean; flipV: boolean; isPortrait: boolean }
 > = {
-  Env_Status_Display: { uAxis: "z", vAxis: "y", flipU: true, flipV: false, isPortrait: false },
-  Internal_Communication_Display: { uAxis: "x", vAxis: "z", flipU: false, flipV: false, isPortrait: true },
-  Module_Status_Display: { uAxis: "z", vAxis: "y", flipU: false, flipV: false, isPortrait: false }
+  Env_Status_Display: { uAxis: "z", vAxis: "y", flipU: false, flipV: false, isPortrait: false },
+  Internal_Communication_Display: { uAxis: "x", vAxis: "y", flipU: true, flipV: false, isPortrait: true },
+  Module_Status_Display: { uAxis: "z", vAxis: "y", flipU: true, flipV: false, isPortrait: false }
 };
 
 // Dynamic resolver for Node CommonJS tests vs Next.js Webpack bundler

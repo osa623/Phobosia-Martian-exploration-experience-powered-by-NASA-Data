@@ -103,6 +103,11 @@ export class ScreenRenderer {
           return;
         }
 
+        // Airlock physical screens are handled by dedicated AirlockScreenRenderer
+        if (moduleName === "Airlock") {
+          return;
+        }
+
         this.bindScreen(mesh, identifier, rendererType, missionState);
       }
     });
