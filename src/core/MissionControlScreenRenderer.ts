@@ -23,6 +23,8 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
+import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
+import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 
 export interface MissionControlScreenPanel {
   id?: string;
@@ -149,11 +151,22 @@ export class MissionControlScreenRenderer {
   private screensMap = new Map<string, MissionControlScreenItem>();
   private activeBindings: MissionControlScreenBinding[] = [];
   private missionSol: number = 4;
+  private configSol = 4;
+  private customConfig: boolean;
+  private missionState?: ScreenMissionSnapshot;
 
   constructor(customConfig?: MissionControlScreenDataRoot) {
+    this.customConfig = Boolean(customConfig);
     this.rawConfig = customConfig
       ? JSON.parse(JSON.stringify(customConfig))
       : JSON.parse(JSON.stringify(rawMissionControlDataJson));
+    this.initScreensMap();
+  }
+
+  private selectSolConfig(sol: number): void {
+    if (this.customConfig || this.configSol === sol) return;
+    this.rawConfig = JSON.parse(JSON.stringify(getScreenConfigForSol("missionControl", sol, rawMissionControlDataJson)));
+    this.configSol = sol;
     this.initScreensMap();
   }
 
@@ -172,14 +185,14 @@ export class MissionControlScreenRenderer {
   /**
    * Primary entry point: Scans the Mission Control GLB scene and binds canvas textures to the 8 screens.
    */
-  public renderMissionControlScreens(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number }): void {
+  public renderMissionControlScreens(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.attachToMissionControl(model, missionState);
   }
 
   /**
    * Outpost standard alias (attachToHabitat, attachToEngineering, attachToScience, attachToMissionControl).
    */
-  public attachToMissionControl(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number }): void {
+  public attachToMissionControl(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentSol) {
@@ -187,6 +200,7 @@ export class MissionControlScreenRenderer {
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionSol);
 
     const targetScreens = this.rawConfig.screens || [];
 
@@ -215,7 +229,7 @@ export class MissionControlScreenRenderer {
       }
     });
 
-    this.renderAll();
+    this.renderAll(missionState);
   }
 
   /**
@@ -308,11 +322,15 @@ export class MissionControlScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number; currentSol?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentSol) {
       this.missionSol = missionState.currentSol;
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
+    }
+    this.selectSolConfig(this.missionSol);
+    if (missionState && "completedStepIds" in missionState && "objectiveState" in missionState) {
+      this.missionState = missionState;
     }
 
     for (const binding of this.activeBindings) {
@@ -329,7 +347,7 @@ export class MissionControlScreenRenderer {
     const screenConf = this.screensMap.get(meshName.trim()) || this.screensMap.get(binding.screenId);
     if (!screenConf) return;
 
-    const content = screenConf.content || {};
+    const content = this.getMissionAwareContent(screenConf);
 
     // Background & HUD Grid
     ctx.fillStyle = "#08111B";
@@ -360,6 +378,46 @@ export class MissionControlScreenRenderer {
 
     // Outer cybernetic border brackets
     this.drawBrackets(ctx, width, height, "#E5A04B");
+  }
+
+  private getMissionAwareContent(screenConf: MissionControlScreenItem): MissionControlScreenItem["content"] {
+    const content = JSON.parse(JSON.stringify(screenConf.content || {}));
+    if (screenConf.screenId !== "MC_OBJECTIVES") return content;
+
+    const day = Math.min(9, Math.max(1, this.missionSol)) as MissionDayNumber;
+    const mission = DAYS_CONFIG[day];
+    const completedIds = this.missionState?.completedStepIds ?? [];
+    const completed = mission.steps.filter(step => completedIds.includes(step.stepId)).length;
+    const total = mission.steps.length;
+    const percent = total ? Math.round((completed / total) * 100) : 0;
+    const state = this.missionState?.objectiveState ?? "in_progress";
+
+    if (content.header) {
+      content.header.title = mission.title.toUpperCase();
+      content.header.subtitle = `SOL 0${day} · CURRENT OBJECTIVE`;
+      content.header.status = state.replaceAll("_", " ").toUpperCase();
+    }
+    content.primaryMetrics = (content.primaryMetrics || []).map((metric: any) => {
+      if (metric.id === "current_sol") return { ...metric, fallback: day };
+      if (metric.id === "completed_objectives") return { ...metric, fallback: completed, unit: "TASKS" };
+      if (metric.id === "objective_progress") return { ...metric, fallback: percent };
+      return metric;
+    });
+    const active = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "active_objective");
+    if (active) active.fallback = {
+      name: mission.primaryObjective,
+      description: mission.storyContext,
+      status: state.replaceAll("_", " ").toUpperCase(),
+      progressPercent: percent
+    };
+    const checklist = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "objective_checklist");
+    if (checklist) checklist.fallback = mission.steps.map(step => ({
+      label: step.label,
+      completed: completedIds.includes(step.stepId)
+    }));
+    const upcoming = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "upcoming_objectives");
+    if (upcoming) upcoming.fallback = [];
+    return content;
   }
 
   /**

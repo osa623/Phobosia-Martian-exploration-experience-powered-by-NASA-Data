@@ -22,6 +22,7 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
+import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 
 export interface ResearchScreenPanel {
   id?: string;
@@ -151,11 +152,21 @@ export class ResearchScreenRenderer {
   private screensMap = new Map<string, ResearchScreenItem>();
   private activeBindings: ResearchScreenBinding[] = [];
   private missionDay: number = 1;
+  private configSol = 4;
+  private customConfig: boolean;
 
   constructor(customConfig?: ResearchScreenDataRoot) {
+    this.customConfig = Boolean(customConfig);
     this.rawConfig = customConfig
       ? JSON.parse(JSON.stringify(customConfig))
       : JSON.parse(JSON.stringify(rawResearchDataJson));
+    this.initScreensMap();
+  }
+
+  private selectSolConfig(sol: number): void {
+    if (this.customConfig || this.configSol === sol) return;
+    this.rawConfig = JSON.parse(JSON.stringify(getScreenConfigForSol("research", sol, rawResearchDataJson)));
+    this.configSol = sol;
     this.initScreensMap();
   }
 
@@ -187,6 +198,7 @@ export class ResearchScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionDay);
 
     const targetScreens = this.rawConfig.screens || [];
 
@@ -314,6 +326,7 @@ export class ResearchScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionDay);
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);

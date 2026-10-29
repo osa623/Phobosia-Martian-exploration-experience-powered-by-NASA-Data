@@ -22,6 +22,7 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
+import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 
 export interface EngineeringScreenData {
   moduleId: string;
@@ -109,9 +110,18 @@ export class EngineeringScreenRenderer {
   private configData: EngineeringScreenData;
   private activeBindings: EngineeringScreenBinding[] = [];
   private missionDay: number = 1;
+  private configSol = 4;
+  private customConfig: boolean;
 
   constructor(customConfig?: EngineeringScreenData) {
+    this.customConfig = Boolean(customConfig);
     this.configData = customConfig ? JSON.parse(JSON.stringify(customConfig)) : JSON.parse(JSON.stringify(engineeringDataJson));
+  }
+
+  private selectSolConfig(sol: number) {
+    if (this.customConfig || this.configSol === sol) return;
+    this.configData = JSON.parse(JSON.stringify(getScreenConfigForSol("engineering", sol, engineeringDataJson)));
+    this.configSol = sol;
   }
 
   /**
@@ -130,6 +140,7 @@ export class EngineeringScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionDay);
 
     const targetScreenKeys = Object.keys(this.configData.screens);
 
@@ -251,6 +262,7 @@ export class EngineeringScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionDay);
 
     const now = Date.now();
     for (const binding of this.activeBindings) {

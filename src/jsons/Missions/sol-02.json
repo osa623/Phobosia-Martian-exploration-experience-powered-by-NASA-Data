@@ -1,0 +1,389 @@
+{
+  "missionId": "PHOBOSIA_SOL_02",
+  "sol": 2,
+  "title": "Outpost Readiness",
+  "subtitle": "Inspect the outpost before beginning scientific operations.",
+  "description": "Investigate the current status of the Habitat and Engineering systems. Review their procedures and inspection logs, identify evidence-supported anomalies or data gaps, and submit an overall readiness assessment.",
+  "missionType": "scientific_system_investigation",
+  "status": "locked_until_prerequisites_met",
+  "prerequisites": {
+    "completedMissions": [
+      "PHOBOSIA_SOL_01"
+    ]
+  },
+  "completionPolicy": {
+    "requireAllMandatoryTasks": true,
+    "requireValidSubmittedRecords": true,
+    "requireFinalAssessment": true,
+    "allowInsufficientEvidenceConclusion": true,
+    "allowOptionalTasksToRemainIncomplete": true,
+    "unlockNextSolOnValidatedCompletion": true
+  },
+  "dataIntegrity": {
+    "requireDataProvenance": true,
+    "allowSimulatedData": true,
+    "simulatedDataMustBeLabelled": true,
+    "missingDataMustNotBeAssumedNormal": true,
+    "playerReportMustBeDistinguishedFromValidatedFinding": true,
+    "neverInventExternalMeasurements": true
+  },
+  "investigationOptions": {
+    "classifications": [
+      {
+        "id": "anomaly_detected",
+        "label": "Anomaly detected",
+        "description": "Available evidence indicates a possible or confirmed deviation."
+      },
+      {
+        "id": "no_anomaly_detected",
+        "label": "No anomaly detected in the available evidence",
+        "description": "The reviewed evidence does not show a deviation within the available checks and limits."
+      },
+      {
+        "id": "insufficient_evidence",
+        "label": "Insufficient evidence",
+        "description": "The available records, measurements, or reference limits do not support a reliable conclusion."
+      }
+    ],
+    "requiredPlayerInputs": [
+      "classification",
+      "supportingLogEntryIds",
+      "rationale"
+    ],
+    "optionalPlayerInputs": [
+      "recommendedFollowUp",
+      "confidence"
+    ],
+    "validationRules": [
+      "Every selected log entry must exist in the relevant system record.",
+      "A reported anomaly must reference supporting evidence.",
+      "A normal assessment must not be accepted as verified when required readings or reference limits are unavailable.",
+      "An insufficient-evidence conclusion must identify the missing or inadequate information.",
+      "The player's classification must be stored separately from the validated system finding."
+    ]
+  },
+  "locations": [
+    "Habitat",
+    "Engineering Unit"
+  ],
+  "tasks": [
+    {
+      "taskId": "SOL02_HABITAT_STATUS",
+      "title": "Investigate Habitat Status",
+      "description": "Inspect Habitat status information, life-support status, emergency status, procedures, and available inspection logs.",
+      "location": "Habitat",
+      "interaction": {
+        "triggerId": "HAB_MONITOR_01",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_current_procedure",
+        "open_inspection_log",
+        "inspect_relevant_log_entries",
+        "record_investigation",
+        "submit_inspection"
+      ],
+      "systemAreas": [
+        {
+          "id": "habitat_general_status",
+          "displayObject": "Habitat_Main_Status_Display",
+          "required": true
+        },
+        {
+          "id": "habitat_life_support",
+          "displayObject": "Habitat_LifeSupport_Display",
+          "required": true
+        },
+        {
+          "id": "habitat_emergency_status",
+          "displayObject": "Habitat_Emergency_Status_Display",
+          "required": true
+        }
+      ],
+      "requiredEvidence": [
+        "habitat_status_log_reviewed",
+        "life_support_log_reviewed",
+        "emergency_status_log_reviewed"
+      ],
+      "submission": {
+        "recordType": "system_inspection",
+        "requiredFields": [
+          "inspectedLogEntryIds",
+          "classification",
+          "rationale"
+        ],
+        "requiredLogCoverage": [
+          "habitat_general_status",
+          "habitat_life_support",
+          "habitat_emergency_status"
+        ]
+      },
+      "completionCondition": "All required Habitat areas have been investigated and a valid inspection record has been submitted."
+    },
+    {
+      "taskId": "SOL02_WATER_NUTRITION",
+      "title": "Investigate Water and Nutrition Systems",
+      "description": "Review available water and nutrition status records, operating procedures, quality information, and relevant inspection logs.",
+      "location": "Habitat",
+      "interaction": {
+        "triggerId": "HAB_WATER_NUTRITION_01",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_current_procedure",
+        "open_inspection_log",
+        "inspect_quality_or_supply_records",
+        "record_investigation",
+        "submit_inspection"
+      ],
+      "requiredEvidence": [
+        "water_nutrition_status_reviewed",
+        "water_nutrition_log_reviewed"
+      ],
+      "submission": {
+        "recordType": "system_inspection",
+        "requiredFields": [
+          "inspectedLogEntryIds",
+          "classification",
+          "rationale"
+        ]
+      },
+      "completionCondition": "A valid investigation record references the available water and nutrition evidence."
+    },
+    {
+      "taskId": "SOL02_ENGINEERING_MONITORING",
+      "title": "Inspect Engineering Monitoring Records",
+      "description": "Review the available engineering monitoring status, procedure, and logs. Identify which records are relevant to overall outpost readiness.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_Monitoring_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_current_procedure",
+        "open_inspection_log",
+        "select_relevant_records",
+        "submit_inspection"
+      ],
+      "requiredEvidence": [
+        "engineering_monitoring_log_reviewed"
+      ],
+      "submission": {
+        "recordType": "monitoring_inspection",
+        "requiredFields": [
+          "inspectedLogEntryIds",
+          "relevanceNotes"
+        ]
+      },
+      "completionCondition": "The player submits a monitoring review that references valid records and explains their relevance."
+    },
+    {
+      "taskId": "SOL02_POWER_REVIEW",
+      "title": "Investigate the Power Unit",
+      "description": "Examine available power status, operating procedure, readings, diagnostic messages, and inspection history. Determine whether the evidence supports an anomaly, no detected anomaly, or an inconclusive result.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_PowerUnit_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_current_procedure",
+        "open_inspection_log",
+        "inspect_power_readings",
+        "compare_with_available_reference_limits",
+        "select_relevant_log_entries",
+        "classify_findings",
+        "explain_reasoning",
+        "submit_investigation"
+      ],
+      "requiredEvidence": [
+        "power_status_reviewed",
+        "power_procedure_reviewed",
+        "power_log_entries_inspected",
+        "power_investigation_submitted"
+      ],
+      "investigation": {
+        "classificationSource": "player_input",
+        "validationSource": "available_system_data_and_reference_limits",
+        "requiredFields": [
+          "classification",
+          "supportingLogEntryIds",
+          "rationale"
+        ],
+        "optionalFields": [
+          "recommendedFollowUp",
+          "confidence"
+        ],
+        "requireReferenceLimitsWhenAvailable": true,
+        "doNotInventReferenceLimits": true,
+        "allowInsufficientEvidence": true
+      },
+      "submission": {
+        "recordType": "engineering_investigation",
+        "requiredFields": [
+          "systemId",
+          "inspectedLogEntryIds",
+          "classification",
+          "rationale"
+        ]
+      },
+      "completionCondition": "The player submits a valid power investigation supported by available logs. The player is not required to report an anomaly if the evidence does not support one."
+    },
+    {
+      "taskId": "SOL02_ENGINEERING_LIFESUPPORT",
+      "title": "Inspect Engineering Life-Support Records",
+      "description": "Inspect the Engineering Unit's life-support status, procedure, and available records. Compare related records only where the available data supports a meaningful comparison.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_LifeSupport_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_current_procedure",
+        "open_inspection_log",
+        "inspect_relevant_records",
+        "record_investigation",
+        "submit_inspection"
+      ],
+      "requiredEvidence": [
+        "engineering_lifesupport_log_reviewed"
+      ],
+      "submission": {
+        "recordType": "engineering_inspection",
+        "requiredFields": [
+          "inspectedLogEntryIds",
+          "classification",
+          "rationale"
+        ]
+      },
+      "completionCondition": "A valid Engineering life-support inspection is submitted with references to available records."
+    },
+    {
+      "taskId": "SOL02_DIAGNOSTICS",
+      "title": "Review Engineering Diagnostics",
+      "description": "Investigate available diagnostic logs, identify unresolved diagnostic messages, and decide whether additional checks are justified.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_Diagnostics_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "workflow": [
+        "open_current_status",
+        "review_diagnostic_procedure",
+        "open_inspection_log",
+        "inspect_diagnostic_entries",
+        "identify_unresolved_items",
+        "record_investigation",
+        "submit_inspection"
+      ],
+      "requiredEvidence": [
+        "diagnostic_log_reviewed",
+        "diagnostic_assessment_submitted"
+      ],
+      "submission": {
+        "recordType": "diagnostic_investigation",
+        "requiredFields": [
+          "inspectedLogEntryIds",
+          "classification",
+          "rationale"
+        ],
+        "optionalFields": [
+          "recommendedFollowUp"
+        ]
+      },
+      "completionCondition": "The player submits a supported diagnostic assessment, including an insufficient-evidence outcome when applicable."
+    },
+    {
+      "taskId": "SOL02_READINESS_ASSESSMENT",
+      "title": "Submit Outpost Readiness Assessment",
+      "description": "Review the submitted Habitat and Engineering inspection records. Assess overall readiness, identify unresolved concerns, and submit a justified recommendation.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_Monitoring_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL02_HABITAT_STATUS",
+        "SOL02_WATER_NUTRITION",
+        "SOL02_ENGINEERING_MONITORING",
+        "SOL02_POWER_REVIEW",
+        "SOL02_ENGINEERING_LIFESUPPORT",
+        "SOL02_DIAGNOSTICS"
+      ],
+      "assessmentOptions": [
+        {
+          "id": "ready",
+          "label": "Ready",
+          "description": "The submitted evidence supports proceeding with the planned operations."
+        },
+        {
+          "id": "ready_with_cautions",
+          "label": "Ready with cautions",
+          "description": "Operations may proceed within the stated constraints while identified concerns are monitored."
+        },
+        {
+          "id": "not_ready",
+          "label": "Not ready",
+          "description": "The evidence identifies a concern that should be resolved before proceeding."
+        },
+        {
+          "id": "undetermined",
+          "label": "Readiness undetermined",
+          "description": "The available evidence is insufficient to justify a readiness decision."
+        }
+      ],
+      "submission": {
+        "recordType": "outpost_readiness_assessment",
+        "requiredFields": [
+          "assessment",
+          "supportingInspectionRecordIds",
+          "unresolvedConcerns",
+          "rationale"
+        ],
+        "validationRules": [
+          "All required inspection tasks must have valid submitted records.",
+          "Every supporting record reference must exist.",
+          "The rationale must address relevant findings and unresolved concerns.",
+          "The assessment must not contradict the submitted evidence without an explanation.",
+          "An undetermined outcome is valid when the available evidence is insufficient."
+        ]
+      },
+      "completionCondition": "The final readiness assessment passes validation against all mandatory inspection records."
+    }
+  ],
+  "optionalTasks": [
+    {
+      "taskId": "SOL02_STORAGE_REVIEW",
+      "title": "Review Engineering Storage Information",
+      "description": "Inspect available storage inventory information if useful for the readiness assessment.",
+      "location": "Engineering Unit",
+      "interaction": {
+        "triggerId": "Engineering_InfoDisplay_Trigger",
+        "mode": "existing_frontend_ui"
+      },
+      "mandatory": false
+    }
+  ],
+  "missionOutputs": [
+    "habitat_inspection_records",
+    "water_nutrition_inspection_record",
+    "engineering_monitoring_record",
+    "power_investigation_record",
+    "engineering_lifesupport_record",
+    "diagnostic_investigation_record",
+    "outpost_readiness_assessment"
+  ],
+  "nextMission": "PHOBOSIA_SOL_03"
+}
