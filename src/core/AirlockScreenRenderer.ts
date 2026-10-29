@@ -13,6 +13,7 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
+import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 
 export interface AirlockScreenPanel {
   id?: string;
@@ -123,11 +124,21 @@ export class AirlockScreenRenderer {
   private screensMap = new Map<string, AirlockScreenItem>();
   private activeBindings: AirlockScreenBinding[] = [];
   private missionSol: number = 4;
+  private configSol = 4;
+  private customConfig: boolean;
 
   constructor(customConfig?: AirlockScreenDataRoot) {
+    this.customConfig = Boolean(customConfig);
     this.rawConfig = customConfig
       ? JSON.parse(JSON.stringify(customConfig))
       : JSON.parse(JSON.stringify(rawAirlockDataJson));
+    this.initScreensMap();
+  }
+
+  private selectSolConfig(sol: number): void {
+    if (this.customConfig || this.configSol === sol) return;
+    this.rawConfig = JSON.parse(JSON.stringify(getScreenConfigForSol("airlock", sol, rawAirlockDataJson)));
+    this.configSol = sol;
     this.initScreensMap();
   }
 
@@ -154,6 +165,7 @@ export class AirlockScreenRenderer {
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionSol);
 
     const targetScreens = this.rawConfig.screens || [];
 
@@ -260,6 +272,7 @@ export class AirlockScreenRenderer {
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    this.selectSolConfig(this.missionSol);
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);

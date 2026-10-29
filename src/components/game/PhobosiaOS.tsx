@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
+import { MissionInvestigationPanel } from "./MissionInvestigationPanel";
 import {
   DAYS_CONFIG,
   MASTER_TERRAIN_TARGETS,
@@ -17,7 +18,8 @@ export type OSViewTab =
   | "drone"         // Scout Drone 01 FPV Operations
   | "subsystems"    // ECLSS Life Support & Power Grid
   | "timeline"      // Expedition Sols (Sol 1–9) Campaign Log
-  | "diagnostics";  // Subsystem Diagnostics & Hardware Bus Log
+  | "diagnostics"  // Subsystem Diagnostics & Hardware Bus Log
+  | "investigation";
 
 interface PhobosiaOSProps {
   game: Game | null;
@@ -30,6 +32,7 @@ export function PhobosiaOS({ game, state, onClose, initialApp }: PhobosiaOSProps
   // Map initial app to active tab
   const getInitialTab = (): OSViewTab => {
     if (!initialApp) return "dashboard";
+    if (initialApp.startsWith("investigation:")) return "investigation";
     if (initialApp === "navigation" || initialApp === "cartography") return "cartography";
     if (initialApp === "drone") return "drone";
     if (initialApp === "habitat" || initialApp === "engineering" || initialApp === "subsystems") return "subsystems";
@@ -39,6 +42,7 @@ export function PhobosiaOS({ game, state, onClose, initialApp }: PhobosiaOSProps
   };
 
   const [activeTab, setActiveTab] = useState<OSViewTab>(getInitialTab());
+  const investigationTaskId = initialApp?.startsWith("investigation:") ? initialApp.slice("investigation:".length) : undefined;
   const [selectedMapTarget, setSelectedMapTarget] = useState<string>(
     state.selectedRouteTargetId || "TARGET_ALPHA_CRATER_RIM"
   );
@@ -99,6 +103,7 @@ export function PhobosiaOS({ game, state, onClose, initialApp }: PhobosiaOSProps
                 {activeTab === "subsystems" && "ECLSS & POWER GRID"}
                 {activeTab === "timeline" && "EXPEDITION TIMELINE"}
                 {activeTab === "diagnostics" && "SYSTEM DIAGNOSTICS"}
+                {activeTab === "investigation" && "MISSION INVESTIGATION"}
               </span>
             </div>
             <div className="[display:flex] [align-items:center] [gap:6px]">
@@ -829,6 +834,7 @@ export function PhobosiaOS({ game, state, onClose, initialApp }: PhobosiaOSProps
                   </div>
                 </div>
               )}
+              {activeTab === "investigation" && <MissionInvestigationPanel game={game} initialTaskId={investigationTaskId} />}
             </main>
           </div>
         </div>
