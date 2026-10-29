@@ -1,0 +1,533 @@
+{
+  "project": "PHOBOSIA",
+  "zone": "CENTRAL_HUB",
+  "configVersion": "1.0.0",
+  "dataPolicy": {
+    "mode": "SIMULATED_DEMO",
+    "liveTelemetry": false,
+    "disclaimer": "SIMULATED OUTPOST DATA - NOT LIVE NASA TELEMETRY",
+    "scientificIntegrity": "Display simulated values as demonstration data unless connected to an actual application data source."
+  },
+  "rendering": {
+    "rendererId": "CentralHubScreenRenderer",
+    "renderMode": "PHYSICAL_SCREEN",
+    "independentScreenRendering": true,
+    "fullscreenOSSeparation": true,
+    "screenContentSource": "JSON",
+    "updateStrategy": "UPDATE_CHANGED_CONTENT_ONLY",
+    "textureStrategy": "REUSE_CANVAS_TEXTURES",
+    "preserveBlenderMeshNames": true,
+    "allowScreenSpecificOrientation": true,
+    "missingDataPolicy": "USE_FALLBACK_AND_LOG",
+    "missingMeshPolicy": "LOG_ERROR_AND_CONTINUE"
+  },
+  "visualTheme": {
+    "style": "MARS_OUTPOST_SHARED_OPERATIONS",
+    "background": "#08111B",
+    "panelBackground": "#111F2C",
+    "primaryText": "#E7F0F7",
+    "secondaryText": "#92A9BC",
+    "accent": "#E5A04B",
+    "success": "#5BC69A",
+    "warning": "#F0BD55",
+    "critical": "#F16B66",
+    "grid": "#24394B",
+    "fontFamily": "monospace",
+    "highContrast": true,
+    "avoidNeonEffects": true
+  },
+  "globalLayout": {
+    "showScreenTitle": true,
+    "showTimestamp": true,
+    "showSimulationIndicator": true,
+    "showStatusLegendWhenRelevant": true,
+    "preserveAspectRatio": true,
+    "avoidOverflow": true,
+    "fitContentToActualScreenAspectRatio": true
+  },
+  "orientationDefaults": {
+    "mirrorHorizontal": false,
+    "mirrorVertical": false,
+    "rotationDegrees": 0,
+    "verifyAgainstBlender": true,
+    "doNotGuessMissingCoordinates": true
+  },
+  "missionContext": {
+    "missionName": "PHOBOSIA Mars Observation Mission",
+    "missionDurationSols": 14,
+    "purpose": "Provide a shared status and communication point linking Habitat, Mission Control, Research Lab, and Engineering Unit.",
+    "crossZoneIntegration": {
+      "readExistingStateWhenAvailable": true,
+      "avoidDuplicateAuthoritativeState": true,
+      "doNotAdvanceMissionSolOnDisplayRefresh": true,
+      "doNotCreateFakeLiveTelemetry": true
+    }
+  },
+  "screens": [
+    {
+      "screenId": "CH_ENV_STATUS",
+      "meshName": "Env_Status_Display",
+      "rendererId": "CentralHubScreenRenderer",
+      "subsystem": "ENVIRONMENTAL_STATUS",
+      "dimensionsMeters": {
+        "x": null,
+        "y": 1.9662,
+        "z": 0.841967
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show a quick shared environmental snapshot for habitat safety and outpost monitoring.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "ENVIRONMENTAL STATUS",
+          "subtitle": "CENTRAL HUB / OUTPOST CONDITIONS",
+          "status": "MONITORING"
+        },
+        "primaryMetrics": [
+          {
+            "id": "habitat_temperature",
+            "label": "HABITAT TEMP",
+            "source": "environmentState.habitat.temperatureC",
+            "fallback": 21.5,
+            "unit": "°C"
+          },
+          {
+            "id": "cabin_pressure",
+            "label": "CABIN PRESSURE",
+            "source": "environmentState.habitat.pressureKPa",
+            "fallback": 70.2,
+            "unit": "kPa"
+          },
+          {
+            "id": "oxygen_level",
+            "label": "OXYGEN",
+            "source": "environmentState.habitat.oxygenPercent",
+            "fallback": 20.9,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "environment_zones",
+            "type": "STATUS_MATRIX",
+            "title": "ZONE CONDITIONS",
+            "dataSource": "environmentState.zones",
+            "fallback": [
+              {
+                "name": "Habitat",
+                "status": "NOMINAL",
+                "summary": "Pressure and temperature stable"
+              },
+              {
+                "name": "Research Lab",
+                "status": "NOMINAL",
+                "summary": "Environmental monitoring active"
+              },
+              {
+                "name": "Engineering",
+                "status": "NOMINAL",
+                "summary": "Thermal monitoring active"
+              },
+              {
+                "name": "Central Hub",
+                "status": "NOMINAL",
+                "summary": "Shared monitoring active"
+              }
+            ]
+          },
+          {
+            "id": "environment_trends",
+            "type": "METRIC_GRID",
+            "title": "ENVIRONMENTAL READINGS",
+            "dataSource": "environmentState.secondaryMetrics",
+            "fallback": [
+              {
+                "label": "Relative humidity",
+                "value": 38,
+                "unit": "%"
+              },
+              {
+                "label": "CO₂",
+                "value": 0.08,
+                "unit": "%"
+              },
+              {
+                "label": "Air circulation",
+                "value": 94,
+                "unit": "%"
+              },
+              {
+                "label": "Sensor status",
+                "value": "ONLINE",
+                "unit": ""
+              }
+            ]
+          },
+          {
+            "id": "environment_alerts",
+            "type": "ALERT_LIST",
+            "title": "ENVIRONMENT ALERTS",
+            "dataSource": "environmentState.alerts",
+            "fallback": [
+              {
+                "severity": "INFO",
+                "message": "Routine environmental sensor check scheduled",
+                "status": "OPEN"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Values represent a simulated habitat environment.",
+          "right": "SIMULATED DATA"
+        }
+      }
+    },
+    {
+      "screenId": "CH_INTERNAL_COMMUNICATION",
+      "meshName": "Internal_Communication_Display",
+      "rendererId": "CentralHubScreenRenderer",
+      "subsystem": "INTERNAL_COMMUNICATIONS",
+      "dimensionsMeters": {
+        "x": 0.457867,
+        "y": 0.203811,
+        "z": 1.99435
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "displayProfile": {
+        "shape": "TALL_PORTRAIT",
+        "preferVerticalStacking": true,
+        "compactHeader": true,
+        "showMessageQueue": true,
+        "showModuleRecipients": true,
+        "avoidWideTables": true
+      },
+      "purpose": "Provide a tall, readable internal communication terminal for cross-module status messages and operational notices.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1000
+      },
+      "content": {
+        "header": {
+          "title": "INTERNAL COMMS",
+          "subtitle": "OUTPOST NETWORK",
+          "status": "ONLINE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "network_status",
+            "label": "NETWORK",
+            "source": "communicationsState.internalNetworkStatus",
+            "fallback": "ONLINE",
+            "unit": ""
+          },
+          {
+            "id": "pending_messages",
+            "label": "PENDING",
+            "source": "communicationsState.pendingInternalMessages",
+            "fallback": 2,
+            "unit": "MSG"
+          }
+        ],
+        "panels": [
+          {
+            "id": "module_channels",
+            "type": "COMPONENT_STATUS",
+            "title": "MODULE CHANNELS",
+            "dataSource": "communicationsState.moduleChannels",
+            "fallback": [
+              {
+                "name": "Mission Control",
+                "status": "ONLINE"
+              },
+              {
+                "name": "Habitat",
+                "status": "ONLINE"
+              },
+              {
+                "name": "Research Lab",
+                "status": "ONLINE"
+              },
+              {
+                "name": "Engineering",
+                "status": "ONLINE"
+              }
+            ]
+          },
+          {
+            "id": "internal_message_feed",
+            "type": "EVENT_FEED",
+            "title": "LATEST MESSAGES",
+            "dataSource": "communicationsState.internalMessages",
+            "fallback": [
+              {
+                "time": "SOL 02 / 08:10",
+                "severity": "INFO",
+                "source": "Habitat",
+                "message": "The outpost orientation checklist is available."
+              },
+              {
+                "time": "SOL 02 / 08:16",
+                "severity": "INFO",
+                "source": "Mission Control",
+                "message": "Review the active Sol objective before resting."
+              },
+              {
+                "time": "SOL 02 / 08:19",
+                "severity": "INFO",
+                "source": "Engineering",
+                "message": "Engineering system overview is available for inspection."
+              }
+            ]
+          },
+          {
+            "id": "priority_notice",
+            "type": "STATUS_CARD",
+            "title": "PRIORITY NOTICE",
+            "dataSource": "communicationsState.priorityNotice",
+            "fallback": {
+              "priority": "NORMAL",
+              "message": "No critical internal communication issue",
+              "status": "INFORMATIONAL"
+            }
+          }
+        ],
+        "footer": {
+          "left": "Internal demonstration network",
+          "right": "SIMULATED"
+        }
+      }
+    },
+    {
+      "screenId": "CH_MODULE_STATUS",
+      "meshName": "Module_Status_Display",
+      "rendererId": "CentralHubScreenRenderer",
+      "subsystem": "MODULE_READINESS",
+      "dimensionsMeters": {
+        "x": null,
+        "y": 2.16529,
+        "z": 1.0501
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Provide a single-glance overview of the five main operational modules and their alerts.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "MODULE STATUS",
+          "subtitle": "OUTPOST READINESS MATRIX",
+          "status": "OPERATIONAL"
+        },
+        "primaryMetrics": [
+          {
+            "id": "modules_nominal",
+            "label": "NOMINAL MODULES",
+            "source": "outpostState.modulesNominalCount",
+            "fallback": 5,
+            "unit": "/ 5"
+          },
+          {
+            "id": "open_alerts",
+            "label": "OPEN ALERTS",
+            "source": "outpostState.alerts.activeCount",
+            "fallback": 1,
+            "unit": ""
+          },
+          {
+            "id": "overall_readiness",
+            "label": "READINESS",
+            "source": "outpostState.readinessPercent",
+            "fallback": "NOT ASSESSED",
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "module_readiness_matrix",
+            "type": "COMPONENT_STATUS",
+            "title": "MODULE READINESS",
+            "dataSource": "outpostState.modules",
+            "fallback": [
+              {
+                "name": "Habitat",
+                "status": "NOMINAL",
+                "healthPercent": 98,
+                "summary": "Crew living and environmental systems"
+              },
+              {
+                "name": "Mission Control",
+                "status": "NOMINAL",
+                "healthPercent": 96,
+                "summary": "Mission planning and surface operations"
+              },
+              {
+                "name": "Research Lab",
+                "status": "NOMINAL",
+                "healthPercent": 93,
+                "summary": "Science and sample observation"
+              },
+              {
+                "name": "Engineering Unit",
+                "status": "NOMINAL",
+                "healthPercent": 95,
+                "summary": "Maintenance and technical systems"
+              },
+              {
+                "name": "Central Hub",
+                "status": "NOMINAL",
+                "healthPercent": 97,
+                "summary": "Shared connectivity and circulation"
+              }
+            ]
+          },
+          {
+            "id": "module_alerts",
+            "type": "ALERT_LIST",
+            "title": "OPEN ITEMS",
+            "dataSource": "outpostState.alerts.items",
+            "fallback": [
+              {
+                "severity": "INFO",
+                "source": "Engineering Unit",
+                "message": "Routine equipment inspection pending",
+                "status": "OPEN"
+              }
+            ]
+          },
+          {
+            "id": "latest_module_events",
+            "type": "EVENT_FEED",
+            "title": "RECENT ACTIVITY",
+            "dataSource": "outpostState.recentEvents",
+            "fallback": [
+              {
+                "time": "SOL 02 / 08:10",
+                "severity": "INFO",
+                "message": "Module status demonstration refreshed."
+              },
+              {
+                "time": "SOL 02 / 08:16",
+                "severity": "INFO",
+                "message": "Module display available for orientation."
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Module state should be derived from shared application state.",
+          "right": "SIMULATED OUTPOST DATA"
+        }
+      }
+    }
+  ],
+  "centralHubSceneValidation": {
+    "kaleidosSection": {
+      "enabled": true,
+      "validationRequired": true,
+      "goal": "Verify that the recently updated Kaleidos section is present in the loaded Central Hub model and renders correctly.",
+      "checks": [
+        "Locate the updated Kaleidos section in the actual loaded scene graph.",
+        "Verify its expected mesh objects exist and are not hidden or excluded from rendering.",
+        "Verify geometry and material assignments are valid.",
+        "Verify transforms, parent-child relationships, and scale are correct.",
+        "Verify material visibility under the actual scene lighting.",
+        "Verify no unintended clipping, z-fighting, or overlap hides the section.",
+        "Verify the section remains present after model loading and scene initialization.",
+        "Capture a development diagnostic if any check fails."
+      ],
+      "doNot": [
+        "Do not recreate the Kaleidos section if the updated model already contains it.",
+        "Do not rename its existing Blender objects without a demonstrated technical requirement.",
+        "Do not replace its geometry or materials merely to hide a rendering bug.",
+        "Do not report success without checking the loaded scene."
+      ]
+    },
+    "lights": {
+      "enabled": true,
+      "namePattern": "^Lights_\\d+$",
+      "caseInsensitive": true,
+      "validationRequired": true,
+      "goal": "Find every intended Central Hub light object, confirm its runtime type and scene attachment, and repair missing or invalid light setup without creating duplicate lights.",
+      "checks": [
+        "Traverse the loaded Central Hub scene graph recursively and collect objects matching the configured light-name pattern.",
+        "Also inspect exact names beginning with 'Lights_' in case their suffix format differs from the numeric pattern.",
+        "For each matching object, verify whether it is an actual THREE.Light or a mesh/empty used as a light marker.",
+        "Verify the light is attached to the active scene graph and is not unintentionally hidden.",
+        "Verify intensity, color, distance, decay, angle, and shadow settings where applicable to the actual light type.",
+        "Verify parent transforms and world position.",
+        "Check whether the renderer and material configuration can show the expected illumination.",
+        "Check whether ambient lighting, exposure, tone mapping, material settings, or shadow settings prevent visible results.",
+        "Avoid enabling shadows on every light when that would harm performance.",
+        "If an object is only a marker and not a light, preserve the marker and create a real light only when required by the intended scene design.",
+        "Avoid duplicate lights when a valid light already exists."
+      ],
+      "repairPolicy": {
+        "preserveExistingValidLights": true,
+        "createMissingLightOnlyWhenRequired": true,
+        "inferLightTypeFromExistingEvidence": true,
+        "doNotBlindlyConvertEveryMarkerToPointLight": true,
+        "preserveNames": true,
+        "preserveExistingTransformsWhereValid": true,
+        "logEveryRepair": true
+      },
+      "performance": {
+        "respectLowEndGpu": true,
+        "useShadowCastingSelectively": true,
+        "avoidExcessiveDynamicLights": true,
+        "preferEfficientLightingConfiguration": true
+      }
+    }
+  },
+  "rendererRules": {
+    "screenRegistration": "Register all screens by exact meshName and screenId.",
+    "panelRendering": "Use a shared panel registry or compatible adapter, but keep Central Hub's renderer independent from the other zone renderers.",
+    "supportedPanelTypes": [
+      "STATUS_MATRIX",
+      "METRIC_GRID",
+      "ALERT_LIST",
+      "COMPONENT_STATUS",
+      "EVENT_FEED",
+      "STATUS_CARD"
+    ],
+    "portraitLayout": "The Internal_Communication_Display should use a vertical layout based on its actual screen aspect ratio.",
+    "dataBinding": "Resolve existing application state safely and use fallback data only when the intended source is unavailable.",
+    "materialAssignment": "Assign display textures only to the intended display surface.",
+    "textureUpdates": "Reuse textures and redraw only when content changes.",
+    "orientation": "Apply screen mirroring and rotation once; verify against Blender UVs and actual mesh orientation.",
+    "failureIsolation": "A missing screen or invalid panel must not prevent the remaining Central Hub screens from rendering."
+  },
+  "performance": {
+    "targetHardware": "NVIDIA MX350 2GB VRAM, 12GB RAM",
+    "reuseCanvasTextures": true,
+    "avoidUnnecessaryFullSceneRenders": true,
+    "avoidExcessiveDynamicLights": true,
+    "disposeReplacedTextures": true,
+    "avoidUnboundedAnimationLoops": true
+  }
+}

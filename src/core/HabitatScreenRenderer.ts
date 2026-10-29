@@ -14,6 +14,7 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
+import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 
 // Dynamic resolver for Node CommonJS tests vs Next.js Webpack bundler
 function loadHabitatScreenData(): HabitatScreenData {
@@ -101,20 +102,35 @@ export class HabitatScreenRenderer {
   private configData: HabitatScreenData;
   private activeBindings: HabitatScreenBinding[] = [];
   private missionDay: number = 1;
+  private configSol = 4;
+  private customConfig: boolean;
+  private readinessRecord: string | null = null;
 
   constructor(customConfig?: HabitatScreenData) {
     // Clone config to allow independent runtime mutations
+    this.customConfig = Boolean(customConfig);
     this.configData = customConfig ? JSON.parse(JSON.stringify(customConfig)) : JSON.parse(JSON.stringify(habitatDataJson));
+  }
+
+  private selectSolConfig(sol: number) {
+    if (this.customConfig || this.configSol === sol) return;
+    this.configData = JSON.parse(JSON.stringify(getScreenConfigForSol("habitat", sol, habitatDataJson)));
+    this.configSol = sol;
   }
 
   /**
    * Scans Habitat module model and binds planar canvas textures to the 4 physical screen meshes.
    */
-  public attachToHabitat(model: THREE.Group, missionState?: { currentDay?: number }): void {
+  public attachToHabitat(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
+    }
+    this.selectSolConfig(this.missionDay);
+    if (missionState?.observationRecords) {
+      const record = missionState.observationRecords.find(item => item.day === 2 && item.type === "habitat_readiness");
+      this.readinessRecord = record?.summary ?? null;
     }
 
     const targetScreenKeys = Object.keys(this.configData.screens);
@@ -136,7 +152,7 @@ export class HabitatScreenRenderer {
       }
     });
 
-    this.renderAll();
+    this.renderAll(missionState);
   }
 
   /**
@@ -222,9 +238,14 @@ export class HabitatScreenRenderer {
   /**
    * Redraws all active physical screens with current data.
    */
-  public renderAll(missionState?: { currentDay?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
+    }
+    this.selectSolConfig(this.missionDay);
+    if (missionState?.observationRecords) {
+      const record = missionState.observationRecords.find(item => item.day === 2 && item.type === "habitat_readiness");
+      this.readinessRecord = record?.summary ?? null;
     }
 
     const now = Date.now();
@@ -259,7 +280,7 @@ export class HabitatScreenRenderer {
         this.renderHabitatLifeSupportDisplay(ctx, data, width, height, this.missionDay, app);
         break;
       case "Habitat_Main_Status_Display":
-        this.renderHabitatMainStatusDisplay(ctx, data, width, height, this.missionDay, app);
+        this.renderHabitatMainStatusDisplay(ctx, data, width, height, this.missionDay, app, this.readinessRecord);
         break;
       case "Habitat_Emergency_Status_Display":
         this.renderHabitatEmergencyStatusDisplay(ctx, data, width, height, this.missionDay, app);
@@ -425,7 +446,8 @@ export class HabitatScreenRenderer {
     w: number,
     h: number,
     missionDay: number = 1,
-    app?: any
+    app?: any,
+    readinessRecord: string | null = null
   ): void {
     const accent = app?.accent || "#45B8E8";
     const normal = app?.normal || "#42D392";
@@ -531,6 +553,14 @@ export class HabitatScreenRenderer {
         color: textPrimary
       }
     ];
+    if (missionDay === 2) {
+      rightCards.push({
+        title: "HABITAT READINESS RECORD",
+        val: readinessRecord ? "RECORDED" : "PENDING",
+        sub: readinessRecord ? "SIMULATED RESULT SAVED" : "Complete the readiness check to record a result",
+        color: readinessRecord ? normal : accent
+      });
+    }
 
     const rightCardH = Math.floor((availH - 16) / rightCards.length);
     rightCards.forEach((rc, i) => {
