@@ -126,79 +126,79 @@ export function GameViewport() {
       />
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
       {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
-        <div className="helmet-visor" aria-hidden="true">
-          <div className="visor-frame" />
-          <div className="visor-reflection" />
-          <div className="visor-telemetry-top">
-            <div className="telemetry-item">
-              <span className="dot online" />
+        <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:5] [box-shadow:inset_0_0_120px_40px_rgba(0,_0,_0,_0.75),_inset_0_0_40px_rgba(10,_25,_35,_0.6)]" aria-hidden="true">
+          <div className="[position:absolute] [inset:0] [border-radius:40px] [border:1px_solid_rgba(85,_205,_232,_0.15)] [box-shadow:inset_0_0_60px_rgba(0,_0,_0,_0.85)]" />
+          <div className="[position:absolute] [top:0] [left:0] [right:0] [height:25%] [background:linear-gradient(180deg,_rgba(85,_205,_232,_0.04)_0%,_transparent_100%)]" />
+          <div className="[position:absolute] [top:24px] [right:28px] [display:flex] [flex-direction:column] [gap:5px] [text-align:right] text-[12px] font-mono [color:#8bb1c4] [letter-spacing:0.08em] [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
+              <span className="h-[6px] w-[6px] rounded-full bg-[#44d788] shadow-[0_0_8px_#44d788]" />
               <span>HELMET COMM: UHF-HUB1 ONLINE</span>
             </div>
-            <div className="telemetry-item">
+            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
               <span>SUIT: 0.38 bar · 21.0% O2 · NOMINAL</span>
             </div>
-            <div className="telemetry-item">
+            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
               <span>CORE TEMP: 21.4 °C · BATTERY: 94%</span>
             </div>
-            <div className="telemetry-badge">SIMULATED SUIT TELEMETRY</div>
+            <div className="[color:#e88747] [font-size:10px] [font-weight:bold] [letter-spacing:0.12em] [margin-top:2px]">SIMULATED SUIT TELEMETRY</div>
           </div>
-          <div className="visor-compass">
+          <div className="[position:absolute] [bottom:24px] [left:50%] [transform:translateX(-50%)] text-[12px] font-mono [color:#7ba2b5] [letter-spacing:0.14em] [padding:4px_14px] [background:rgba(8,_18,_24,_0.7)] [border:1px_solid_rgba(85,_205,_232,_0.2)] [border-radius:2px]">
             <span>285° WNW · MARS TERRAIN SURVEY SECTOR</span>
           </div>
         </div>
       )}
 
       {/* 2. PERSISTENT IN-GAME HUD */}
-      <div className="hud">
-        {!state.droneModeActive && <div className="title">PHOBOSIA</div>}
-        {!state.droneModeActive && <div className="module">ACTIVE MODULE · {state.module}</div>}
+      <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:10]">
+        {!state.droneModeActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
+        {!state.droneModeActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
         {!state.droneModeActive && (
-          <div className="mission-hud-badge">
-            <div className="mission-day-tag">
-              <span className="pulsing-indicator" />
+          <div className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
+            <div className="[display:flex] [align-items:center] [gap:6px] text-[15px] font-kdam-thmor-pro font-bold [letter-spacing:0.12em] [color:#e88747]">
+              <span className="[width:6px] [height:6px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8] [animation:pulse_2s_infinite_ease-in-out]" />
               SOL {state.missionDay} · {state.missionTitle.toUpperCase()}
             </div>
-            <div className="mission-objective-text">{state.objectiveTitle}</div>
-            <div className="mission-progress-bar-wrap">
+            <div className="[margin:6px_0_8px] [font-size:16px] [line-height:1.35] font-dm-sans font-light [color:#eaf3f5]">{state.objectiveTitle}</div>
+            <div className="[width:100%] [height:4px] [background:rgba(255,_255,_255,_0.1)] [border-radius:2px] [overflow:hidden]">
               <div
-                className="mission-progress-bar-fill"
+                className="[height:100%] [background:linear-gradient(90deg,_#e88747,_#55cde8)] [transition:width_0.3s_ease]"
                 style={{
                   width: `${Math.round((state.completedStepCount / Math.max(state.totalStepCount, 1)) * 100)}%`
                 }}
               />
             </div>
-            <div className="mission-step-count">
+            <div className="[margin-top:6px] text-[11px] font-mono [color:#87a4af]">
               {state.completedStepCount} / {state.totalStepCount} STEPS
               {state.objectiveState === "completed" && (
-                <span className="completed-tag"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
+                <span className="[color:#44d788] [font-weight:bold]"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
               )}
             </div>
           </div>
         )}
 
         {/* Standard Reticle (only when not in drone mode) */}
-        {!state.droneModeActive && <div className="reticle">+</div>}
+        {!state.droneModeActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
 
         {/* Contextual Interaction Prompt */}
-        {state.prompt && <div className="prompt">{state.prompt}</div>}
+        {state.prompt && <div className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
 
         {/* Event Notification Toast */}
         {state.notification && (
-          <div className="notification-toast">
-            <div className="notif-badge">MISSION EVENT</div>
-            <div className="notif-text">{state.notification}</div>
+          <div className="[position:absolute] [top:24px] [left:50%] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
+            <div className="text-[10px] font-bold font-mono [color:#44d788] [letter-spacing:0.14em]">MISSION EVENT</div>
+            <div className="[font-size:13px] [color:#eaf2f4]">{state.notification}</div>
           </div>
         )}
 
-        {!state.droneModeActive && <div className="hint">{state.controlHint}</div>}
+        {!state.droneModeActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
 
-        {state.error && !state.transition && <div className="error">{state.error}</div>}
+        {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 
         {!state.ready && (
-          <div className="start">
-            <button
+          <div className="[position:absolute] [inset:0] [display:grid] [place-items:center] [background:rgba(5,_9,_13,_0.75)] [pointer-events:auto]">
+            <button className="[background:#d8763b] [border:0] [padding:14px_26px] [color:#071016] [font-weight:bold] [font-size:14px] [letter-spacing:0.1em] [cursor:pointer]"
               onClick={e => {
                 e.stopPropagation();
                 game.current?.lock();
@@ -211,32 +211,32 @@ export function GameViewport() {
 
         {/* 2B. DAY 1 CAMERA PRESENTATION OVERLAY BANNER */}
         {state.cameraPresentation && (
-          <div className="camera-presentation-overlay" aria-live="polite">
-            <div className="presentation-letterbox-bar top" />
-            <div className="presentation-banner">
-              <div className="presentation-header">
-                <span className="presentation-badge">DAY 1 · OUTPOST ORIENTATION</span>
-                <h2 className="presentation-title">{state.cameraPresentation.title}</h2>
+          <div className="[position:fixed] [inset:0] [z-index:50] [pointer-events:none] [display:flex] [flex-direction:column] [justify-content:space-between] [animation:presentationFadeIn_0.4s_ease-out_forwards]" aria-live="polite">
+            <div className="[width:100%] [height:60px] [background:rgba(0,_0,_0,_0.75)] [backdrop-filter:blur(4px)] top" />
+            <div className="[margin:auto_auto_40px_auto] [max-width:680px] [width:90%]  bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(1,50,83,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(85,_205,_232,_0.4)] [border-radius:12px] [padding:20px_24px] [box-shadow:0_16px_36px_rgba(0,_0,_0,_0.6),_0_0_24px_rgba(85,_205,_232,_0.15)] [backdrop-filter:blur(12px)] [display:flex] [flex-direction:column] [gap:10px] [pointer-events:auto]">
+              <div className="[display:flex] [flex-direction:column] [gap:4px]">
+                <span className="[font-size:10px] [letter-spacing:0.08em] [font-weight:700] [color:#55cde8] [text-transform:uppercase]">DAY 1 · OUTPOST ORIENTATION</span>
+                <h2 className="[margin:0] font-kdam-thmor-pro font-bold [font-size:24px] font- [font-weight:600] [letter-spacing:0.04em] [color:#ffffff]">{state.cameraPresentation.title}</h2>
               </div>
-              <p className="presentation-desc">{state.cameraPresentation.description}</p>
-              <div className="presentation-skip-hint">
-                <span className="key-badge">ENTER</span> Skip Presentation
+              <p className="[margin:0] [font-size:14px] font-dm-sans [line-height:1.5] [color:#c0d2dc]">{state.cameraPresentation.description}</p>
+              <div className="[display:flex] [align-items:center] [gap:8px] [margin-top:4px] [font-size:12px] [color:#8da4b4] [letter-spacing:0.05em] [text-transform:uppercase]">
+                <span className="[display:inline-block] [padding:2px_7px] [background:rgba(85,_205,_232,_0.15)] [border:1px_solid_rgba(85,_205,_232,_0.5)] [border-radius:4px] [color:#55cde8] [font-weight:700] [font-size:11px]">ENTER</span> Skip Presentation
               </div>
             </div>
-            <div className="presentation-letterbox-bar bottom" />
+            <div className="[width:100%] [height:60px] [background:rgba(0,_0,_0,_0.75)] [backdrop-filter:blur(4px)] bottom" />
           </div>
         )}
 
         {/* 3. CINEMATIC CAMERA APPROACH OVERLAY */}
         {state.showCinematicOverlay && (
-          <div className="cinematic-overlay" aria-hidden="true">
-            <div className="cinematic-fade" />
-            <div className="cinematic-scan-reticle">
-              <span className="cinematic-bracket tl" />
-              <span className="cinematic-bracket tr" />
-              <span className="cinematic-bracket bl" />
-              <span className="cinematic-bracket br" />
-              <div className="cinematic-label">ALIGNING DISPLAY TERMINAL...</div>
+          <div className="[position:fixed] [inset:0] [z-index:55] [pointer-events:auto] [display:flex] [align-items:center] [justify-content:center]" aria-hidden="true">
+            <div className="[position:absolute] [inset:0] [background:#000] [animation:cinematicFadeIn_0.55s_cubic-bezier(0.4,_0,_0.2,_1)_forwards]" />
+            <div className="[position:relative] [z-index:2] [width:260px] [height:140px] [display:flex] [align-items:center] [justify-content:center]">
+              <span className="[position:absolute] [width:16px] [height:16px] [border:2px_solid_#55cde8] [top:0] [left:0] [border-right:none] [border-bottom:none]" />
+              <span className="[position:absolute] [width:16px] [height:16px] [border:2px_solid_#55cde8] [top:0] [right:0] [border-left:none] [border-bottom:none]" />
+              <span className="[position:absolute] [width:16px] [height:16px] [border:2px_solid_#55cde8] [bottom:0] [left:0] [border-right:none] [border-top:none]" />
+              <span className="[position:absolute] [width:16px] [height:16px] [border:2px_solid_#55cde8] [bottom:0] [right:0] [border-left:none] [border-top:none]" />
+              <div className="text-[12px] font-bold font-mono [color:#55cde8] [letter-spacing:0.16em] [text-shadow:0_0_10px_rgba(85,_205,_232,_0.8)] [animation:cinematicPulse_0.4s_infinite_alternate_ease-in-out]">ALIGNING DISPLAY TERMINAL...</div>
             </div>
           </div>
         )}
@@ -253,41 +253,41 @@ export function GameViewport() {
 
         {/* Legacy 2D Panel Fallback */}
         {state.panel && (
-          <section className="panel">
-            <div className="badge">SIMULATED DATA</div>
-            <h2>{state.panel}</h2>
-            <p>
+          <section className="[pointer-events:auto] [position:absolute] [right:5vw] [top:14vh] [width:min(440px,_90vw)] [background:rgba(9,_19,_26,_0.95)] [border:1px_solid_#3f697b] [padding:24px] [box-shadow:0_8px_40px_rgba(0,_0,_0,_0.85)] [backdrop-filter:blur(8px)]">
+            <div className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">SIMULATED DATA</div>
+            <h2 className="[margin:4px_0_10px] [color:#e88747] [font-size:18px] [font-weight:600]">{state.panel}</h2>
+            <p className="[line-height:1.5] [color:#c7d5d8] [font-size:13px]">
               Local observational telemetry is operational. Subsystem sensor values reflect simulated scientific
               readings for Outpost evaluation.
             </p>
-            <div className="panel-actions">
-              <button onClick={() => game.current?.closePanel()}>Close interface [ESC]</button>
+            <div className="[margin-top:18px]">
+              <button className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747]" onClick={() => game.current?.closePanel()}>Close interface [ESC]</button>
             </div>
           </section>
         )}
 
         {/* 4. SHARED MISSION BRIEFING MODAL */}
         {state.showBriefingModal && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog briefing-modal">
-              <div className="modal-header">
-                <span className="badge">NASA SPACE APPS 2026 · EXPEDITION BRIEFING</span>
-                <h2>SOL 0{state.missionDay} — {state.missionTitle}</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] briefing-modal">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">NASA SPACE APPS 2026 · EXPEDITION BRIEFING</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">SOL 0{state.missionDay} — {state.missionTitle}</h2>
               </div>
-              <div className="modal-body">
-                <p className="briefing-narrative">{state.briefingText}</p>
-                <div className="objective-callout">
-                  <span className="callout-label">PRIMARY SCIENTIFIC OBJECTIVE</span>
-                  <div className="callout-value">{state.primaryObjective}</div>
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
+                <p className="[margin:0_0_18px] [color:#d8e6eb]">{state.briefingText}</p>
+                <div className="[background:rgba(16,_36,_48,_0.9)] [border-left:3px_solid_#e88747] [padding:12px_16px] [margin-bottom:16px]">
+                  <span className="[display:block] text-[10px] font-bold font-mono [letter-spacing:0.12em] [color:#e88747] [margin-bottom:4px]">PRIMARY SCIENTIFIC OBJECTIVE</span>
+                  <div className="[color:#ffffff] [font-weight:500]">{state.primaryObjective}</div>
                 </div>
-                <div className="briefing-hint-box">
-                  <span className="hint-label">CONTROLS REFERENCE</span>
+                <div className="[background:rgba(10,_22,_30,_0.6)] [padding:10px_14px] [border:1px_dashed_#304e5e] [font-size:12px] [color:#92abb6]">
+                  <span className="[display:block] text-[10px] font-bold font-mono [color:#55cde8] [margin-bottom:2px]">CONTROLS REFERENCE</span>
                   <span>W, A, S, D walk · Shift jog · Space jump · E inspect/travel · Esc unlock</span>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.dismissBriefing();
@@ -302,34 +302,34 @@ export function GameViewport() {
 
         {/* 5. DAY 5 MASTER TERRAIN ROUTE PLANNING MODAL */}
         {state.showRoutePlanning && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog route-modal">
-              <div className="modal-header">
-                <span className="badge">MISSION CONTROL TACTICAL CARTOGRAPHY</span>
-                <h2>SOL 05 — Master Terrain Survey Route Planning</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(780px,_94vw)]">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">MISSION CONTROL TACTICAL CARTOGRAPHY</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">SOL 05 — Master Terrain Survey Route Planning</h2>
               </div>
-              <div className="modal-body route-body">
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55] route-body">
                 <p>
                   Review the Master Terrain observation candidates below. Select your survey site to confirm the route
                   plan for upcoming surface sorties.
                 </p>
-                <div className="targets-grid">
+                <div className="[display:flex] [flex-direction:column] [gap:10px] [margin-top:14px]">
                   {MASTER_TERRAIN_TARGETS.map(t => {
                     const isSelected = selectedTarget === t.id;
                     return (
                       <div
                         key={t.id}
-                        className={`target-card ${isSelected ? "selected" : ""}`}
+                        className={`[background:rgba(13,_29,_39,_0.8)] [border:1px_solid_#335467] [padding:12px_16px] [cursor:pointer] [transition:all_0.15s_ease] ${isSelected ? "border border-[#44d788] bg-[rgba(16,46,38,0.7)] shadow-[inset_0_0_12px_rgba(68,215,136,0.2)]" : ""} hover:[border-color:#55cde8] hover:[background:rgba(18,_40,_54,_0.9)]`}
                         onClick={() => setSelectedTarget(t.id)}
                       >
-                        <div className="target-card-header">
-                          <span className="target-name">{t.name}</span>
-                          <span className={`hazard-badge ${t.hazardRating.toLowerCase()}`}>
+                        <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:4px]">
+                          <span className="[font-weight:600] [color:#ffffff] [font-size:14px]">{t.name}</span>
+                          <span className={`text-[10px] font-bold font-mono px-[6px] py-[2px] rounded-[2px] tracking-[0.08em] ${t.hazardRating.toLowerCase() === "low" ? "border border-[#44d788] bg-[rgba(68,215,136,0.2)] text-[#44d788]" : t.hazardRating.toLowerCase() === "moderate" ? "border border-[#f1b344] bg-[rgba(241,179,68,0.2)] text-[#f1b344]" : "border border-[#e88747] bg-[rgba(232,135,71,0.2)] text-[#e88747]"}`}>
                             {t.hazardRating} Hazard
                           </span>
                         </div>
-                        <div className="target-desc">{t.description}</div>
-                        <div className="target-meta">
+                        <div className="[font-size:12px] [color:#a4c0cb] [margin-bottom:6px]">{t.description}</div>
+                        <div className="[display:flex] [gap:16px] text-[11px] font-mono [color:#6d8e9d]">
                           <span>Est. Distance: {t.distanceEstimate}</span>
                           <span>Coords: [{t.coordinates.x}, {t.coordinates.z}]</span>
                         </div>
@@ -338,9 +338,9 @@ export function GameViewport() {
                   })}
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="secondary-btn"
+                  className="[background:transparent] [color:#b0c9d3] [border:1px_solid_#4a6d7f] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] hover:[border-color:#8db5c8] hover:[color:#ffffff] hover:[border-color:#8db5c8] hover:[color:#ffffff]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.closeRoutePlanning();
@@ -349,7 +349,7 @@ export function GameViewport() {
                   Cancel [ESC]
                 </button>
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.selectRouteTarget(selectedTarget);
@@ -364,23 +364,23 @@ export function GameViewport() {
 
         {/* 6. DAY 6 GEOLOGICAL FIELD OBSERVATION MODAL */}
         {state.showGeologicalForm && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog science-modal">
-              <div className="modal-header">
-                <span className="badge">OUTDOOR SURFACE SCIENCE · SOL 06</span>
-                <h2>Geological Field Observation</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(840px,_94vw)]">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">OUTDOOR SURFACE SCIENCE · SOL 06</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">Geological Field Observation</h2>
               </div>
-              <div className="modal-body">
-                <div className="notice-banner">
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
+                <div className="[background:rgba(14,_34,_48,_0.85)] [border:1px_solid_#32586e] [padding:10px_14px] [margin-bottom:16px] [font-size:13px] [display:flex] [align-items:center] [gap:8px] [flex-wrap:wrap]">
                   <span>RECORDING TARGET:</span>{" "}
-                  <strong>{state.selectedRouteTargetId ? "Confirmed Route Target" : "Site Alpha — Crater Rim Ridge"}</strong>
-                  <span className="sim-tag">[SIMULATED OBSERVATION DATA]</span>
+                  <strong className="[color:#55cde8]">{state.selectedRouteTargetId ? "Confirmed Route Target" : "Site Alpha — Crater Rim Ridge"}</strong>
+                  <span className="text-[10px] font-bold font-mono [color:#e88747] [margin-left:auto]">[SIMULATED OBSERVATION DATA]</span>
                 </div>
 
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Surface Texture</label>
-                    <select value={geoTexture} onChange={e => setGeoTexture(e.target.value)}>
+                <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:14px]">
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Surface Texture</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={geoTexture} onChange={e => setGeoTexture(e.target.value)}>
                       <option value="Vesicular Basalt & Fractured Regolith">Vesicular Basalt & Fractured Regolith</option>
                       <option value="Fine-Grained Aeolian Silt Layer">Fine-Grained Aeolian Silt Layer</option>
                       <option value="Indurated Sulfate-Bearing Crust">Indurated Sulfate-Bearing Crust</option>
@@ -388,9 +388,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Rock & Fragment Distribution</label>
-                    <select value={geoDistribution} onChange={e => setGeoDistribution(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Rock & Fragment Distribution</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={geoDistribution} onChange={e => setGeoDistribution(e.target.value)}>
                       <option value="Scattered Angular Clasts (< 5 cm)">Scattered Angular Clasts (&lt; 5 cm)</option>
                       <option value="Dense Boulder Field with Impact Ejecta">Dense Boulder Field with Impact Ejecta</option>
                       <option value="Uniform Fine Pebble Dispersion">Uniform Fine Pebble Dispersion</option>
@@ -398,9 +398,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Terrain Shape or Slope</label>
-                    <select value={geoShape} onChange={e => setGeoShape(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Terrain Shape or Slope</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={geoShape} onChange={e => setGeoShape(e.target.value)}>
                       <option value="Low-Angle Talus Incline (8–12°)">Low-Angle Talus Incline (8–12°)</option>
                       <option value="Steep Escarpment Rim Flank">Steep Escarpment Rim Flank</option>
                       <option value="Depression Basin with Sinuous Rilles">Depression Basin with Sinuous Rilles</option>
@@ -408,9 +408,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Dust Coverage</label>
-                    <select value={geoDust} onChange={e => setGeoDust(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Dust Coverage</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={geoDust} onChange={e => setGeoDust(e.target.value)}>
                       <option value="Thin Mantle (< 2 mm) with High Rock Exposure">Thin Mantle (&lt; 2 mm) with High Rock Exposure</option>
                       <option value="Moderate Dust Drift with Saltation Ripples">Moderate Dust Drift with Saltation Ripples</option>
                       <option value="Thick Atmospheric Fallout Layer">Thick Atmospheric Fallout Layer</option>
@@ -418,9 +418,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group full-width">
-                    <label>Potential Follow-Up Area of Interest</label>
-                    <input
+                  <div className="[display:flex] [flex-direction:column] [gap:6px] [grid-column:1_/_-1]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Potential Follow-Up Area of Interest</label>
+                    <input className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]"
                       type="text"
                       value={geoInterest}
                       onChange={e => setGeoInterest(e.target.value)}
@@ -429,9 +429,9 @@ export function GameViewport() {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="secondary-btn"
+                  className="[background:transparent] [color:#b0c9d3] [border:1px_solid_#4a6d7f] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] hover:[border-color:#8db5c8] hover:[color:#ffffff] hover:[border-color:#8db5c8] hover:[color:#ffffff]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.closeGeologicalForm();
@@ -440,7 +440,7 @@ export function GameViewport() {
                   Cancel [ESC]
                 </button>
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.submitGeologicalForm({
@@ -465,22 +465,22 @@ export function GameViewport() {
 
         {/* 7. DAY 7 SURFACE OBSERVATION MODAL */}
         {state.showSurfaceObservationForm && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog science-modal">
-              <div className="modal-header">
-                <span className="badge">SURFACE FEATURE OBSERVATION · SOL 07</span>
-                <h2>Mars Surface Observation Scan</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(840px,_94vw)]">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">SURFACE FEATURE OBSERVATION · SOL 07</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">Mars Surface Observation Scan</h2>
               </div>
-              <div className="modal-body">
-                <div className="notice-banner">
-                  <span>OBSERVATION TARGET:</span> <strong>Site Beta — Dune Basin Depression</strong>
-                  <span className="sim-tag">[DATA STORED FOR SOL 08 LAB ANALYSIS]</span>
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
+                <div className="[background:rgba(14,_34,_48,_0.85)] [border:1px_solid_#32586e] [padding:10px_14px] [margin-bottom:16px] [font-size:13px] [display:flex] [align-items:center] [gap:8px] [flex-wrap:wrap]">
+                  <span>OBSERVATION TARGET:</span> <strong className="[color:#55cde8]">Site Beta — Dune Basin Depression</strong>
+                  <span className="text-[10px] font-bold font-mono [color:#e88747] [margin-left:auto]">[DATA STORED FOR SOL 08 LAB ANALYSIS]</span>
                 </div>
 
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Visible Surface Pattern</label>
-                    <select value={surfPattern} onChange={e => setSurfPattern(e.target.value)}>
+                <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:14px]">
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Visible Surface Pattern</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={surfPattern} onChange={e => setSurfPattern(e.target.value)}>
                       <option value="Laminated Bedding & Cross-Stratification">Laminated Bedding & Cross-Stratification</option>
                       <option value="Concentric Impact Deformation Rings">Concentric Impact Deformation Rings</option>
                       <option value="Aeolian Megaripples with Coarse Crests">Aeolian Megaripples with Coarse Crests</option>
@@ -488,9 +488,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Surface & Fragment Appearance</label>
-                    <select value={surfAppearance} onChange={e => setSurfAppearance(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Surface & Fragment Appearance</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={surfAppearance} onChange={e => setSurfAppearance(e.target.value)}>
                       <option value="Dark Iron-Magnesium Silicate Matrix">Dark Iron-Magnesium Silicate Matrix</option>
                       <option value="Oxidized Hematite Spherule Encrustation">Oxidized Hematite Spherule Encrustation</option>
                       <option value="Hydrated Sulfate Intergranular Cement">Hydrated Sulfate Intergranular Cement</option>
@@ -498,9 +498,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Local Terrain Profile</label>
-                    <select value={surfProfile} onChange={e => setSurfProfile(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Local Terrain Profile</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={surfProfile} onChange={e => setSurfProfile(e.target.value)}>
                       <option value="Undulating Dune Swale Transition">Undulating Dune Swale Transition</option>
                       <option value="Sub-horizontal Bedrock Platform">Sub-horizontal Bedrock Platform</option>
                       <option value="Micro-graben Depression Valley">Micro-graben Depression Valley</option>
@@ -508,9 +508,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>Feature Worth Revisiting</label>
-                    <select value={surfArea} onChange={e => setSurfArea(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Feature Worth Revisiting</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={surfArea} onChange={e => setSurfArea(e.target.value)}>
                       <option value="High-reflectance mineralized vein">High-reflectance mineralized vein</option>
                       <option value="Aeolian sediment trap boundary">Aeolian sediment trap boundary</option>
                       <option value="Eroded crater terrace contact">Eroded crater terrace contact</option>
@@ -518,9 +518,9 @@ export function GameViewport() {
                     </select>
                   </div>
 
-                  <div className="form-group full-width">
-                    <label>Question for Laboratory Analysis</label>
-                    <select value={surfQuestion} onChange={e => setSurfQuestion(e.target.value)}>
+                  <div className="[display:flex] [flex-direction:column] [gap:6px] [grid-column:1_/_-1]">
+                    <label className="text-[11px] font-mono [color:#8daab8] [letter-spacing:0.05em] [text-transform:uppercase]">Question for Laboratory Analysis</label>
+                    <select className="[background:#08151f] [border:1px_solid_#2d4c5e] [color:#e8f2f5] [padding:9px_12px] [font-size:13px] [outline:none] [transition:border-color_0.15s_ease] focus:[border-color:#55cde8]" value={surfQuestion} onChange={e => setSurfQuestion(e.target.value)}>
                       <option value="Does the sulfate veneer indicate transient aqueous deposition?">
                         Does the sulfate veneer indicate transient aqueous deposition?
                       </option>
@@ -537,9 +537,9 @@ export function GameViewport() {
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="secondary-btn"
+                  className="[background:transparent] [color:#b0c9d3] [border:1px_solid_#4a6d7f] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] hover:[border-color:#8db5c8] hover:[color:#ffffff] hover:[border-color:#8db5c8] hover:[color:#ffffff]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.closeSurfaceObservationForm();
@@ -548,7 +548,7 @@ export function GameViewport() {
                   Cancel [ESC]
                 </button>
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.submitSurfaceObservationForm({
@@ -573,107 +573,107 @@ export function GameViewport() {
 
         {/* 8. DAY 8 RESEARCH LAB ANALYSIS MODAL */}
         {state.showScienceAnalysisModal && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog science-modal analysis-modal">
-              <div className="modal-header">
-                <span className="badge">RESEARCH LAB ANALYSIS CONSOLE · SOL 08</span>
-                <h2>Scientific Observation Analysis & Synthesis</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(840px,_94vw)] [max-width:min(920px,_96vw)]">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">RESEARCH LAB ANALYSIS CONSOLE · SOL 08</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">Scientific Observation Analysis & Synthesis</h2>
               </div>
-              <div className="modal-body">
-                <div className="analysis-columns">
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
+                <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:16px] [margin-bottom:18px]">
                   {/* Source Day 7 Record Panel */}
-                  <div className="analysis-panel">
-                    <h3>1. SOURCE OBSERVATION (SOL 07)</h3>
+                  <div className="[background:rgba(10,_24,_34,_0.85)] [border:1px_solid_#284758] [padding:14px]">
+                    <h3 className="text-[12px] font-bold font-mono [color:#55cde8] [margin:0_0_10px_0] [letter-spacing:0.08em]">1. SOURCE OBSERVATION (SOL 07)</h3>
                     {state.surfaceObservation ? (
-                      <div className="record-details">
-                        <div className="detail-row">
-                          <span className="detail-key">Record ID:</span>
-                          <span className="detail-val mono">{state.surfaceObservation.id}</span>
+                      <div className="[display:flex] [flex-direction:column] [gap:8px]">
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Record ID:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%] [font-family:monospace] [font-size:11px] [color:#55cde8]">{state.surfaceObservation.id}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Pattern:</span>
-                          <span className="detail-val">{state.surfaceObservation.observedCategories.surfacePattern}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Pattern:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.surfaceObservation.observedCategories.surfacePattern}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Matrix:</span>
-                          <span className="detail-val">{state.surfaceObservation.observedCategories.surfaceMaterialAppearance}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Matrix:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.surfaceObservation.observedCategories.surfaceMaterialAppearance}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Profile:</span>
-                          <span className="detail-val">{state.surfaceObservation.observedCategories.terrainProfile}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Profile:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.surfaceObservation.observedCategories.terrainProfile}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Focus:</span>
-                          <span className="detail-val">{state.surfaceObservation.observedCategories.areaOfInterest}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Focus:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.surfaceObservation.observedCategories.areaOfInterest}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Question:</span>
-                          <span className="detail-val highlight">{state.surfaceObservation.followUpQuestion}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Question:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%] [color:#f1b344] [font-style:italic]">{state.surfaceObservation.followUpQuestion}</span>
                         </div>
                       </div>
                     ) : (
-                      <div className="warning-box">No saved Day 7 surface observation found.</div>
+                      <div className="[padding:12px] [background:rgba(232,_135,_71,_0.15)] [border:1px_solid_#e88747] [color:#e88747] [font-size:12px]">No saved Day 7 surface observation found.</div>
                     )}
                   </div>
 
                   {/* Day 6 Geological Comparison Panel */}
-                  <div className="analysis-panel">
-                    <h3>2. GEOLOGICAL COMPARISON (SOL 06)</h3>
+                  <div className="[background:rgba(10,_24,_34,_0.85)] [border:1px_solid_#284758] [padding:14px]">
+                    <h3 className="text-[12px] font-bold font-mono [color:#55cde8] [margin:0_0_10px_0] [letter-spacing:0.08em]">2. GEOLOGICAL COMPARISON (SOL 06)</h3>
                     {state.geologicalSurvey ? (
-                      <div className="record-details">
-                        <div className="detail-row">
-                          <span className="detail-key">Survey ID:</span>
-                          <span className="detail-val mono">{state.geologicalSurvey.id}</span>
+                      <div className="[display:flex] [flex-direction:column] [gap:8px]">
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Survey ID:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%] [font-family:monospace] [font-size:11px] [color:#55cde8]">{state.geologicalSurvey.id}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Texture:</span>
-                          <span className="detail-val">{state.geologicalSurvey.observedCategories.surfaceTexture}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Texture:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.geologicalSurvey.observedCategories.surfaceTexture}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Fragments:</span>
-                          <span className="detail-val">{state.geologicalSurvey.observedCategories.fragmentDistribution}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Fragments:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.geologicalSurvey.observedCategories.fragmentDistribution}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Dust:</span>
-                          <span className="detail-val">{state.geologicalSurvey.observedCategories.dustCoverage}</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Dust:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%]">{state.geologicalSurvey.observedCategories.dustCoverage}</span>
                         </div>
-                        <div className="detail-row">
-                          <span className="detail-key">Correlation:</span>
-                          <span className="detail-val success">Compatible basaltic aeolian deflation sequence</span>
+                        <div className="[display:flex] [justify-content:space-between] [font-size:12px] [border-bottom:1px_solid_rgba(40,_71,_88,_0.4)] [padding-bottom:4px]">
+                          <span className="[color:#799ba9] [font-family:monospace]">Correlation:</span>
+                          <span className="[color:#e8f1f4] [text-align:right] [max-width:65%] [border-color:#44d788] [color:#44d788]">Compatible basaltic aeolian deflation sequence</span>
                         </div>
                       </div>
                     ) : (
-                      <div className="info-box">Sol 06 geological survey record unavailable. Proceeding with single-source observation analysis.</div>
+                      <div className="[padding:12px] [background:rgba(85,_205,_232,_0.1)] [border:1px_solid_#336177] [color:#9ac2d2] [font-size:12px]">Sol 06 geological survey record unavailable. Proceeding with single-source observation analysis.</div>
                     )}
                   </div>
                 </div>
 
                 {/* Predefined Cautious Interpretations */}
-                <div className="interpretations-wrap">
-                  <h3>3. SELECT SCIENTIFIC INTERPRETATION</h3>
-                  <div className="interp-grid">
+                <div>
+                  <h3 className="text-[12px] font-bold font-mono [color:#e88747] [margin:0_0_10px_0] [letter-spacing:0.08em]">3. SELECT SCIENTIFIC INTERPRETATION</h3>
+                  <div className="[display:flex] [flex-direction:column] [gap:8px]">
                     {PREDEFINED_INTERPRETATIONS.map(i => {
                       const isSelected = selectedInterpretation === i.id;
                       return (
                         <div
                           key={i.id}
-                          className={`interp-card ${isSelected ? "selected" : ""}`}
+                          className={`[background:rgba(13,_29,_39,_0.85)] [border:1px_solid_#2d4e61] [padding:10px_14px] [cursor:pointer] [transition:all_0.15s_ease] ${isSelected ? "border border-[#44d788] bg-[rgba(16,46,38,0.7)] shadow-[inset_0_0_10px_rgba(68,215,136,0.2)]" : ""} hover:[border-color:#55cde8] hover:[background:rgba(18,_40,_54,0.95)]`}
                           onClick={() => setSelectedInterpretation(i.id)}
                         >
-                          <div className="interp-header">
-                            <span className="interp-label">{i.label}</span>
-                            <span className="interp-badge">{i.claimStrength} Interpretation</span>
+                          <div className="[display:flex] [justify-content:space-between] [align-items:center] [margin-bottom:4px]">
+                            <span className="[font-weight:600] [color:#ffffff] [font-size:13px]">{i.label}</span>
+                            <span className="text-[10px] font-bold font-mono [padding:2px_6px] [background:rgba(85,_205,_232,_0.2)] [color:#55cde8] [border:1px_solid_#55cde8]">{i.claimStrength} Interpretation</span>
                           </div>
-                          <div className="interp-desc">{i.description}</div>
+                          <div className="[font-size:12px] [color:#9cb9c6]">{i.description}</div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="secondary-btn"
+                  className="[background:transparent] [color:#b0c9d3] [border:1px_solid_#4a6d7f] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] hover:[border-color:#8db5c8] hover:[color:#ffffff] hover:[border-color:#8db5c8] hover:[color:#ffffff]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.closeScienceAnalysisModal();
@@ -682,7 +682,7 @@ export function GameViewport() {
                   Cancel [ESC]
                 </button>
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   disabled={!state.surfaceObservation}
                   onClick={e => {
                     e.stopPropagation();
@@ -702,41 +702,41 @@ export function GameViewport() {
 
         {/* 9. DAY 9 REMOTE DRONE SURVEY CONSOLE MODAL */}
         {state.showDroneConsoleModal && (
-          <div className="modal-backdrop">
-            <section className="modal-dialog drone-modal">
-              <div className="modal-header">
-                <span className="badge">MISSION CONTROL DRONE OPERATIONS · SOL 09</span>
-                <h2>Scout Drone 01 Remote Operations Terminal</h2>
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(720px,_92vw)]">
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">MISSION CONTROL DRONE OPERATIONS · SOL 09</span>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">Scout Drone 01 Remote Operations Terminal</h2>
               </div>
-              <div className="modal-body">
-                <div className="drone-briefing-box">
-                  <div className="drone-status-line">
-                    <span className="dot online" />
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
+                <div className="[background:rgba(12,_28,_38,_0.9)] [border:1px_solid_#33596f] [padding:14px] [margin-bottom:16px]">
+                  <div className="[display:flex] [align-items:center] [gap:8px] [font-size:13px] [color:#55cde8] [margin-bottom:12px]">
+                    <span className="h-[6px] w-[6px] rounded-full bg-[#44d788] shadow-[0_0_8px_#44d788]" />
                     <strong>DRONE TELEMETRY UPLINK: CONNECTED (8.4 GHz X-BAND)</strong>
                   </div>
-                  <div className="drone-specs-grid">
-                    <div>Status: <strong>STANDBY AT LAUNCH ANCHOR</strong></div>
-                    <div>Battery: <strong>88% NOMINAL</strong></div>
-                    <div>Signal: <strong>96% (12 ms LATENCY)</strong></div>
-                    <div>Target Sector: <strong>SITE GAMMA CANYON ESCARPMENT</strong></div>
+                  <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:8px] text-[12px] font-mono [color:#8daab8]">
+                    <div>Status: <strong className="[color:#e8f1f4]">STANDBY AT LAUNCH ANCHOR</strong></div>
+                    <div>Battery: <strong className="[color:#e8f1f4]">88% NOMINAL</strong></div>
+                    <div>Signal: <strong className="[color:#e8f1f4]">96% (12 ms LATENCY)</strong></div>
+                    <div>Target Sector: <strong className="[color:#e8f1f4]">SITE GAMMA CANYON ESCARPMENT</strong></div>
                   </div>
                 </div>
 
-                <div className="drone-controls-guide">
-                  <h3>REMOTE FPV FLIGHT CONTROLS</h3>
-                  <div className="controls-list">
-                    <span><strong>W / S:</strong> Pitch forward / backward</span>
-                    <span><strong>A / D:</strong> Yaw left / right</span>
-                    <span><strong>Space:</strong> Ascend altitude</span>
-                    <span><strong>Left Shift:</strong> Descend altitude</span>
-                    <span><strong>C Key:</strong> Capture survey telemetry</span>
-                    <span><strong>Escape:</strong> Disengage FPV and return</span>
+                <div>
+                  <h3 className="text-[11px] font-bold font-mono [color:#e88747] [letter-spacing:0.08em] [margin:0_0_8px_0]">REMOTE FPV FLIGHT CONTROLS</h3>
+                  <div className="[display:grid] [grid-template-columns:1fr_1fr] [gap:6px] [font-size:12px] [color:#c4dce6] [background:rgba(8,_18,_26,_0.7)] [padding:10px] [border:1px_solid_#1f3b4c]">
+                    <span><strong className="[color:#55cde8]">W / S:</strong> Pitch forward / backward</span>
+                    <span><strong className="[color:#55cde8]">A / D:</strong> Yaw left / right</span>
+                    <span><strong className="[color:#55cde8]">Space:</strong> Ascend altitude</span>
+                    <span><strong className="[color:#55cde8]">Left Shift:</strong> Descend altitude</span>
+                    <span><strong className="[color:#55cde8]">C Key:</strong> Capture survey telemetry</span>
+                    <span><strong className="[color:#55cde8]">Escape:</strong> Disengage FPV and return</span>
                   </div>
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="secondary-btn"
+                  className="[background:transparent] [color:#b0c9d3] [border:1px_solid_#4a6d7f] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] hover:[border-color:#8db5c8] hover:[color:#ffffff] hover:[border-color:#8db5c8] hover:[color:#ffffff]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.closeDroneConsoleModal();
@@ -745,7 +745,7 @@ export function GameViewport() {
                   Cancel [ESC]
                 </button>
                 <button
-                  className="primary-btn drone-launch-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] [background:#e88747] [color:#071016] [font-weight:bold] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     void game.current?.startDroneFPV();
@@ -760,40 +760,40 @@ export function GameViewport() {
 
         {/* 10. DAY 9 DRONE FPV HUD OVERLAY */}
         {state.droneModeActive && (
-          <div className="drone-fpv-overlay">
+          <div className="[position:absolute] [inset:0] [pointer-events:none] [display:flex] [flex-direction:column] [justify-content:space-between] [padding:24px_32px] [z-index:25]">
             {/* Top Telemetry Bar */}
-            <div className="drone-top-bar">
-              <div className="drone-top-left">
-                <span className="rec-dot" />
-                <span className="drone-title">DRONE FPV — REMOTE CONTROL [SCOUT 01]</span>
+            <div className="[display:flex] [justify-content:space-between] [align-items:center] [background:rgba(5,_14,_20,_0.85)] [border:1px_solid_#32596f] [padding:10px_18px] [pointer-events:auto]">
+              <div className="[display:flex] [align-items:center] [gap:10px]">
+                <span className="[width:10px] [height:10px] [border-radius:50%] [background:#e84747] [box-shadow:0_0_8px_#e84747] [animation:pulse-dot_1s_infinite_alternate]" />
+                <span className="text-[14px] font-bold font-mono [color:#e8f1f4] [letter-spacing:0.08em]">DRONE FPV — REMOTE CONTROL [SCOUT 01]</span>
               </div>
-              <div className="drone-telemetry-readouts">
+              <div className="[display:flex] [gap:20px] text-[12px] font-mono [color:#55cde8]">
                 <span>BATTERY: {state.droneTelemetry.battery}%</span>
                 <span>SIGNAL: {state.droneTelemetry.signal}%</span>
                 <span>ALTITUDE: {state.droneTelemetry.altitude} m</span>
                 <span>COORDS: [{state.droneTelemetry.x}, {state.droneTelemetry.z}]</span>
               </div>
-              <div className="sim-badge">SIMULATED DRONE TELEMETRY</div>
+                <div>SIMULATED DRONE TELEMETRY</div>
             </div>
 
             {/* Flight Crosshair / Artificial Horizon */}
-            <div className="drone-viewfinder">
-              <div className="drone-crosshair-h" />
-              <div className="drone-crosshair-v" />
-              <div className="drone-horizon-box">
-                <div className="horizon-line" />
-                <span className="target-heading">TARGET SECTOR: SITE GAMMA ESCARPMENT</span>
+            <div className="[align-self:center] [position:relative] [width:200px] [height:160px] [pointer-events:none]">
+              <div className="[position:absolute] [top:50%] [left:0] [right:0] [height:1px] [background:rgba(85,_205,_232,_0.4)]" />
+              <div className="[position:absolute] [left:50%] [top:0] [bottom:0] [width:1px] [background:rgba(85,_205,_232,_0.4)]" />
+              <div className="[position:absolute] [bottom:-40px] [left:50%] [transform:translateX(-50%)] [text-align:center] [white-space:nowrap]">
+                <div />
+                <span className="text-[11px] font-bold font-mono [color:#f1b344] [letter-spacing:0.08em] [background:rgba(0,_0,_0,_0.7)] [padding:3px_8px] [border:1px_solid_rgba(241,_179,_68,_0.4)]">TARGET SECTOR: SITE GAMMA ESCARPMENT</span>
               </div>
             </div>
 
             {/* Bottom Controls & Capture Bar */}
-            <div className="drone-bottom-bar">
-              <div className="drone-control-hints">
+            <div className="[display:flex] [justify-content:space-between] [align-items:center] [background:rgba(5,_14,_20,_0.85)] [border:1px_solid_#32596f] [padding:10px_18px] [pointer-events:auto]">
+              <div className="text-[12px] font-mono [color:#8ba8b5]">
                 <span>W/A/S/D to fly · Space ascend · Shift descend</span>
               </div>
-              <div className="drone-actions">
+              <div className="[display:flex] [gap:12px]">
                 <button
-                  className="drone-capture-btn"
+                  className="[background:#e88747] [border:1px_solid_#e88747] [color:#071016] text-[12px] font-bold font-mono [padding:8px_16px] [cursor:pointer] [letter-spacing:0.05em] [transition:all_0.15s_ease] hover:[background:#ff9b57] hover:[background:#ff9b57]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.captureDroneSurvey();
@@ -802,7 +802,7 @@ export function GameViewport() {
                   {state.droneSurvey ? "Update Survey Record [C]" : "Capture Remote Survey [C]"}
                 </button>
                 <button
-                  className="drone-exit-btn"
+                  className="[background:transparent] [border:1px_solid_#3d687f] [color:#e8f1f4] text-[12px] font-mono [padding:8px_16px] [cursor:pointer] [letter-spacing:0.05em] [transition:all_0.15s_ease] hover:[border-color:#55cde8] hover:[color:#55cde8] hover:[border-color:#55cde8] hover:[color:#55cde8]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.exitDroneFPV();
@@ -817,20 +817,20 @@ export function GameViewport() {
 
         {/* 11. REST / DAY ADVANCE FEEDBACK MODAL */}
         {state.restFeedback && (
-          <div className="modal-backdrop">
-            <section className={`modal-dialog feedback-modal ${state.restFeedback.type}`}>
-              <div className="modal-header">
-                <span className="badge">
+          <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
+            <section className={`bg-[#091722] border shadow-[0_16px_60px_rgba(0,0,0,0.95)] p-[28px_32px] max-w-[min(600px,92vw)] w-full ${state.restFeedback.type === "blocked" ? "border-[#e88747]" : "border-[#44d788]"}`}>
+              <div>
+                <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">
                   {state.restFeedback.type === "blocked" ? "REST PROTOCOL RESTRICTED" : "HABITAT REST CYCLE"}
                 </span>
-                <h2>{state.restFeedback.type === "blocked" ? "Objective Incomplete" : "Rest Period Verified"}</h2>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">{state.restFeedback.type === "blocked" ? "Objective Incomplete" : "Rest Period Verified"}</h2>
               </div>
-              <div className="modal-body">
+              <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
                 <p>{state.restFeedback.message}</p>
               </div>
-              <div className="modal-footer">
+              <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
-                  className="primary-btn"
+                  className="[background:#d8763b] [color:#071016] [border:0] [padding:10px_18px] [font-weight:bold] [letter-spacing:0.06em] [cursor:pointer] [border-radius:2px] [transition:background_0.15s_ease] hover:[background:#e88747] hover:[background:#e88747]"
                   onClick={e => {
                     e.stopPropagation();
                     game.current?.dismissRestFeedback();
@@ -845,17 +845,17 @@ export function GameViewport() {
 
         {/* 12. LOADING SCREEN */}
         {state.transition === "loading" && (
-          <section className="transition loading">
-            <img src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
-            <p>Loading {state.transitionLabel}...</p>
-            <strong>{state.transitionProgress === null ? "Preparing…" : `${state.transitionProgress}%`}</strong>
+          <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] loading">
+            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
+            <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px]">Loading {state.transitionLabel}...</p>
+            <strong className="[font-size:28px] [font-weight:500] [color:#e88747]">{state.transitionProgress === null ? "Preparing…" : `${state.transitionProgress}%`}</strong>
           </section>
         )}
 
         {/* 13. DESTINATION TRANSITION VIDEO */}
         {state.transition === "video" && (
-          <section className="transition video">
-            <video
+          <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] video">
+            <video className="[width:100%] [height:100%] [object-fit:contain] [background:#000]"
               ref={video}
               src={game.current?.transitionVideo()}
               muted
@@ -865,23 +865,23 @@ export function GameViewport() {
                 game.current?.videoFailed("The transition video could not be loaded. You can continue to the destination.")
               }
             />
-            <p>Press ENTER to skip</p>
+            <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px] [position:absolute] [bottom:28px] [left:50%] [transform:translateX(-50%)] [margin:0] [padding:7px_12px] [background:rgba(0,_0,_0,_0.8)] [border:1px_solid_rgba(85,_205,_232,_0.3)] [color:#e7f1f4] text-[12px] font-mono">Press ENTER to skip</p>
           </section>
         )}
 
         {/* 14. TRANSITION ERROR */}
         {state.transition === "error" && (
-          <section className="transition failure">
-            <img src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
-            <p>{state.error}</p>
-            <div>
-              <button onClick={() => game.current?.retryTransition()}>Retry</button>
-              <button onClick={() => game.current?.continueWithoutVideo()}>Continue</button>
+          <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] failure">
+            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
+            <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px] [max-width:min(520px,_85vw)] [line-height:1.5]">{state.error}</p>
+            <div className="[display:flex] [gap:10px] [margin-top:14px]">
+              <button className="[border:1px_solid_#d8763b] [background:#d8763b] [color:#071016] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.retryTransition()}>Retry</button>
+              <button className="[border:1px_solid_#d8763b] [background:transparent] [color:#e8f1f4] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.continueWithoutVideo()}>Continue</button>
             </div>
           </section>
         )}
 
-        <div className="diag">
+        <div className="[position:absolute] [right:16px] [bottom:16px] [color:#829aa2] text-[11px] font-mono [text-align:right]">
           WebGL {state.ready ? "ready" : "loading"} · {state.fps} fps · Sol {state.missionDay}
         </div>
       </div>
