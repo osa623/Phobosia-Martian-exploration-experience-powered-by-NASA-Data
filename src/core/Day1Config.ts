@@ -706,6 +706,9 @@ export const MODULE_TO_ZONE_MAP: Record<string, Day1ZoneId> = {
   Airlock: "AIRLOCK"
 };
 
+/** Per-entrance travel key. Omitted entries continue to use the game's E key. */
+export const ENTRANCE_INTERACTION_KEYS: Record<string, "E" | "Q"> = {};
+
 export const ZONE_TO_INTRO_MAP: Record<Day1ZoneId, Day1ZoneDefinition["introduction"]> = {} as any;
 
 for (const zone of DAY1_ZONES) {

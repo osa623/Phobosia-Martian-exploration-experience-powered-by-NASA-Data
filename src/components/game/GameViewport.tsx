@@ -170,7 +170,7 @@ export function GameViewport() {
               />
             </div>
             <div className="[margin-top:6px] text-[11px] font-mono [color:#87a4af]">
-              {state.completedStepCount} / {state.totalStepCount} STEPS
+              {state.completedStepCount} / {state.totalStepCount} {state.missionDay === 1 ? "TASKS COMPLETED" : "STEPS"}
               {state.objectiveState === "completed" && (
                 <span className="[color:#44d788] [font-weight:bold]"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
               )}
@@ -818,7 +818,7 @@ export function GameViewport() {
         {/* 11. REST / DAY ADVANCE FEEDBACK MODAL */}
         {state.restFeedback && (
           <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
-            <section className={`bg-[#091722] border shadow-[0_16px_60px_rgba(0,0,0,0.95)] p-[28px_32px] max-w-[min(600px,92vw)] w-full ${state.restFeedback.type === "blocked" ? "border-[#e88747]" : "border-[#44d788]"}`}>
+            <section className={`bg-[#091722] border shadow-[0_16px_60px_rgba(0,0,0,0.95)] p-[28px_32px] max-w-[min(600px,92vw)] max-h-[86vh] overflow-y-auto w-full ${state.restFeedback.type === "blocked" ? "border-[#e88747]" : "border-[#44d788]"}`}>
               <div>
                 <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">
                   {state.restFeedback.type === "blocked" ? "REST PROTOCOL RESTRICTED" : "HABITAT REST CYCLE"}
@@ -827,6 +827,15 @@ export function GameViewport() {
               </div>
               <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
                 <p>{state.restFeedback.message}</p>
+                {!!state.restFeedback.missingTasks?.length && (
+                  <ul className="[margin:14px_0_0] [padding-left:20px] [display:flex] [flex-direction:column] [gap:7px]">
+                    {state.restFeedback.missingTasks.map(task => (
+                      <li key={`${task.zone}-${task.title}`}>
+                        {task.title}{task.zone ? ` — ${task.zone}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="[margin-top:24px] [display:flex] [justify-content:flex-end] [gap:12px]">
                 <button
