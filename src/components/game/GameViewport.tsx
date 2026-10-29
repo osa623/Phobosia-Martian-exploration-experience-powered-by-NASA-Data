@@ -118,7 +118,7 @@ export function GameViewport() {
     !state.cameraPresentation;
 
   return (
-    <div id="game" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+    <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
       {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove) */}
       <SpeedTravelBar
         activeModule={state.module}

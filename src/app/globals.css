@@ -1,11 +1,29 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet');
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kdam+Thmor+Pro&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Londrina+Solid:wght@100;300;400;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Atma:wght@300;400;500;600;700&display=swap');
+
+
+
+@theme {
+  --color-phobos-bg: #05090d;
+  --color-phobos-panel: #091722;
+  --color-phobos-orange: #e88747;
+  --color-phobos-cyan: #55cde8;
+  --color-phobos-green: #44d788;
+  --font-mono: "Courier New", Courier, monospace;
+}
+
 :root {
   color-scheme: dark;
   background: #05090d;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 body {
@@ -14,16 +32,7 @@ body {
   user-select: none;
 }
 
-main, #game {
-  width: 100vw;
-  height: 100vh;
-}
-
-#game {
-  position: relative;
-  background: #000;
-}
-
+/* Renderer integration: preserve the WebGL drawing buffer's full-viewport sizing. */
 canvas {
   display: block;
   width: 100% !important;
@@ -396,6 +405,8 @@ canvas {
   padding: 28px 32px;
   max-width: min(600px, 92vw);
   width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
 }
 
 .modal-header h2 {
@@ -664,6 +675,14 @@ canvas {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .modal-dialog { padding: 20px 18px; }
+  .form-grid, .analysis-columns { grid-template-columns: minmax(0, 1fr); }
+  .drone-fpv-overlay { padding: 14px; }
+  .drone-telemetry-readouts { gap: 8px; flex-wrap: wrap; }
+  .presentation-banner { margin-bottom: 20px; padding: 16px; }
 }
 
 .form-group {

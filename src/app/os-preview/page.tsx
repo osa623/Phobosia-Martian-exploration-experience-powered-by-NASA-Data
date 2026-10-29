@@ -47,7 +47,7 @@ const mockState: GameState = {
 
 export default function OSPreviewPage() {
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#3c4046", display: "grid", placeItems: "center" }}>
+    <div className="grid h-screen w-screen place-items-center bg-[#3c4046]">
       <PhobosiaOS game={null} state={mockState} onClose={() => {}} />
     </div>
   );
