@@ -26,10 +26,12 @@ import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 import { CameraPresentationManager } from "./CameraPresentation";
 import {
-  DAY1_ZONES,
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
-  ZONE_TO_INTRO_MAP
+  ZONE_TO_INTRO_MAP,
+  ENTRANCE_INTERACTION_KEYS,
+  DAY1_TASKS,
+  DAY1_ZONES
 } from "./Day1Config";
 
 export type ModuleName = keyof typeof assetPaths;
@@ -154,6 +156,7 @@ export class Game {
 
     const mission = this.missionManager.getCurrentMission();
     const mState = this.missionManager.getState();
+    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
 
     this.state = {
       ready: false,
@@ -170,8 +173,10 @@ export class Game {
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: mState.completedStepIds.length,
-      totalStepCount: mission.steps.length,
+      completedStepCount: day1RequiredTasks
+        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
+        : mState.completedStepIds.length,
+      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
       briefingText: mission.briefing,
@@ -238,13 +243,16 @@ export class Game {
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
     const mission = this.missionManager.getCurrentMission();
+    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
     this.set({
       missionDay: mState.currentDay,
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: mState.completedStepIds.length,
-      totalStepCount: mission.steps.length,
+      completedStepCount: day1RequiredTasks
+        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
+        : mState.completedStepIds.length,
+      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
       briefingText: mission.briefing,
@@ -753,6 +761,7 @@ export class Game {
       this.set({ cameraPresentation: null });
       return;
     }
+    if (this.cameraPresentationManager.isPresentationActive()) return;
 
     if (this.state.transition === "video" && e.code === "Enter" && !e.repeat) {
       e.preventDefault();
@@ -857,8 +866,11 @@ export class Game {
       this.player.keys.add(e.code);
     }
 
-    if (e.code === "KeyE" && !e.repeat) {
-      this.interact();
+    if ((e.code === "KeyE" || e.code === "KeyQ") && !e.repeat) {
+      const key = e.code === "KeyQ" ? "Q" : "E";
+      if (key === "E" || (this.nearby && ENTRANCE_INTERACTION_KEYS[this.nearby.identifier] === "Q")) {
+        this.interact(key);
+      }
     }
   };
 
@@ -934,7 +946,15 @@ export class Game {
     this.terrain = undefined;
 
     const previous = model.getObjectByName("Runtime interaction indicators and lighting");
-    if (previous) model.remove(previous);
+    if (previous) {
+      previous.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material.dispose();
+      });
+      model.remove(previous);
+    }
 
     const additions = new THREE.Group();
     additions.name = "Runtime interaction indicators and lighting";
@@ -948,12 +968,8 @@ export class Game {
       if (route || screen) {
         const target = this.makeTarget(o, (route ?? screen)![0]);
         this.interactive.push(target);
-        this.addMarker(additions, target, Boolean(route));
-
-        // Only hide trigger cylinders, DO NOT hide actual screen displays
-        const isScreenDisplay = /screen|display|monitor/i.test(o.name) || (o.parent && /screen|display|monitor/i.test(o.parent.name));
-        if ((o as THREE.Mesh).isMesh && !isScreenDisplay) {
-          o.visible = false;
+        if (route || /trigger|spawn|entrance/i.test(o.name)) {
+          this.addHolographicMarker(additions, target, Boolean(route));
         }
       }
 
@@ -1029,19 +1045,38 @@ export class Game {
     return { object, identifier, center, range: Math.max(2.5, Math.min(4, Math.hypot(size.x, size.z) / 2 + 1)) };
   }
 
-  private addMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
-    const marker = new THREE.Mesh(
-      new THREE.OctahedronGeometry(entrance ? 0.23 : 0.16),
-      new THREE.MeshBasicMaterial({
-        color: entrance ? 0xe88747 : 0x55cde8,
-        transparent: true,
-        opacity: 0.72,
-        wireframe: true,
-        depthWrite: false
-      })
-    );
-    marker.position.copy(target.center);
-    parent.add(marker);
+  private addHolographicMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
+    const bounds = new THREE.Box3().setFromObject(target.object);
+    const size = bounds.getSize(new THREE.Vector3());
+    const radius = THREE.MathUtils.clamp(Math.hypot(size.x, size.z) * 0.42, 0.34, 1.25);
+    const color = entrance ? 0xe88747 : 0x55cde8;
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.62,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    });
+    const floorY = bounds.isEmpty() ? target.center.y : bounds.min.y + 0.035;
+    const rings = new THREE.Group();
+    rings.name = `Holographic interaction marker ${target.identifier}`;
+    rings.position.set(target.center.x, floorY, target.center.z);
+
+    const outer = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.018, 6, 48), ringMaterial);
+    outer.rotation.x = Math.PI / 2;
+    rings.add(outer);
+
+    const inner = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.72, 0.009, 5, 40), ringMaterial.clone());
+    (inner.material as THREE.MeshBasicMaterial).opacity = 0.42;
+    inner.rotation.x = Math.PI / 2;
+    rings.add(inner);
+
+    const sweep = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.012, 5, 36, Math.PI * 0.38), ringMaterial.clone());
+    sweep.rotation.x = Math.PI / 2;
+    sweep.rotation.z = Math.PI * 0.28;
+    rings.add(sweep);
+    parent.add(rings);
   }
 
   private async loadAndSpawn(route: Transition) {
@@ -1099,52 +1134,39 @@ export class Game {
     // Check mission context event for entering module
     this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
 
-    // Day 1 Zone-Entry Introduction (play once per day on first entry)
-    if (this.state.missionDay === 1) {
-      const zoneId = MODULE_TO_ZONE_MAP[route.module];
-      if (zoneId) {
-        const intro = ZONE_TO_INTRO_MAP[zoneId];
-        if (intro && !this.missionManager.hasSeenIntroduction(intro.id)) {
-          this.missionManager.markIntroductionSeen(intro.id);
-
-          let targetMesh: THREE.Object3D | null = null;
-          if (this.current) {
-            const zoneDef = DAY1_ZONES.find(z => z.zoneId === zoneId);
-            if (zoneDef && zoneDef.interactionGroups[0]?.screenObjectNames[0]) {
-              targetMesh = this.current.getObjectByName(zoneDef.interactionGroups[0].screenObjectNames[0]) || null;
-            }
-          }
-
-          this.cameraPresentationManager.startPresentation(
-            {
-              id: intro.cameraPresentationId,
-              title: intro.title,
-              description: intro.description,
-              durationSeconds: intro.durationSeconds,
-              skipKey: "Enter",
-              targetMesh: targetMesh,
-              targetWorldPosition: targetMesh ? undefined : this.camera.position.clone().add(new THREE.Vector3(0, 0, -2))
-            },
-            () => {
-              this.set({ cameraPresentation: null });
-            }
-          );
-
-          this.set({
-            cameraPresentation: {
-              active: true,
-              title: intro.title,
-              description: intro.description,
-              skipPrompt: "[ENTER] Skip"
-            }
-          });
-        }
-      }
-    }
+    this.playZoneIntroduction(route.module);
 
     this.set({
       module: labels[route.module],
       isOutdoorTerrain: route.module === "Terrain"
+    });
+  }
+
+  private playZoneIntroduction(module: ModuleName) {
+    if (this.missionManager.getState().currentDay !== 1) return;
+    const zoneId = MODULE_TO_ZONE_MAP[module];
+    const intro = zoneId && ZONE_TO_INTRO_MAP[zoneId];
+    if (!intro || this.missionManager.hasSeenIntroduction(intro.id) || this.cameraPresentationManager.isPresentationActive()) return;
+
+    const zoneDef = DAY1_ZONES.find(zone => zone.zoneId === zoneId);
+    const targetName = zoneDef?.interactionGroups[0]?.screenObjectNames[0];
+    const targetMesh = targetName ? this.current?.getObjectByName(targetName) ?? null : null;
+    const started = this.cameraPresentationManager.startPresentation({
+      id: intro.cameraPresentationId,
+      title: intro.title,
+      description: intro.description,
+      durationSeconds: intro.durationSeconds,
+      skipKey: intro.skipKey,
+      targetMesh,
+      targetWorldPosition: targetMesh ? undefined : this.camera.position.clone().add(new THREE.Vector3(0, 0, -2))
+    }, () => {
+      this.missionManager.markIntroductionSeen(intro.id);
+      this.set({ cameraPresentation: null });
+    });
+    if (!started) return;
+    this.set({
+      cameraPresentation: { active: true, title: intro.title, description: intro.description, skipPrompt: `[${intro.skipKey.toUpperCase()}] Skip` },
+      prompt: ""
     });
   }
 
@@ -1264,6 +1286,7 @@ export class Game {
 
       // Trigger module entered event
       this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
+      this.playZoneIntroduction(route.module);
 
       this.pending = undefined;
       this.transitioning = false;
@@ -1283,7 +1306,7 @@ export class Game {
     }
   }
 
-  private interact() {
+  private interact(key: "E" | "Q" = "E") {
     if (this.transitioning) return;
 
     // A. Check outdoor terrain survey triggers if outdoors on Terrain
@@ -1319,9 +1342,11 @@ export class Game {
     // 1. Entrance / Module Transition
     const route = transitions[this.active][this.nearby.identifier];
     if (route) {
+      if (key !== (ENTRANCE_INTERACTION_KEYS[this.nearby.identifier] ?? "E")) return;
       void this.beginTransition(route);
       return;
     }
+    if (key !== "E") return;
 
     // 2. Habitat Rest & Day Advance
     if (this.nearby.identifier === "HAB_REST_01") {
@@ -1331,8 +1356,21 @@ export class Game {
       }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
+        const remaining = this.state.missionDay === 1
+          ? DAY1_TASKS.filter(task => task.required && !this.missionManager.isStepComplete(task.taskId))
+          : [];
+        const missingTasks = remaining.map(task => ({
+          title: task.title,
+          zone: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.friendlyName ?? ""
+        }));
         this.set({
-          restFeedback: { type: "blocked", message: check.reason },
+          restFeedback: {
+            type: "blocked",
+            message: this.state.missionDay === 1
+              ? `Sol 1 Incomplete: ${missingTasks.length} required ${missingTasks.length === 1 ? "task remains" : "tasks remain"} before resting. Finish them and return to the Habitat Rest Area.`
+              : check.reason,
+            missingTasks
+          },
           prompt: ""
         });
       } else {
@@ -1352,7 +1390,7 @@ export class Game {
     if (this.state.missionDay === 1) {
       const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
       if (group) {
-        this.missionManager.completeStep(group.taskId);
+        if (group.taskId) this.missionManager.completeStep(group.taskId);
         let targetMesh: THREE.Object3D | null = null;
         if (this.current) {
           for (const sName of group.screenObjectNames) {
@@ -1382,7 +1420,7 @@ export class Game {
         if (started) {
           this.set({
             prompt: "",
-            notification: `Task Complete: ${group.friendlyName}`,
+            notification: group.required ? `Task Complete: ${group.friendlyName}` : `Inspection Complete: ${group.friendlyName}`,
             cameraPresentation: {
               active: true,
               title: group.friendlyName,
@@ -1475,6 +1513,17 @@ export class Game {
 
       const id = this.nearby.identifier;
       let targetApp = "overview";
+      const sol2InvestigationApps: Record<string, string> = {
+        HAB_MONITOR_01: "SOL02_HABITAT_STATUS", HAB_WATER_NUTRITION_01: "SOL02_WATER_NUTRITION",
+        Engineering_Monitoring_Trigger: "SOL02_ENGINEERING_MONITORING", Engineering_PowerUnit_Trigger: "SOL02_POWER_REVIEW",
+        Engineering_LifeSupport_Trigger: "SOL02_ENGINEERING_LIFESUPPORT", Engineering_Diagnostics_Trigger: "SOL02_DIAGNOSTICS"
+      };
+      const sol3InvestigationApps: Record<string, string> = {
+        MC_MAIN_01: "SOL03_MISSION_CONTEXT", MC_NAVIGATION_01: "SOL03_OBSERVATION_SITE_REVIEW",
+        MC_SYSTEMS_01: "SOL03_SYSTEM_CONSTRAINTS", LAB_RESEARCH_ANALYSIS_01: "SOL03_SELECT_DATASET"
+      };
+      if (this.state.missionDay === 2 && sol2InvestigationApps[id]) targetApp = `investigation:${sol2InvestigationApps[id]}`;
+      if (this.state.missionDay === 3 && sol3InvestigationApps[id]) targetApp = `investigation:${sol3InvestigationApps[id]}`;
       if (/Habitat/i.test(id)) targetApp = "habitat";
       else if (/Power|LifeSupportUnit|Monitoring|Diagnostics/i.test(id)) targetApp = "engineering";
       else if (/Science|Research|Lab|Seed|Water/i.test(id)) targetApp = "science";
@@ -1573,7 +1622,8 @@ export class Game {
 
     const route = transitions[this.active][best.identifier];
     if (route) {
-      this.set({ prompt: `[E] TRAVEL TO ${labels[route.module].toUpperCase()}` });
+      const key = ENTRANCE_INTERACTION_KEYS[best.identifier] ?? "E";
+      this.set({ prompt: `[${key}] TRAVEL TO ${labels[route.module].toUpperCase()}` });
     } else if (best.identifier === "HAB_REST_01") {
       this.set({ prompt: `[E] REST · CREW REST AREA` });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {

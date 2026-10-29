@@ -44,7 +44,11 @@ export interface GameState {
   showRoutePlanning: boolean;
   selectedRouteTargetId: string | null;
   notification: string | null;
-  restFeedback: { type: "success" | "blocked"; message: string } | null;
+  restFeedback: {
+    type: "success" | "blocked";
+    message: string;
+    missingTasks?: { title: string; zone: string }[];
+  } | null;
 
   // Phase 3 dedicated UI states & records
   geologicalSurvey: GeologicalSurveyRecord | null;

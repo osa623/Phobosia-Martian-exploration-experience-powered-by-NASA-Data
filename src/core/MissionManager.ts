@@ -6,6 +6,7 @@
  */
 
 import { DAY1_TASKS, TRIGGER_TO_TASK_MAP } from "./Day1Config";
+import { SOL2_INVESTIGATION_RULES, SOL3_DATASET_IDS } from "./MissionInvestigationRules";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -173,9 +174,18 @@ export interface MissionProgressState {
   surfaceObservation: SurfaceObservationRecord | null;
   scienceAnalysis: ScienceAnalysisRecord | null;
   droneSurvey: DroneSurveyRecord | null;
+  investigationRecords: InvestigationRecord[];
 }
 
-const STORAGE_KEY = "phobosia_mission_progress_v3";
+export interface InvestigationRecord {
+  id: string; missionId: string; taskId: string; systemId: string;
+  evidenceReferences: string[]; classification: string; rationale: string;
+  limitations: string[]; sourceType: string; submittedAt: string;
+  playerConclusion: string; systemValidation: string; scientificQuestion?: string;
+}
+
+const STORAGE_KEY = "phobosia_mission_progress_v4";
+const V3_STORAGE_KEY = "phobosia_mission_progress_v3";
 const PREV_STORAGE_KEY = "phobosia_mission_progress_v2";
 
 export const MASTER_TERRAIN_TARGETS: TerrainRouteTarget[] = [
@@ -212,45 +222,52 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     title: "Outpost Orientation",
     storyContext: "Beginning of the 14-day Mars observation expedition. Operational systems are online.",
     briefing: "Welcome to Mars Outpost PHOBOSIA. Before commencing scientific field observations, explore the base, inspect each operational zone and system console, and complete the Day 1 orientation checklist.",
-    primaryObjective: "Explore the outpost, inspect all 22 operational displays and consoles across all modules, and complete the orientation checklist.",
-    steps: DAY1_TASKS.map(t => ({
+    primaryObjective: "Explore the outpost, inspect the required systems and consoles across all modules, and complete the 19-task orientation checklist.",
+    steps: DAY1_TASKS.filter(t => t.required).map(t => ({
       stepId: t.taskId,
       label: t.title,
       description: t.description,
       completed: false
     })),
     allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl"],
-    completionFeedback: "Outpost orientation complete. All 22 systems and consoles cataloged. Return to Habitat Rest Area to finish Day 1."
+    completionFeedback: "Outpost orientation complete. All 19 required tasks are complete. Return to Habitat Rest Area to finish Day 1."
   },
   2: {
     day: 2,
-    id: "DAY_02_HABITAT_READINESS",
-    title: "Habitat Readiness",
-    storyContext: "Operational verification phase. Habitat life systems require validation.",
-    briefing: "Confirm Habitat systems readiness prior to extended scientific operations. Inspect water recycling status, nutrition inventory, and primary life support telemetry.",
-    primaryObjective: "Inspect designated Habitat readiness consoles and record validation status.",
+    id: "DAY_02_OUTPOST_READINESS",
+    title: "Outpost Readiness",
+    storyContext: "Review simulated outpost records and document evidence limits before scientific operations.",
+    briefing: "Inspect Habitat and Engineering records, submit evidence-linked investigations, then submit a readiness assessment.",
+    primaryObjective: "Submit six system investigations and a readiness record based on those records.",
     steps: [
-      { stepId: "DAY2_ENTER_HABITAT", label: "Habitat Verification", description: "Confirm presence inside Habitat module.", targetModule: "Habitat", completed: false },
-      { stepId: "DAY2_INSPECT_READINESS", label: "Inspect Life Support & Nutrition", description: "Inspect Water & Nutrition console.", targetTrigger: "HAB_WATER_NUTRITION_01", completed: false },
-      { stepId: "DAY2_RECORD_STATUS", label: "Record Readiness Status", description: "Log Habitat Readiness verification record.", targetTrigger: "HAB_MONITOR_01", completed: false }
-    ],
-    allowedModules: ["Habitat", "Hub"],
-    completionFeedback: "Habitat readiness confirmed. Atmospheric and nutrition subsystems nominal. Rest in Habitat to conclude Day 2."
+      ["SOL02_HABITAT_STATUS", "Habitat status inspection", "Inspect Habitat status records."],
+      ["SOL02_WATER_NUTRITION", "Water and nutrition inspection", "Inspect supply status and logs."],
+      ["SOL02_ENGINEERING_MONITORING", "Engineering monitoring inspection", "Review monitoring records."],
+      ["SOL02_POWER_REVIEW", "Power unit investigation", "Investigate power records and their limits."],
+      ["SOL02_ENGINEERING_LIFESUPPORT", "Engineering life-support inspection", "Review environmental and recycling records."],
+      ["SOL02_DIAGNOSTICS", "Diagnostics inspection", "Review diagnostic records and follow-up needs."],
+      ["SOL02_READINESS_ASSESSMENT", "Outpost readiness assessment", "Submit an assessment referencing the six investigations."]
+    ].map(([stepId, label, description]) => ({ stepId, label, description, completed: false })),
+    allowedModules: ["Habitat", "Engineering", "Hub"],
+    completionFeedback: "Readiness record submitted. Return to Habitat to conclude Sol 2."
   },
   3: {
     day: 3,
-    id: "DAY_03_POWER_SYSTEM_OBSERVATION",
-    title: "Power System Observation",
-    storyContext: "Base power distribution requires baseline observation before demanding outdoor science.",
-    briefing: "Transit to Engineering Unit and perform a baseline power-system observation. Record solar array capture, capacitor bank balance, and primary power distribution telemetry.",
-    primaryObjective: "Inspect Engineering power console and record baseline power observation.",
+    id: "DAY_03_SCIENTIFIC_TARGET_SELECTION",
+    title: "Scientific Target Selection",
+    storyContext: "Use PHOBOSIA training records to prepare a constrained observation proposal.",
+    briefing: "Review mission context, compare the in-game target profiles and constraints, then submit a target and dataset proposal with limitations.",
+    primaryObjective: "Submit an evidence-referenced target proposal using the available simulated training metadata.",
     steps: [
-      { stepId: "DAY3_REACH_ENGINEERING", label: "Transit to Engineering", description: "Pass through Hub to Engineering Unit.", targetModule: "Engineering", completed: false },
-      { stepId: "DAY3_INSPECT_POWER", label: "Inspect Power Unit", description: "Inspect Engineering Power Unit console.", targetTrigger: "Engineering_PowerUnit_Trigger", completed: false },
-      { stepId: "DAY3_RECORD_POWER_OBSERVATION", label: "Record Power Observation", description: "Store baseline power observation record.", targetTrigger: "Engineering_PowerUnit_Trigger", completed: false }
-    ],
-    allowedModules: ["Engineering", "Hub", "Habitat"],
-    completionFeedback: "Power system baseline recorded. Array output at 94.2% nominal efficiency. Return to Habitat to rest."
+      ["SOL03_MISSION_CONTEXT", "Mission context review", "Review the Sol 2 readiness record and mission context."],
+      ["SOL03_OBSERVATION_SITE_REVIEW", "Observation site investigation", "Compare available in-game target profiles."],
+      ["SOL03_SYSTEM_CONSTRAINTS", "Systems and communications constraints", "Review simulated operational constraints."],
+      ["SOL03_SELECT_TARGET", "Select a scientific target", "Choose a target and focused scientific question."],
+      ["SOL03_SELECT_DATASET", "Select and evaluate a dataset", "Evaluate the available training metadata."],
+      ["SOL03_SUBMIT_TARGET_RECORD", "Submit target proposal", "Review and submit the complete proposal."]
+    ].map(([stepId, label, description]) => ({ stepId, label, description, completed: false })),
+    allowedModules: ["MissionControl", "Science", "Hub", "Habitat"],
+    completionFeedback: "Target proposal submitted. Return to Habitat to conclude Sol 3."
   },
   4: {
     day: 4,
@@ -363,6 +380,7 @@ export class MissionManager {
     if (typeof window !== "undefined" || (typeof globalThis !== "undefined" && globalThis.localStorage)) {
       try {
         let raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) raw = localStorage.getItem(V3_STORAGE_KEY);
         if (!raw) {
           raw = localStorage.getItem(PREV_STORAGE_KEY);
         }
@@ -382,7 +400,8 @@ export class MissionManager {
               geologicalSurvey: (parsed.geologicalSurvey as GeologicalSurveyRecord) ?? null,
               surfaceObservation: (parsed.surfaceObservation as SurfaceObservationRecord) ?? null,
               scienceAnalysis: (parsed.scienceAnalysis as ScienceAnalysisRecord) ?? null,
-              droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null
+              droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null,
+              investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : []
             };
           }
         }
@@ -404,7 +423,8 @@ export class MissionManager {
       geologicalSurvey: null,
       surfaceObservation: null,
       scienceAnalysis: null,
-      droneSurvey: null
+      droneSurvey: null,
+      investigationRecords: []
     };
   }
 
@@ -475,6 +495,64 @@ export class MissionManager {
 
   public isStepComplete(stepId: string): boolean {
     return this.state.completedStepIds.includes(stepId);
+  }
+
+  public getInvestigationRecords(): InvestigationRecord[] { return [...this.state.investigationRecords]; }
+
+  public submitInvestigation(input: { taskId: string; evidenceReferences: string[]; classification: string; rationale: string; limitations?: string[]; procedureChecks: string[]; selectedTargetId?: string; datasetId?: string; scientificQuestion?: string }): { success: boolean; message: string } {
+    const day = this.state.currentDay;
+    if (day !== 2 && day !== 3) return { success: false, message: "Investigations are not available on the active Sol." };
+    const task = DAYS_CONFIG[day].steps.find(step => step.stepId === input.taskId);
+    if (!task) return { success: false, message: "This task is not part of the active Sol." };
+    if (input.rationale.trim().length < 12) return { success: false, message: "Enter a rationale of at least 12 characters." };
+    const definition = SOL2_INVESTIGATION_RULES[input.taskId];
+    if (day === 2 && input.taskId !== "SOL02_READINESS_ASSESSMENT") {
+      const expectedChecks = Array.from({ length: definition?.procedureCount ?? 0 }, (_, i) => `${input.taskId}:${i}`);
+      if (!definition || expectedChecks.some(check => !input.procedureChecks.includes(check))) return { success: false, message: "Complete each listed procedure step before submitting." };
+      const ids = definition.logIds;
+      if (!input.evidenceReferences.length || input.evidenceReferences.some(id => !ids.includes(id))) return { success: false, message: "Select valid supporting log entries." };
+    }
+    if (input.taskId === "SOL03_SELECT_TARGET" && !MASTER_TERRAIN_TARGETS.some(t => t.id === input.selectedTargetId)) return { success: false, message: "Select an available in-game target profile." };
+    if (input.taskId === "SOL03_SELECT_DATASET" && !SOL3_DATASET_IDS.includes(input.datasetId ?? "")) return { success: false, message: "Select an available dataset record." };
+    if (day === 3 && !["SOL03_SUBMIT_TARGET_RECORD"].includes(input.taskId) && [0, 1].some(i => !input.procedureChecks.includes(`${input.taskId}:${i}`))) return { success: false, message: "Complete both review steps before submitting." };
+    if (input.taskId === "SOL03_MISSION_CONTEXT" && !input.evidenceReferences.includes("SOL03-MISSION-CONTEXT")) return { success: false, message: "Reference the active mission context record." };
+    if (input.taskId === "SOL03_MISSION_CONTEXT" && !this.state.investigationRecords.some(record => record.taskId === "SOL02_READINESS_ASSESSMENT")) return { success: false, message: "A saved Sol 2 readiness assessment is required for this context review." };
+    if (input.taskId === "SOL03_SYSTEM_CONSTRAINTS" && !input.evidenceReferences.includes("SOL03-COMMS-SYSTEMS")) return { success: false, message: "Reference the available communications and systems record." };
+    if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && !MASTER_TERRAIN_TARGETS.some(t => input.evidenceReferences.includes(`TARGET:${t.id}`))) return { success: false, message: "Reference at least one available target profile." };
+    if (input.taskId === "SOL03_SELECT_TARGET" && !input.evidenceReferences.includes(`TARGET:${input.selectedTargetId}`)) return { success: false, message: "Reference the selected target profile as supporting evidence." };
+    if ((input.taskId === "SOL03_SELECT_TARGET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && !input.scientificQuestion?.trim()) return { success: false, message: "Enter a focused scientific question for this target proposal." };
+    if (input.taskId === "SOL03_SELECT_DATASET" && !input.evidenceReferences.includes(`DATASET:${input.datasetId}`)) return { success: false, message: "Reference the selected dataset metadata record." };
+    const prior = this.state.investigationRecords;
+    if (input.taskId === "SOL02_READINESS_ASSESSMENT") {
+      const required = DAYS_CONFIG[2].steps.slice(0, 6).map(s => s.stepId);
+      if (!required.every(id => prior.some(r => r.taskId === id))) return { success: false, message: "Submit all six system investigations first." };
+      if (!input.evidenceReferences.length || !input.evidenceReferences.every(id => prior.some(r => r.id === id))) return { success: false, message: "Reference submitted investigation records." };
+    }
+    if (input.taskId === "SOL03_SUBMIT_TARGET_RECORD") {
+      const required = DAYS_CONFIG[3].steps.slice(0, 5).map(s => s.stepId);
+      if (!required.every(id => prior.some(r => r.taskId === id))) return { success: false, message: "Complete all five proposal preparation tasks first." };
+      if (!input.selectedTargetId || !MASTER_TERRAIN_TARGETS.some(t => t.id === input.selectedTargetId) || !input.datasetId || !SOL3_DATASET_IDS.includes(input.datasetId)) return { success: false, message: "Proposal must reference an available target and dataset." };
+      if (!prior.some(r => r.taskId === "SOL03_SELECT_TARGET" && r.evidenceReferences.includes(`TARGET:${input.selectedTargetId}`)) || !prior.some(r => r.taskId === "SOL03_SELECT_DATASET" && r.evidenceReferences.includes(`DATASET:${input.datasetId}`))) return { success: false, message: "Target and dataset must match the submitted selection records." };
+      if (!input.evidenceReferences.length || !input.evidenceReferences.every(id => prior.some(r => r.id === id))) return { success: false, message: "Reference submitted investigation evidence." };
+    }
+    const record: InvestigationRecord = {
+      id: prior.find(r => r.taskId === input.taskId)?.id ?? `INV_${day}_${input.taskId}`,
+      missionId: DAYS_CONFIG[day].id, taskId: input.taskId,
+      systemId: definition?.systemId ?? input.taskId,
+      evidenceReferences: [...new Set(input.evidenceReferences)], classification: input.classification,
+      rationale: input.rationale.trim(), limitations: input.limitations ?? [],
+      sourceType: day === 2 ? "SIMULATED_GAME_DATA" : "PHOBOSIA_SIMULATED_TRAINING_AND_PLAYER_RECORDS",
+      submittedAt: prior.find(r => r.taskId === input.taskId)?.submittedAt ?? new Date().toISOString(),
+      playerConclusion: input.classification,
+      systemValidation: "Record structure and references validated. The player's conclusion is not an independently verified technical or scientific finding.",
+      scientificQuestion: input.scientificQuestion?.trim()
+    };
+    if (input.selectedTargetId) record.evidenceReferences.push(`TARGET:${input.selectedTargetId}`);
+    if (input.datasetId) record.evidenceReferences.push(`DATASET:${input.datasetId}`);
+    this.state.investigationRecords = [...prior.filter(r => r.taskId !== input.taskId), record];
+    this.completeStep(input.taskId);
+    this.emit();
+    return { success: true, message: "Mission record saved with its evidence and provenance." };
   }
 
   /**
@@ -572,44 +650,7 @@ export class MissionManager {
       }
     }
 
-    // Day 2
-    if (day === 2) {
-      if (event.type === "module_entered" && event.module === "Habitat") {
-        this.completeStep("DAY2_ENTER_HABITAT");
-      }
-      if (event.type === "trigger_interacted" && event.identifier === "HAB_WATER_NUTRITION_01") {
-        this.completeStep("DAY2_INSPECT_READINESS");
-        return { handled: true, feedback: "Water & Nutrition levels inspected: 98% nominal." };
-      }
-      if (event.type === "trigger_interacted" && event.identifier === "HAB_MONITOR_01") {
-        if (this.isStepComplete("DAY2_INSPECT_READINESS")) {
-          this.completeStep("DAY2_RECORD_STATUS", {
-            type: "habitat_readiness",
-            summary: "Habitat readiness logged. Water recycling: 98%, Atmosphere: 101.3 kPa, Nutrition: 14-day store verified.",
-            details: { waterPurity: "99.8%", pressureKPa: 101.3, o2Fraction: 0.21 }
-          });
-          return { handled: true, feedback: "Habitat Readiness validation saved." };
-        } else {
-          return { handled: true, feedback: "Inspect Water & Nutrition console first before recording status." };
-        }
-      }
-    }
-
-    // Day 3
-    if (day === 3) {
-      if (event.type === "module_entered" && event.module === "Engineering") {
-        this.completeStep("DAY3_REACH_ENGINEERING");
-      }
-      if (event.type === "trigger_interacted" && event.identifier === "Engineering_PowerUnit_Trigger") {
-        this.completeStep("DAY3_INSPECT_POWER");
-        this.completeStep("DAY3_RECORD_POWER_OBSERVATION", {
-          type: "power_observation",
-          summary: "Baseline Power Observation: Solar Array Output: 48.6 kW, Capacitor Bank: 96.2%, Aux Batt: 100%.",
-          details: { solarOutputKW: 48.6, capacitorCharge: 0.962, gridVoltage: 240 }
-        });
-        return { handled: true, feedback: "Power observation recorded and saved to telemetry." };
-      }
-    }
+    // Sol 2 and Sol 3 steps are completed only by validated investigation submissions.
 
     // Day 4
     if (day === 4) {
@@ -919,6 +960,19 @@ export class MissionManager {
     const mission = this.getCurrentMission();
     const remaining = this.getRemainingSteps();
 
+    if (this.state.currentDay === 2) {
+      const required = DAYS_CONFIG[2].steps.map(step => step.stepId);
+      if (!required.every(id => this.state.investigationRecords.some(record => record.taskId === id)) || !this.state.investigationRecords.some(record => record.taskId === "SOL02_READINESS_ASSESSMENT")) {
+        return { canAdvance: false, reason: "Sol 2 requires six submitted system investigations and a validated readiness assessment record." };
+      }
+    }
+    if (this.state.currentDay === 3) {
+      const required = DAYS_CONFIG[3].steps.map(step => step.stepId);
+      if (!required.every(id => this.state.investigationRecords.some(record => record.taskId === id)) || !this.state.investigationRecords.some(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD")) {
+        return { canAdvance: false, reason: "Sol 3 requires all preparation records and a validated target proposal before resting." };
+      }
+    }
+
     if (remaining.length > 0) {
       if (this.state.currentDay === 1) {
         return {
@@ -1052,7 +1106,8 @@ export class MissionManager {
       geologicalSurvey: null,
       surfaceObservation: null,
       scienceAnalysis: null,
-      droneSurvey: null
+      droneSurvey: null,
+      investigationRecords: []
     };
     this.emit();
   }
