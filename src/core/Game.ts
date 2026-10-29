@@ -1513,6 +1513,17 @@ export class Game {
 
       const id = this.nearby.identifier;
       let targetApp = "overview";
+      const sol2InvestigationApps: Record<string, string> = {
+        HAB_MONITOR_01: "SOL02_HABITAT_STATUS", HAB_WATER_NUTRITION_01: "SOL02_WATER_NUTRITION",
+        Engineering_Monitoring_Trigger: "SOL02_ENGINEERING_MONITORING", Engineering_PowerUnit_Trigger: "SOL02_POWER_REVIEW",
+        Engineering_LifeSupport_Trigger: "SOL02_ENGINEERING_LIFESUPPORT", Engineering_Diagnostics_Trigger: "SOL02_DIAGNOSTICS"
+      };
+      const sol3InvestigationApps: Record<string, string> = {
+        MC_MAIN_01: "SOL03_MISSION_CONTEXT", MC_NAVIGATION_01: "SOL03_OBSERVATION_SITE_REVIEW",
+        MC_SYSTEMS_01: "SOL03_SYSTEM_CONSTRAINTS", LAB_RESEARCH_ANALYSIS_01: "SOL03_SELECT_DATASET"
+      };
+      if (this.state.missionDay === 2 && sol2InvestigationApps[id]) targetApp = `investigation:${sol2InvestigationApps[id]}`;
+      if (this.state.missionDay === 3 && sol3InvestigationApps[id]) targetApp = `investigation:${sol3InvestigationApps[id]}`;
       if (/Habitat/i.test(id)) targetApp = "habitat";
       else if (/Power|LifeSupportUnit|Monitoring|Diagnostics/i.test(id)) targetApp = "engineering";
       else if (/Science|Research|Lab|Seed|Water/i.test(id)) targetApp = "science";

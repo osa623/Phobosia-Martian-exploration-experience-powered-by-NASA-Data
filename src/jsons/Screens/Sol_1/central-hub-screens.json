@@ -278,22 +278,22 @@
             "dataSource": "communicationsState.internalMessages",
             "fallback": [
               {
-                "time": "SOL 01 / 08:10",
-                "severity": "INFO",
-                "source": "Habitat",
-                "message": "The outpost orientation checklist is available."
-              },
-              {
-                "time": "SOL 01 / 08:16",
+                "time": "SOL 01 / 09:12",
                 "severity": "INFO",
                 "source": "Mission Control",
-                "message": "Review the active Sol objective before resting."
+                "message": "Observation schedule is active"
               },
               {
-                "time": "SOL 01 / 08:19",
+                "time": "SOL 01 / 09:16",
                 "severity": "INFO",
+                "source": "Research Lab",
+                "message": "Science monitoring systems nominal"
+              },
+              {
+                "time": "SOL 01 / 09:19",
+                "severity": "WARNING",
                 "source": "Engineering",
-                "message": "Engineering system overview is available for inspection."
+                "message": "Routine equipment inspection pending"
               }
             ]
           },
@@ -341,7 +341,7 @@
       "content": {
         "header": {
           "title": "MODULE STATUS",
-          "subtitle": "OUTPOST READINESS MATRIX",
+          "subtitle": "MODULE STATUS OVERVIEW",
           "status": "OPERATIONAL"
         },
         "primaryMetrics": [
@@ -361,9 +361,9 @@
           },
           {
             "id": "overall_readiness",
-            "label": "READINESS",
+            "label": "SIMULATED READINESS",
             "source": "outpostState.readinessPercent",
-            "fallback": "NOT ASSESSED",
+            "fallback": 94,
             "unit": "%"
           }
         ],
@@ -371,7 +371,7 @@
           {
             "id": "module_readiness_matrix",
             "type": "COMPONENT_STATUS",
-            "title": "MODULE READINESS",
+            "title": "MODULE STATUS",
             "dataSource": "outpostState.modules",
             "fallback": [
               {
@@ -427,14 +427,14 @@
             "dataSource": "outpostState.recentEvents",
             "fallback": [
               {
-                "time": "SOL 01 / 08:10",
+                "time": "SOL 01 / 09:10",
                 "severity": "INFO",
-                "message": "Module status demonstration refreshed."
+                "message": "Outpost module status refresh completed"
               },
               {
-                "time": "SOL 01 / 08:16",
+                "time": "SOL 01 / 09:16",
                 "severity": "INFO",
-                "message": "Module display available for orientation."
+                "message": "Research Lab reported nominal state"
               }
             ]
           }

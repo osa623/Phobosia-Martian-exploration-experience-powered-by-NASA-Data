@@ -43,6 +43,37 @@ const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = requ
 const { MissionManager } = require('../dist/MissionManager.js');
 const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
+
+function completeSol2(mm) {
+  const tasks = [
+    ['SOL02_HABITAT_STATUS', ['HAB-STATUS-MAIN'], 4], ['SOL02_WATER_NUTRITION', ['HAB-WATER-NUTRITION'], 3],
+    ['SOL02_ENGINEERING_MONITORING', ['ENG-MON-INDICATORS'], 3], ['SOL02_POWER_REVIEW', ['ENG-POWER-MAIN'], 5],
+    ['SOL02_ENGINEERING_LIFESUPPORT', ['ENG-LS-ENVIRONMENT'], 4], ['SOL02_DIAGNOSTICS', ['ENG-DIAG-WORKBENCH'], 4]
+  ];
+  for (const [taskId, evidenceReferences, count] of tasks) {
+    const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'The available records do not contain enough reference context.', limitations: ['Simulated game data; no external validation.'], procedureChecks: Array.from({ length: count }, (_, i) => `${taskId}:${i}`) });
+    assert.strictEqual(result.success, true, result.message);
+  }
+  const refs = mm.getInvestigationRecords().map(r => r.id);
+  const result = mm.submitInvestigation({ taskId: 'SOL02_READINESS_ASSESSMENT', evidenceReferences: refs, classification: 'undetermined', rationale: 'Evidence gaps prevent a defensible readiness determination.', limitations: ['No approved system limits are supplied.'], procedureChecks: [] });
+  assert.strictEqual(result.success, true, result.message);
+}
+
+function completeSol3(mm) {
+  const targetId = MASTER_TERRAIN_TARGETS[0].id;
+  const prepare = (taskId, evidenceReferences, extra = {}) => {
+    const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'This is a planning record based on limited simulated metadata.', limitations: ['No external scientific measurements.'], procedureChecks: [`${taskId}:0`, `${taskId}:1`], ...extra });
+    assert.strictEqual(result.success, true, result.message);
+  };
+  prepare('SOL03_MISSION_CONTEXT', ['SOL03-MISSION-CONTEXT']);
+  prepare('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${targetId}`]);
+  prepare('SOL03_SYSTEM_CONSTRAINTS', ['SOL03-COMMS-SYSTEMS']);
+  prepare('SOL03_SELECT_TARGET', [`TARGET:${targetId}`], { selectedTargetId: targetId, scientificQuestion: 'Which site profile merits a future observation?' });
+  prepare('SOL03_SELECT_DATASET', ['DATASET:PHOBOSIA_TARGET_PROFILE_TRAINING'], { datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING' });
+  const refs = mm.getInvestigationRecords().filter(r => r.taskId.startsWith('SOL03_')).map(r => r.id);
+  const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
+  assert.strictEqual(result.success, true, result.message);
+}
 const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
 const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer.js');
@@ -156,8 +187,8 @@ test('Repeated rest input cannot skip a day', () => {
   assert.strictEqual(mm.getState().currentDay, 2);
 });
 
-// P2-006: Day 2 Habitat Readiness Lifecycle
-test('Day 2 Habitat readiness completes and stores simulated observation record', () => {
+// Sol 2 interactive investigation lifecycle
+test('Sol 2 requires six evidence-linked inspections and a readiness assessment', () => {
   mockStorage.clear();
   const mm = new MissionManager();
   mm.completeStep('DAY1_REVIEW_CONTROLS');
@@ -167,22 +198,20 @@ test('Day 2 Habitat readiness completes and stores simulated observation record'
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 2);
-  mm.handleContextEvent({ type: 'module_entered', module: 'Habitat' });
   mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'HAB_WATER_NUTRITION_01' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'HAB_MONITOR_01' });
-
+  assert.strictEqual(mm.isStepComplete('SOL02_WATER_NUTRITION'), false, 'opening an interaction cannot complete an investigation');
+  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
+  completeSol2(mm);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
-  const record = mm.getState().observationRecords.find(r => r.type === 'habitat_readiness');
-  assert(record !== undefined);
-  assert.strictEqual(record.isSimulated, true);
+  assert.strictEqual(mm.getInvestigationRecords().length, 7);
 
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
   assert.strictEqual(mm.getState().currentDay, 3);
 });
 
-// P2-007: Day 3 Power Observation Lifecycle
-test('Day 3 Power observation logs baseline telemetry and advances to Day 4', () => {
+// Sol 3 interactive proposal lifecycle
+test('Sol 3 requires reviewed context, valid target and dataset references, and a final proposal', () => {
   mockStorage.clear();
   const mm = new MissionManager();
   mm.completeStep('DAY1_REVIEW_CONTROLS');
@@ -190,19 +219,14 @@ test('Day 3 Power observation logs baseline telemetry and advances to Day 4', ()
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 3);
-  mm.handleContextEvent({ type: 'module_entered', module: 'Engineering' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'Engineering_PowerUnit_Trigger' });
-
+  assert.strictEqual(mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: [], classification: 'proposal', rationale: 'Attempt proposal.', procedureChecks: [], selectedTargetId: 'missing', datasetId: 'missing', scientificQuestion: 'What should be observed?' }).success, false);
+  completeSol3(mm);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
-  const record = mm.getState().observationRecords.find(r => r.type === 'power_observation');
-  assert(record !== undefined);
-  assert(record.summary.includes('Solar Array'));
+  assert(mm.getInvestigationRecords().some(record => record.taskId === 'SOL03_SUBMIT_TARGET_RECORD'));
 
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
@@ -218,13 +242,9 @@ test('Day 4 Life-support verification records telemetry and advances to Day 5', 
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 4);
@@ -250,13 +270,9 @@ test('Day 5 Route planning validates selection and advances to Day 6 in Phase 3'
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
   mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
@@ -295,13 +311,9 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
   mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
@@ -361,13 +373,9 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
   mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
@@ -442,13 +450,9 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true);
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
   mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
@@ -532,13 +536,9 @@ test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut contro
   mm.completeStep('DAY1_INSPECT_BASE_AREAS');
   mm.completeStep('DAY1_CONFIRM_ORIENTATION');
   mm.advanceDay(true); // 2
-  mm.completeStep('DAY2_ENTER_HABITAT');
-  mm.completeStep('DAY2_INSPECT_READINESS');
-  mm.completeStep('DAY2_RECORD_STATUS');
+  completeSol2(mm);
   mm.advanceDay(true); // 3
-  mm.completeStep('DAY3_REACH_ENGINEERING');
-  mm.completeStep('DAY3_INSPECT_POWER');
-  mm.completeStep('DAY3_RECORD_POWER_OBSERVATION');
+  completeSol3(mm);
   mm.advanceDay(true); // 4
   mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
   mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');

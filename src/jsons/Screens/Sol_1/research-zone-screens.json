@@ -1,3 +1,4 @@
+
 {
   "project": "PHOBOSIA",
   "zone": "RESEARCH_SCIENCE_LAB",
@@ -219,34 +220,10 @@
               "Data Quality"
             ],
             "rows": [
-              [
-                "R-SOL-014",
-                "Regolith",
-                "HIGH",
-                "Mineralogy",
-                "GOOD"
-              ],
-              [
-                "R-ICE-006",
-                "Ice Analog",
-                "MEDIUM",
-                "Imaging",
-                "GOOD"
-              ],
-              [
-                "R-WTR-021",
-                "Water Analog",
-                "HIGH",
-                "Chemistry",
-                "PENDING"
-              ],
-              [
-                "R-SED-009",
-                "Sediment",
-                "LOW",
-                "Archive",
-                "GOOD"
-              ]
+              ["R-SOL-014", "Regolith", "HIGH", "Mineralogy", "GOOD"],
+              ["R-ICE-006", "Ice Analog", "MEDIUM", "Imaging", "GOOD"],
+              ["R-WTR-021", "Water Analog", "HIGH", "Chemistry", "PENDING"],
+              ["R-SED-009", "Sediment", "LOW", "Archive", "GOOD"]
             ]
           },
           {
@@ -260,31 +237,13 @@
                 "name": "Completed",
                 "unit": "tasks",
                 "color": "#36C5E8",
-                "data": [
-                  3,
-                  5,
-                  4,
-                  7,
-                  8,
-                  9,
-                  11,
-                  13
-                ]
+                "data": [3, 5, 4, 7, 8, 9, 11, 13]
               },
               {
                 "name": "Queued",
                 "unit": "tasks",
                 "color": "#FFB547",
-                "data": [
-                  8,
-                  9,
-                  7,
-                  8,
-                  6,
-                  5,
-                  4,
-                  4
-                ]
+                "data": [8, 9, 7, 8, 6, 5, 4, 4]
               }
             ]
           },
@@ -317,13 +276,18 @@
             "type": "EVENT_FEED",
             "items": [
               {
-                "time": "SOL 01",
-                "event": "Research screen orientation pending",
+                "time": "SOL 001 / 08:10",
+                "event": "Research displays available for outpost orientation.",
                 "severity": "INFO"
               },
               {
-                "time": "SOL 01",
-                "event": "No player-generated research observation recorded",
+                "time": "SOL 001 / 08:20",
+                "event": "No player-generated research observation recorded.",
+                "severity": "INFO"
+              },
+              {
+                "time": "SOL 001 / 08:30",
+                "event": "No additional research finding has been recorded.",
                 "severity": "INFO"
               }
             ]
@@ -444,22 +408,10 @@
               }
             ],
             "edges": [
-              [
-                "sampleIntake",
-                "preparation"
-              ],
-              [
-                "preparation",
-                "measurement"
-              ],
-              [
-                "measurement",
-                "validation"
-              ],
-              [
-                "validation",
-                "archive"
-              ]
+              ["sampleIntake", "preparation"],
+              ["preparation", "measurement"],
+              ["measurement", "validation"],
+              ["validation", "archive"]
             ]
           },
           {
@@ -510,31 +462,13 @@
                 "name": "Incoming",
                 "unit": "packets",
                 "color": "#36C5E8",
-                "data": [
-                  72,
-                  81,
-                  76,
-                  94,
-                  102,
-                  98,
-                  110,
-                  116
-                ]
+                "data": [72, 81, 76, 94, 102, 98, 110, 116]
               },
               {
                 "name": "Processed",
                 "unit": "packets",
                 "color": "#53D6A0",
-                "data": [
-                  68,
-                  78,
-                  75,
-                  90,
-                  99,
-                  96,
-                  107,
-                  113
-                ]
+                "data": [68, 78, 75, 90, 99, 96, 107, 113]
               }
             ]
           },
@@ -550,34 +484,10 @@
               "Elapsed"
             ],
             "rows": [
-              [
-                "JOB-031",
-                "Mineral Classification",
-                "HIGH",
-                "RUNNING",
-                "04:12"
-              ],
-              [
-                "JOB-032",
-                "Image Reconstruction",
-                "MEDIUM",
-                "QUEUED",
-                "--:--"
-              ],
-              [
-                "JOB-033",
-                "Water Chemistry",
-                "HIGH",
-                "VALIDATION",
-                "02:38"
-              ],
-              [
-                "JOB-034",
-                "Seed Viability",
-                "MEDIUM",
-                "QUEUED",
-                "--:--"
-              ]
+              ["JOB-031", "Mineral Classification", "HIGH", "RUNNING", "04:12"],
+              ["JOB-032", "Image Reconstruction", "MEDIUM", "QUEUED", "--:--"],
+              ["JOB-033", "Water Chemistry", "HIGH", "VALIDATION", "02:38"],
+              ["JOB-034", "Seed Viability", "MEDIUM", "QUEUED", "--:--"]
             ]
           },
           {
@@ -673,7 +583,7 @@
           {
             "id": "coldStorageTemperature",
             "label": "Storage Temperature",
-            "value": 4,
+            "value": 4.0,
             "unit": "°C",
             "status": "NORMAL"
           },
@@ -698,41 +608,11 @@
               "Viability Status"
             ],
             "rows": [
-              [
-                "SD-001",
-                "Leafy Crop A",
-                "240 seeds",
-                "Rack A1",
-                "TEST DUE"
-              ],
-              [
-                "SD-002",
-                "Legume Crop B",
-                "180 seeds",
-                "Rack A2",
-                "GOOD"
-              ],
-              [
-                "SD-003",
-                "Root Crop C",
-                "120 seeds",
-                "Rack B1",
-                "GOOD"
-              ],
-              [
-                "SD-004",
-                "Model Plant D",
-                "96 seeds",
-                "Rack B2",
-                "UNDER STUDY"
-              ],
-              [
-                "SD-005",
-                "Control Batch",
-                "150 seeds",
-                "Rack C1",
-                "GOOD"
-              ]
+              ["SD-001", "Leafy Crop A", "240 seeds", "Rack A1", "TEST DUE"],
+              ["SD-002", "Legume Crop B", "180 seeds", "Rack A2", "GOOD"],
+              ["SD-003", "Root Crop C", "120 seeds", "Rack B1", "GOOD"],
+              ["SD-004", "Model Plant D", "96 seeds", "Rack B2", "UNDER STUDY"],
+              ["SD-005", "Control Batch", "150 seeds", "Rack C1", "GOOD"]
             ]
           },
           {
@@ -815,31 +695,13 @@
                 "name": "Measured",
                 "unit": "°C",
                 "color": "#36C5E8",
-                "data": [
-                  4.1,
-                  4,
-                  4,
-                  4.2,
-                  4.1,
-                  4,
-                  4,
-                  4.1
-                ]
+                "data": [4.1, 4.0, 4.0, 4.2, 4.1, 4.0, 4.0, 4.1]
               },
               {
                 "name": "Reference",
                 "unit": "°C",
                 "color": "#FFB547",
-                "data": [
-                  4,
-                  4,
-                  4,
-                  4,
-                  4,
-                  4,
-                  4,
-                  4
-                ]
+                "data": [4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]
               }
             ]
           },
@@ -850,21 +712,21 @@
             "items": [
               {
                 "lotId": "SD-001",
-                "task": "No Sol 1/2 viability task configured",
+                "task": "No viability test scheduled",
                 "due": "NOT SCHEDULED",
-                "priority": "HIGH"
+                "priority": "N/A"
               },
               {
                 "lotId": "SD-004",
-                "task": "No Sol 1/2 viability task configured",
+                "task": "No viability test scheduled",
                 "due": "NOT SCHEDULED",
-                "priority": "MEDIUM"
+                "priority": "N/A"
               },
               {
                 "lotId": "SD-007",
-                "task": "No Sol 1/2 viability task configured",
+                "task": "No viability test scheduled",
                 "due": "NOT SCHEDULED",
-                "priority": "MEDIUM"
+                "priority": "N/A"
               }
             ]
           },
@@ -1015,36 +877,11 @@
               "State"
             ],
             "rows": [
-              [
-                "Water",
-                "18.5 L",
-                "18.5 L",
-                "COMPLETE"
-              ],
-              [
-                "Nutrient A",
-                "Recipe-defined",
-                "Recorded",
-                "COMPLETE"
-              ],
-              [
-                "Nutrient B",
-                "Recipe-defined",
-                "Recorded",
-                "COMPLETE"
-              ],
-              [
-                "pH Adjustment",
-                "As required",
-                "Not applied",
-                "PENDING"
-              ],
-              [
-                "Final Validation",
-                "Required",
-                "Pending",
-                "WAITING"
-              ]
+              ["Water", "18.5 L", "18.5 L", "COMPLETE"],
+              ["Nutrient A", "Recipe-defined", "Recorded", "COMPLETE"],
+              ["Nutrient B", "Recipe-defined", "Recorded", "COMPLETE"],
+              ["pH Adjustment", "As required", "Not applied", "PENDING"],
+              ["Final Validation", "Required", "Pending", "WAITING"]
             ],
             "note": "Recipe quantities are illustrative. Do not use as real crop-production or mission operating instructions."
           },
@@ -1058,27 +895,13 @@
                 "name": "pH",
                 "unit": "pH",
                 "color": "#36C5E8",
-                "data": [
-                  6.4,
-                  6.3,
-                  6.2,
-                  6.2,
-                  6.1,
-                  6.1
-                ]
+                "data": [6.4, 6.3, 6.2, 6.2, 6.1, 6.1]
               },
               {
                 "name": "Temperature",
                 "unit": "°C",
                 "color": "#FFB547",
-                "data": [
-                  20.8,
-                  21,
-                  21.2,
-                  21.3,
-                  21.4,
-                  21.4
-                ]
+                "data": [20.8, 21.0, 21.2, 21.3, 21.4, 21.4]
               }
             ]
           },
@@ -1311,16 +1134,7 @@
                 "name": "Conductivity",
                 "unit": "µS/cm",
                 "color": "#36C5E8",
-                "data": [
-                  460,
-                  448,
-                  440,
-                  435,
-                  428,
-                  420,
-                  422,
-                  420
-                ]
+                "data": [460, 448, 440, 435, 428, 420, 422, 420]
               }
             ]
           },
@@ -1510,7 +1324,7 @@
                 "label": "Chamber D",
                 "crop": "Experimental Group",
                 "state": "CHECK_REQUIRED",
-                "temperatureC": 23,
+                "temperatureC": 23.0,
                 "humidityPercent": 61,
                 "lightState": "DAY"
               }
@@ -1526,31 +1340,13 @@
                 "name": "Air Temperature",
                 "unit": "°C",
                 "color": "#FFB547",
-                "data": [
-                  21.9,
-                  22,
-                  22.1,
-                  22.3,
-                  22.2,
-                  22.4,
-                  22.4,
-                  22.4
-                ]
+                "data": [21.9, 22.0, 22.1, 22.3, 22.2, 22.4, 22.4, 22.4]
               },
               {
                 "name": "Relative Humidity",
                 "unit": "%",
                 "color": "#36C5E8",
-                "data": [
-                  56,
-                  56,
-                  57,
-                  57,
-                  58,
-                  57,
-                  58,
-                  58
-                ]
+                "data": [56, 56, 57, 57, 58, 57, 58, 58]
               }
             ]
           },
@@ -1585,41 +1381,11 @@
               "State"
             ],
             "rows": [
-              [
-                "CH-A",
-                "Canopy Height",
-                "12.4 cm",
-                "INCREASING",
-                "RECORDED"
-              ],
-              [
-                "CH-A",
-                "Leaf Count",
-                "8",
-                "INCREASING",
-                "RECORDED"
-              ],
-              [
-                "CH-B",
-                "Canopy Height",
-                "10.8 cm",
-                "INCREASING",
-                "RECORDED"
-              ],
-              [
-                "CH-C",
-                "Canopy Height",
-                "11.6 cm",
-                "STABLE",
-                "RECORDED"
-              ],
-              [
-                "CH-D",
-                "Sensor Check",
-                "REQUIRED",
-                "N/A",
-                "NOTICE"
-              ]
+              ["CH-A", "Canopy Height", "12.4 cm", "INCREASING", "RECORDED"],
+              ["CH-A", "Leaf Count", "8", "INCREASING", "RECORDED"],
+              ["CH-B", "Canopy Height", "10.8 cm", "INCREASING", "RECORDED"],
+              ["CH-C", "Canopy Height", "11.6 cm", "STABLE", "RECORDED"],
+              ["CH-D", "Sensor Check", "REQUIRED", "N/A", "NOTICE"]
             ]
           },
           {

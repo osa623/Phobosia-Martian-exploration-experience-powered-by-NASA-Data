@@ -95,7 +95,7 @@
     {
       "sectionId": "SECTION_03",
       "sectionName": "DRONE_AND_TERRAIN_OPERATIONS",
-      "purpose": "Drone and terrain displays are retained for their established roles; no target selection or flight is active in Sol 1 or Sol 2."
+      "purpose": "Drone coordination, observation-site selection, and terrain awareness."
     }
   ],
   "screens": [
@@ -160,7 +160,7 @@
             "dataSource": "missionState.objectives.active",
             "fallback": {
               "name": "Complete the Outpost Orientation checklist",
-              "description": "Inspect the existing Habitat, Hub, Engineering, Research Lab, Mission Control, and Airlock systems.",
+              "description": "Inspect the required systems and consoles across the Habitat, Central Hub, Mission Control, Research Lab, Engineering Unit, and Airlock.",
               "status": "PENDING",
               "progressPercent": 0
             }
@@ -172,27 +172,19 @@
             "dataSource": "missionState.objectives.active.checklist",
             "fallback": [
               {
-                "label": "Inspect required Habitat systems",
+                "label": "Inspect Habitat Status",
                 "completed": false
               },
               {
-                "label": "Inspect required Engineering systems",
+                "label": "Review Water and Nutrition",
                 "completed": false
               },
               {
-                "label": "Inspect required Research Lab systems",
+                "label": "Use the Habitat Workstation",
                 "completed": false
               },
               {
-                "label": "Inspect required Mission Control systems",
-                "completed": false
-              },
-              {
-                "label": "Inspect the Airlock control console",
-                "completed": false
-              },
-              {
-                "label": "Return to Habitat and rest after completing required tasks",
+                "label": "Locate the Crew Rest Area",
                 "completed": false
               }
             ]
@@ -202,7 +194,16 @@
             "type": "SCHEDULE_LIST",
             "title": "UPCOMING",
             "dataSource": "missionState.objectives.upcoming",
-            "fallback": []
+            "fallback": [
+              {
+                "title": "No upcoming objective data",
+                "status": "NOT AVAILABLE"
+              },
+              {
+                "title": "No upcoming objective data",
+                "status": "NOT AVAILABLE"
+              }
+            ]
           }
         ],
         "footer": {
@@ -238,15 +239,15 @@
       "content": {
         "header": {
           "title": "OUTPOST STATUS",
-          "subtitle": "OUTPOST SYSTEM STATUS",
-          "status": "MONITORING"
+          "subtitle": "SURFACE ASSET READINESS",
+          "status": "SIMULATED"
         },
         "primaryMetrics": [
           {
             "id": "overall_readiness",
-            "label": "OUTPOST READINESS",
+            "label": "SIMULATED OUTPOST READINESS",
             "source": "outpostState.readinessPercent",
-            "fallback": "NOT ASSESSED",
+            "fallback": 94,
             "unit": "%"
           },
           {
@@ -384,14 +385,14 @@
             "id": "science_records",
             "label": "SCIENCE RECORDS",
             "source": "scienceState.records.count",
-            "fallback": "N/A",
+            "fallback": 0,
             "unit": "RECORDS"
           },
           {
             "id": "asset_readiness",
-            "label": "ASSET READINESS",
+            "label": "SIMULATED ASSET READINESS",
             "source": "outpostState.readinessPercent",
-            "fallback": "NOT ASSESSED",
+            "fallback": 94,
             "unit": "%"
           }
         ],
@@ -406,6 +407,21 @@
                 "time": "SOL 01",
                 "event": "Outpost orientation checklist",
                 "status": "IN_PROGRESS"
+              },
+              {
+                "time": "SOL 01",
+                "event": "Habitat system overview",
+                "status": "NOT ASSESSED"
+              },
+              {
+                "time": "SOL 01",
+                "event": "Module systems overview",
+                "status": "NOT ASSESSED"
+              },
+              {
+                "time": "SOL 01",
+                "event": "Airlock safety overview",
+                "status": "NOT ASSESSED"
               }
             ]
           },
@@ -572,12 +588,12 @@
               {
                 "time": "SOL 01 / 08:10",
                 "severity": "INFO",
-                "message": "Internal orientation network check pending"
+                "message": "Internal network status refreshed."
               },
               {
                 "time": "SOL 01 / 08:16",
                 "severity": "INFO",
-                "message": "Surface relay details are not part of this Sol."
+                "message": "No additional communication event recorded for this mission phase."
               }
             ]
           }
@@ -712,12 +728,12 @@
               {
                 "time": "SOL 01",
                 "severity": "INFO",
-                "message": "Routine thermal system inspection completed"
+                "message": "System status display refreshed."
               },
               {
                 "time": "SOL 01",
                 "severity": "INFO",
-                "message": "No active critical faults in demo state"
+                "message": "No critical fault data is available in this simulated display."
               }
             ]
           }
@@ -747,7 +763,7 @@
         "vAxis": "y",
         "verifyAgainstBlender": true
       },
-      "purpose": "Show the existing drone system in standby when no flight is assigned.",
+      "purpose": "Show drone readiness, battery, mission assignment, navigation progress, and recent flight events.",
       "refreshPolicy": {
         "mode": "ON_STATE_CHANGE",
         "minimumIntervalMs": 1000
@@ -756,28 +772,28 @@
         "header": {
           "title": "DRONE OPERATIONS",
           "subtitle": "AERIAL RECONNAISSANCE",
-          "status": "NOT SCHEDULED"
+          "status": "STANDBY"
         },
         "primaryMetrics": [
           {
             "id": "drone_readiness",
             "label": "DRONE STATUS",
             "source": "droneState.status",
-            "fallback": "NOT SCHEDULED",
+            "fallback": "STANDBY",
             "unit": ""
           },
           {
             "id": "drone_battery",
             "label": "BATTERY",
             "source": "droneState.batteryPercent",
-            "fallback": "N/A",
+            "fallback": 88,
             "unit": "%"
           },
           {
             "id": "flight_progress",
             "label": "FLIGHT PROGRESS",
             "source": "droneState.mission.progressPercent",
-            "fallback": "N/A",
+            "fallback": 0,
             "unit": "%"
           }
         ],
@@ -788,16 +804,16 @@
             "title": "CURRENT FLIGHT PLAN",
             "dataSource": "droneState.mission",
             "fallback": {
-              "name": "No flight assigned",
-              "status": "NOT SCHEDULED",
-              "target": "N/A",
-              "progressPercent": "N/A"
+              "name": "Terrain Reconnaissance Alpha",
+              "status": "READY",
+              "target": "Observation Site A",
+              "progressPercent": 0
             }
           },
           {
             "id": "drone_systems",
             "type": "COMPONENT_STATUS",
-            "title": "SYSTEM DEMONSTRATION",
+            "title": "DRONE SYSTEMS",
             "dataSource": "droneState.components",
             "fallback": [
               {
@@ -823,7 +839,18 @@
             "type": "EVENT_FEED",
             "title": "FLIGHT LOG",
             "dataSource": "droneState.events",
-            "fallback": []
+            "fallback": [
+              {
+                "time": "SOL 01 / 09:20",
+                "severity": "INFO",
+                "message": "No drone flight is assigned in this mission phase."
+              },
+              {
+                "time": "SOL 01 / 09:22",
+                "severity": "INFO",
+                "message": "No flight progression is recorded."
+              }
+            ]
           }
         ],
         "footer": {
@@ -851,7 +878,7 @@
         "vAxis": "y",
         "verifyAgainstBlender": true
       },
-      "purpose": "Keep the existing observation-site display available without selecting targets during Sol 1 or Sol 2.",
+      "purpose": "List observation locations, scientific objectives, access status, and collected evidence.",
       "refreshPolicy": {
         "mode": "ON_STATE_CHANGE",
         "minimumIntervalMs": 1500
@@ -859,7 +886,7 @@
       "content": {
         "header": {
           "title": "OBSERVATION SITES",
-          "subtitle": "SITE SELECTION NOT STARTED",
+          "subtitle": "NO TARGET SELECTED",
           "status": "NOT SELECTED"
         },
         "primaryMetrics": [
@@ -867,21 +894,21 @@
             "id": "site_count",
             "label": "REGISTERED SITES",
             "source": "observationState.sites.length",
-            "fallback": "N/A",
+            "fallback": 0,
             "unit": "SITES"
           },
           {
             "id": "visited_sites",
             "label": "VISITED",
             "source": "observationState.visitedCount",
-            "fallback": "N/A",
+            "fallback": 0,
             "unit": "SITES"
           },
           {
             "id": "reports",
             "label": "REPORTS LOGGED",
             "source": "observationState.reportCount",
-            "fallback": "N/A",
+            "fallback": 0,
             "unit": "REPORTS"
           }
         ],
@@ -898,7 +925,36 @@
               "accessStatus",
               "visitStatus"
             ],
-            "fallback": []
+            "fallback": [
+              {
+                "siteId": "N/A",
+                "siteName": "No target selected",
+                "scientificTarget": "Not scheduled in this mission phase",
+                "accessStatus": "NOT ASSESSED",
+                "visitStatus": "NOT STARTED"
+              },
+              {
+                "siteId": "N/A",
+                "siteName": "No additional target selected",
+                "scientificTarget": "Not scheduled in this mission phase",
+                "accessStatus": "NOT ASSESSED",
+                "visitStatus": "NOT STARTED"
+              },
+              {
+                "siteId": "N/A",
+                "siteName": "No additional target selected",
+                "scientificTarget": "Not scheduled in this mission phase",
+                "accessStatus": "NOT ASSESSED",
+                "visitStatus": "NOT STARTED"
+              },
+              {
+                "siteId": "N/A",
+                "siteName": "No additional target selected",
+                "scientificTarget": "Not scheduled in this mission phase",
+                "accessStatus": "NOT ASSESSED",
+                "visitStatus": "NOT STARTED"
+              }
+            ]
           },
           {
             "id": "selected_site",
@@ -908,7 +964,7 @@
             "fallback": {
               "siteId": "N/A",
               "siteName": "No site selected",
-              "objective": "No site selected in this mission phase.",
+              "objective": "Target selection is not scheduled in the current mission phase.",
               "status": "NOT STARTED"
             }
           },
@@ -917,7 +973,18 @@
             "type": "EVENT_FEED",
             "title": "LATEST OBSERVATIONS",
             "dataSource": "observationState.recentReports",
-            "fallback": []
+            "fallback": [
+              {
+                "time": "SOL 01",
+                "severity": "INFO",
+                "message": "No player-generated observation recorded."
+              },
+              {
+                "time": "SOL 01",
+                "severity": "INFO",
+                "message": "No additional observation report recorded."
+              }
+            ]
           }
         ],
         "footer": {
@@ -945,7 +1012,7 @@
         "vAxis": "y",
         "verifyAgainstBlender": true
       },
-      "purpose": "Show the local scene context; no observation targets or route are selected during Sol 1 or Sol 2.",
+      "purpose": "Display a compact terrain overview, navigation markers, elevation information, and rover/drone routes.",
       "refreshPolicy": {
         "mode": "ON_STATE_CHANGE",
         "minimumIntervalMs": 2000
@@ -953,29 +1020,29 @@
       "content": {
         "header": {
           "title": "TERRAIN MAP",
-          "subtitle": "LOCAL SCENE OVERVIEW",
-          "status": "MAP AVAILABLE"
+          "subtitle": "SURFACE NAVIGATION",
+          "status": "ILLUSTRATIVE"
         },
         "primaryMetrics": [
           {
             "id": "mapped_area",
-            "label": "MAPPED AREA",
+            "label": "ILLUSTRATIVE AREA",
             "source": "terrainState.mappedAreaSquareMeters",
-            "fallback": "N/A",
-            "unit": ""
+            "fallback": 12500,
+            "unit": "m²"
           },
           {
             "id": "waypoints",
-            "label": "WAYPOINTS",
+            "label": "EXAMPLE WAYPOINTS",
             "source": "terrainState.waypointCount",
-            "fallback": "N/A",
-            "unit": ""
+            "fallback": 6,
+            "unit": "POINTS"
           },
           {
             "id": "route_risk",
             "label": "ROUTE RISK",
             "source": "terrainState.selectedRoute.risk",
-            "fallback": "NOT SELECTED",
+            "fallback": "NOT ASSESSED",
             "unit": ""
           }
         ],
@@ -998,12 +1065,12 @@
           {
             "id": "route_summary",
             "type": "STATUS_CARD",
-            "title": "SELECTED ROUTE",
+            "title": "ROUTE PREVIEW (NO SELECTION)",
             "dataSource": "terrainState.selectedRoute",
             "fallback": {
               "name": "No route selected",
-              "distanceMeters": "N/A",
-              "estimatedTravelMinutes": "N/A",
+              "distanceMeters": 420,
+              "estimatedTravelMinutes": 12,
               "risk": "NOT ASSESSED",
               "status": "NOT SELECTED"
             }
@@ -1011,7 +1078,7 @@
           {
             "id": "terrain_features",
             "type": "DATA_TABLE",
-            "title": "FEATURE REGISTER",
+            "title": "ILLUSTRATIVE FEATURES",
             "dataSource": "terrainState.features",
             "columns": [
               "featureId",
@@ -1019,7 +1086,26 @@
               "elevationMeters",
               "accessStatus"
             ],
-            "fallback": []
+            "fallback": [
+              {
+                "featureId": "TR-01",
+                "type": "Illustrative feature 1",
+                "elevationMeters": 12.4,
+                "accessStatus": "NOT ASSESSED"
+              },
+              {
+                "featureId": "DP-02",
+                "type": "Illustrative feature 2",
+                "elevationMeters": -3.2,
+                "accessStatus": "NOT ASSESSED"
+              },
+              {
+                "featureId": "RK-03",
+                "type": "Illustrative feature 3",
+                "elevationMeters": 1.8,
+                "accessStatus": "NOT ASSESSED"
+              }
+            ]
           }
         ],
         "footer": {
