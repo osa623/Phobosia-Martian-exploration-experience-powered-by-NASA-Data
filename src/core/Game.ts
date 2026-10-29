@@ -946,7 +946,15 @@ export class Game {
     this.terrain = undefined;
 
     const previous = model.getObjectByName("Runtime interaction indicators and lighting");
-    if (previous) model.remove(previous);
+    if (previous) {
+      previous.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material.dispose();
+      });
+      model.remove(previous);
+    }
 
     const additions = new THREE.Group();
     additions.name = "Runtime interaction indicators and lighting";
@@ -960,12 +968,8 @@ export class Game {
       if (route || screen) {
         const target = this.makeTarget(o, (route ?? screen)![0]);
         this.interactive.push(target);
-        this.addMarker(additions, target, Boolean(route));
-
-        // Only hide trigger cylinders, DO NOT hide actual screen displays
-        const isScreenDisplay = /screen|display|monitor/i.test(o.name) || (o.parent && /screen|display|monitor/i.test(o.parent.name));
-        if ((o as THREE.Mesh).isMesh && !isScreenDisplay) {
-          o.visible = false;
+        if (route || /trigger|spawn|entrance/i.test(o.name)) {
+          this.addHolographicMarker(additions, target, Boolean(route));
         }
       }
 
@@ -1041,19 +1045,38 @@ export class Game {
     return { object, identifier, center, range: Math.max(2.5, Math.min(4, Math.hypot(size.x, size.z) / 2 + 1)) };
   }
 
-  private addMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
-    const marker = new THREE.Mesh(
-      new THREE.OctahedronGeometry(entrance ? 0.23 : 0.16),
-      new THREE.MeshBasicMaterial({
-        color: entrance ? 0xe88747 : 0x55cde8,
-        transparent: true,
-        opacity: 0.72,
-        wireframe: true,
-        depthWrite: false
-      })
-    );
-    marker.position.copy(target.center);
-    parent.add(marker);
+  private addHolographicMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
+    const bounds = new THREE.Box3().setFromObject(target.object);
+    const size = bounds.getSize(new THREE.Vector3());
+    const radius = THREE.MathUtils.clamp(Math.hypot(size.x, size.z) * 0.42, 0.34, 1.25);
+    const color = entrance ? 0xe88747 : 0x55cde8;
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.62,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    });
+    const floorY = bounds.isEmpty() ? target.center.y : bounds.min.y + 0.035;
+    const rings = new THREE.Group();
+    rings.name = `Holographic interaction marker ${target.identifier}`;
+    rings.position.set(target.center.x, floorY, target.center.z);
+
+    const outer = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.018, 6, 48), ringMaterial);
+    outer.rotation.x = Math.PI / 2;
+    rings.add(outer);
+
+    const inner = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.72, 0.009, 5, 40), ringMaterial.clone());
+    (inner.material as THREE.MeshBasicMaterial).opacity = 0.42;
+    inner.rotation.x = Math.PI / 2;
+    rings.add(inner);
+
+    const sweep = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.012, 5, 36, Math.PI * 0.38), ringMaterial.clone());
+    sweep.rotation.x = Math.PI / 2;
+    sweep.rotation.z = Math.PI * 0.28;
+    rings.add(sweep);
+    parent.add(rings);
   }
 
   private async loadAndSpawn(route: Transition) {
@@ -1367,7 +1390,7 @@ export class Game {
     if (this.state.missionDay === 1) {
       const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
       if (group) {
-        this.missionManager.completeStep(group.taskId);
+        if (group.taskId) this.missionManager.completeStep(group.taskId);
         let targetMesh: THREE.Object3D | null = null;
         if (this.current) {
           for (const sName of group.screenObjectNames) {
@@ -1397,7 +1420,7 @@ export class Game {
         if (started) {
           this.set({
             prompt: "",
-            notification: `Task Complete: ${group.friendlyName}`,
+            notification: group.required ? `Task Complete: ${group.friendlyName}` : `Inspection Complete: ${group.friendlyName}`,
             cameraPresentation: {
               active: true,
               title: group.friendlyName,

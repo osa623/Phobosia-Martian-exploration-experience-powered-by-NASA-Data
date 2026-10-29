@@ -212,15 +212,15 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     title: "Outpost Orientation",
     storyContext: "Beginning of the 14-day Mars observation expedition. Operational systems are online.",
     briefing: "Welcome to Mars Outpost PHOBOSIA. Before commencing scientific field observations, explore the base, inspect each operational zone and system console, and complete the Day 1 orientation checklist.",
-    primaryObjective: "Explore the outpost, inspect all 22 operational displays and consoles across all modules, and complete the orientation checklist.",
-    steps: DAY1_TASKS.map(t => ({
+    primaryObjective: "Explore the outpost, inspect the required systems and consoles across all modules, and complete the 19-task orientation checklist.",
+    steps: DAY1_TASKS.filter(t => t.required).map(t => ({
       stepId: t.taskId,
       label: t.title,
       description: t.description,
       completed: false
     })),
     allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl"],
-    completionFeedback: "Outpost orientation complete. All 22 systems and consoles cataloged. Return to Habitat Rest Area to finish Day 1."
+    completionFeedback: "Outpost orientation complete. All 19 required tasks are complete. Return to Habitat Rest Area to finish Day 1."
   },
   2: {
     day: 2,
