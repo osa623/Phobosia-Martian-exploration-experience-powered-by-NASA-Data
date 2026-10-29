@@ -1,19 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import type { ModuleName } from "@/core/Game";
-
-/**
- * ============================================================================
- * SPEED TRAVEL / FAST TELEPORT DEV COMPONENT (SEPARATE REMOVABLE MODULE)
- * ============================================================================
- * 
- * To remove this after your modifications:
- * 1. Delete this file: src/components/game/SpeedTravelBar.tsx
- * 2. In src/components/game/GameViewport.tsx: remove the <SpeedTravelBar /> line and import
- * 3. In src/core/Game.ts: remove the speedTravel() method (optional)
- * ============================================================================
- */
 
 export interface SpeedTravelBarProps {
   activeModule?: string;
@@ -40,7 +28,6 @@ const MODULE_TARGETS: TargetModule[] = [
 
 export function SpeedTravelBar({ activeModule, onTravel }: SpeedTravelBarProps) {
   const [collapsed, setCollapsed] = useState(false);
-
   const isCurrent = (target: TargetModule) => {
     if (!activeModule) return false;
     const norm = activeModule.toLowerCase();
@@ -50,15 +37,7 @@ export function SpeedTravelBar({ activeModule, onTravel }: SpeedTravelBarProps) 
   return (
     <aside
       aria-label="Speed Travel Controls"
-      style={{
-        position: "fixed",
-        top: 14,
-        right: 16,
-        zIndex: 9999,
-        pointerEvents: "auto",
-        fontFamily: "var(--font-mono, monospace, sans-serif)",
-        userSelect: "none"
-      }}
+      className="fixed right-4 top-[14px] z-[9999] pointer-events-auto select-none font-mono"
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -67,159 +46,56 @@ export function SpeedTravelBar({ activeModule, onTravel }: SpeedTravelBarProps) 
           type="button"
           onClick={() => setCollapsed(false)}
           title="Open Speed Travel Teleporter"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            background: "rgba(8, 17, 27, 0.92)",
-            color: "#E5A04B",
-            border: "1px solid #E5A04B",
-            borderRadius: "6px",
-            padding: "8px 14px",
-            fontSize: "11px",
-            fontWeight: "bold",
-            letterSpacing: "0.08em",
-            cursor: "pointer",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(6px)"
-          }}
+          className="flex items-center gap-2 rounded-md border border-[#E5A04B] bg-[rgba(8,17,27,0.92)] px-[14px] py-2 text-[11px] font-bold tracking-[0.08em] text-[#E5A04B] shadow-[0_4px_16px_rgba(0,0,0,0.6)] backdrop-blur-md transition-colors hover:bg-[rgba(15,30,44,0.96)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5A04B]"
         >
           <span>⚡ SPEED TRAVEL</span>
-          <span style={{ fontSize: "9px", opacity: 0.8 }}>[SHOW ▼]</span>
+          <span className="text-[9px] opacity-80">[SHOW ▼]</span>
         </button>
       ) : (
-        <div
-          style={{
-            background: "rgba(8, 17, 27, 0.95)",
-            border: "1px solid #24394B",
-            borderRadius: "8px",
-            padding: "12px",
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(10px)",
-            width: "290px",
-            color: "#E7F0F7"
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "10px",
-              paddingBottom: "8px",
-              borderBottom: "1px solid #1B2B3A"
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ color: "#E5A04B", fontSize: "14px" }}>⚡</span>
-              <strong style={{ fontSize: "11px", letterSpacing: "0.1em", color: "#E5A04B" }}>
-                SPEED TRAVEL
-              </strong>
-              <span
-                style={{
-                  fontSize: "9px",
-                  background: "#1E3042",
-                  color: "#92A9BC",
-                  padding: "1px 5px",
-                  borderRadius: "3px"
-                }}
-              >
-                DEV
-              </span>
+        <div className="w-[290px] rounded-lg border border-[#24394B] bg-[rgba(8,17,27,0.95)] p-3 text-[#E7F0F7] shadow-[0_8px_32px_rgba(0,0,0,0.75)] backdrop-blur-lg">
+          <div className="mb-[10px] flex items-center justify-between border-b border-[#1B2B3A] pb-2">
+            <div className="flex items-center gap-[6px]">
+              <span className="text-[14px] text-[#E5A04B]">⚡</span>
+              <strong className="text-[11px] tracking-[0.1em] text-[#E5A04B]">SPEED TRAVEL</strong>
+              <span className="rounded-[3px] bg-[#1E3042] px-[5px] py-px text-[9px] text-[#92A9BC]">DEV</span>
             </div>
             <button
               type="button"
               onClick={() => setCollapsed(true)}
               title="Minimize panel"
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#92A9BC",
-                fontSize: "11px",
-                cursor: "pointer",
-                padding: "2px 6px"
-              }}
+              className="cursor-pointer border-0 bg-transparent px-[6px] py-[2px] text-[11px] text-[#92A9BC] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E5A04B]"
             >
               ▲ Hide
             </button>
           </div>
-
-          {/* Buttons List */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {MODULE_TARGETS.map((t) => {
-              const current = isCurrent(t);
+          <div className="flex flex-col gap-[6px]">
+            {MODULE_TARGETS.map((target) => {
+              const current = isCurrent(target);
               return (
                 <button
-                  key={t.id}
+                  key={target.id}
                   type="button"
-                  onClick={() => onTravel(t.id)}
-                  title={`Teleport directly to ${t.name}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "7px 10px",
-                    background: current ? "rgba(91, 198, 154, 0.15)" : "#111F2C",
-                    border: current ? "1px solid #5BC69A" : "1px solid #24394B",
-                    borderRadius: "5px",
-                    color: current ? "#5BC69A" : "#E7F0F7",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    transition: "all 0.15s ease",
-                    outline: "none"
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!current) {
-                      e.currentTarget.style.background = "#182C3E";
-                      e.currentTarget.style.borderColor = "#E5A04B";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!current) {
-                      e.currentTarget.style.background = "#111F2C";
-                      e.currentTarget.style.borderColor = "#24394B";
-                    }
-                  }}
+                  onClick={() => onTravel(target.id)}
+                  title={`Teleport directly to ${target.name}`}
+                  className={`flex items-center justify-between rounded-[5px] border px-[10px] py-[7px] text-left text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#E5A04B] ${current ? "border-[#5BC69A] bg-[rgba(91,198,154,0.15)] text-[#5BC69A]" : "border-[#24394B] bg-[#111F2C] text-[#E7F0F7] hover:border-[#E5A04B] hover:bg-[#182C3E]"}`}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "13px" }}>{t.icon}</span>
-                    <div>
-                      <div style={{ fontWeight: current ? "bold" : "normal" }}>{t.name}</div>
-                      <div style={{ fontSize: "9px", color: current ? "#87E3BC" : "#92A9BC" }}>
-                        {t.description}
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: "bold",
-                      padding: "2px 6px",
-                      borderRadius: "3px",
-                      background: current ? "#5BC69A" : "#1B2B3A",
-                      color: current ? "#08111B" : "#92A9BC"
-                    }}
-                  >
+                  <span className="flex items-center gap-2">
+                    <span className="text-[13px]">{target.icon}</span>
+                    <span>
+                      <span className={current ? "block font-bold" : "block font-normal"}>{target.name}</span>
+                      <span className={`block text-[9px] ${current ? "text-[#87E3BC]" : "text-[#92A9BC]"}`}>
+                        {target.description}
+                      </span>
+                    </span>
+                  </span>
+                  <span className={`rounded-[3px] px-[6px] py-[2px] text-[9px] font-bold ${current ? "bg-[#5BC69A] text-[#08111B]" : "bg-[#1B2B3A] text-[#92A9BC]"}`}>
                     {current ? "CURRENT" : "WARP"}
                   </span>
                 </button>
               );
             })}
           </div>
-
-          {/* Footer note */}
-          <div
-            style={{
-              marginTop: "10px",
-              paddingTop: "6px",
-              borderTop: "1px solid #1B2B3A",
-              fontSize: "9px",
-              color: "#92A9BC",
-              textAlign: "center"
-            }}
-          >
+          <div className="mt-[10px] border-t border-[#1B2B3A] pt-[6px] text-center text-[9px] text-[#92A9BC]">
             Direct teleport • Bypass video transitions
           </div>
         </div>

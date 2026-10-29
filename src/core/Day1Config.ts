@@ -19,9 +19,6 @@ export type Day1TaskId =
   | "D1_HAB_WATER_NUTRITION"
   | "D1_HAB_WORKSTATION"
   | "D1_HAB_REST_INTRODUCTION"
-  | "D1_HUB_ENVIRONMENT_STATUS"
-  | "D1_HUB_INTERNAL_COMMUNICATIONS"
-  | "D1_HUB_MODULE_STATUS"
   | "D1_ENG_MONITORING"
   | "D1_ENG_POWER"
   | "D1_ENG_LIFE_SUPPORT"
@@ -59,7 +56,7 @@ export interface Day1InteractionGroupDefinition {
   cameraFraming?: string;
   cameraDurationSeconds: number;
   interactionMode: string;
-  taskId: Day1TaskId;
+  taskId?: Day1TaskId;
   required: boolean;
 }
 
@@ -116,33 +113,6 @@ export const DAY1_TASKS: Day1TaskDefinition[] = [
     required: true,
     completionEvent: "DAY1_TASK_COMPLETED",
     dayTransitionOnTaskCompletion: false
-  },
-  {
-    taskId: "D1_HUB_ENVIRONMENT_STATUS",
-    title: "Inspect Environment Status",
-    description: "Review the Central Hub environment-status display.",
-    zoneId: "CENTRAL_HUB",
-    interactionGroupId: "HUB_ENVIRONMENT_STATUS",
-    required: true,
-    completionEvent: "DAY1_TASK_COMPLETED"
-  },
-  {
-    taskId: "D1_HUB_INTERNAL_COMMUNICATIONS",
-    title: "Inspect Internal Communications",
-    description: "Review the Central Hub internal communications display.",
-    zoneId: "CENTRAL_HUB",
-    interactionGroupId: "HUB_INTERNAL_COMMUNICATIONS",
-    required: true,
-    completionEvent: "DAY1_TASK_COMPLETED"
-  },
-  {
-    taskId: "D1_HUB_MODULE_STATUS",
-    title: "Inspect Module Status",
-    description: "Review the outpost module-status display.",
-    zoneId: "CENTRAL_HUB",
-    interactionGroupId: "HUB_MODULE_STATUS",
-    required: true,
-    completionEvent: "DAY1_TASK_COMPLETED"
   },
   {
     taskId: "D1_ENG_MONITORING",
@@ -378,8 +348,7 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
         cameraFraming: "A short horizontal presentation of the existing display.",
         cameraDurationSeconds: 3,
         interactionMode: "InspectScreen",
-        taskId: "D1_HUB_ENVIRONMENT_STATUS",
-        required: true
+        required: false
       },
       {
         id: "HUB_INTERNAL_COMMUNICATIONS",
@@ -391,8 +360,7 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
         cameraFraming: "A horizontal view that accommodates the tall display.",
         cameraDurationSeconds: 3,
         interactionMode: "InspectScreen",
-        taskId: "D1_HUB_INTERNAL_COMMUNICATIONS",
-        required: true
+        required: false
       },
       {
         id: "HUB_MODULE_STATUS",
@@ -404,8 +372,7 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
         cameraFraming: "A short horizontal presentation of the existing display.",
         cameraDurationSeconds: 3,
         interactionMode: "InspectScreen",
-        taskId: "D1_HUB_MODULE_STATUS",
-        required: true
+        required: false
       }
     ]
   },
@@ -706,18 +673,21 @@ export const MODULE_TO_ZONE_MAP: Record<string, Day1ZoneId> = {
   Airlock: "AIRLOCK"
 };
 
+/** Per-entrance travel key. Omitted entries continue to use the game's E key. */
+export const ENTRANCE_INTERACTION_KEYS: Record<string, "E" | "Q"> = {};
+
 export const ZONE_TO_INTRO_MAP: Record<Day1ZoneId, Day1ZoneDefinition["introduction"]> = {} as any;
 
 for (const zone of DAY1_ZONES) {
   ZONE_TO_INTRO_MAP[zone.zoneId] = zone.introduction;
   for (const group of zone.interactionGroups) {
     if (group.triggerObjectName) {
-      TRIGGER_TO_TASK_MAP[group.triggerObjectName] = group.taskId;
+      if (group.taskId) TRIGGER_TO_TASK_MAP[group.triggerObjectName] = group.taskId;
       TRIGGER_TO_GROUP_MAP[group.triggerObjectName] = group;
     }
     // Also index individual screen names for mesh direct hits
     for (const screenName of group.screenObjectNames) {
-      if (!TRIGGER_TO_TASK_MAP[screenName]) {
+      if (group.taskId && !TRIGGER_TO_TASK_MAP[screenName]) {
         TRIGGER_TO_TASK_MAP[screenName] = group.taskId;
       }
       if (!TRIGGER_TO_GROUP_MAP[screenName]) {
