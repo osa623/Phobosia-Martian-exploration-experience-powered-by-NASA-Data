@@ -2233,32 +2233,33 @@ test('AT_D1_007: Skipping a presentation does not complete its associated task',
   assert.strictEqual(mm.isStepComplete('D1_HAB_WATER_NUTRITION'), false);
 });
 
-test('AT_D1_008: Revisiting a section preserves completion and prevents duplicate progress', () => {
+test('AT_D1_008: Removed Central Hub inspections remain interactive but do not count as required tasks', () => {
   mockStorage.clear();
   const mm = new MissionManager();
 
   const res1 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
-  assert.strictEqual(res1, true);
-  assert.strictEqual(mm.isStepComplete('D1_HUB_ENVIRONMENT_STATUS'), true);
-  assert.strictEqual(mm.getState().completedStepIds.length, 1);
+  assert.strictEqual(res1, false);
+  assert.strictEqual(mm.isStepComplete('D1_HUB_ENVIRONMENT_STATUS'), false);
+  assert.strictEqual(mm.getCurrentMission().steps.length, 19);
+  assert(TRIGGER_TO_GROUP_MAP['Env_Status_Display'], 'Environment status trigger must remain configured');
+  assert.strictEqual(TRIGGER_TO_TASK_MAP['Env_Status_Display'], undefined, 'Removed inspections must not map to a Sol 1 task');
 
-  // Second interaction must not duplicate
   const res2 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
   assert.strictEqual(res2, false);
-  assert.strictEqual(mm.getState().completedStepIds.length, 1);
+  assert.strictEqual(mm.getState().completedStepIds.length, 0);
 });
 
 test('AT_D1_009: Rest trigger is blocked while required Day 1 tasks remain incomplete', () => {
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Only complete 1 of 22 tasks
+  // Only complete 1 of 19 required tasks
   mm.completeStep('D1_HAB_LIFE_SUPPORT');
 
   const check = mm.canRestAndAdvance();
   assert.strictEqual(check.canAdvance, false);
   assert.strictEqual(check.reason.includes('Complete the remaining outpost orientation tasks before resting'), true);
-  assert.strictEqual(check.reason.includes('21 of 22 tasks remaining'), true);
+  assert.strictEqual(check.reason.includes('18 of 19 tasks remaining'), true);
 
   const adv = mm.advanceDay();
   assert.strictEqual(adv.success, false);
@@ -2269,12 +2270,12 @@ test('AT_D1_010: Player rests after completing every required task, advancing to
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Complete all 22 tasks
-  for (const t of DAY1_TASKS) {
+  // Complete all 19 required tasks
+  for (const t of DAY1_TASKS.filter(task => task.required)) {
     mm.completeStep(t.taskId);
   }
 
-  assert.strictEqual(mm.getState().completedStepIds.length, 22);
+  assert.strictEqual(mm.getState().completedStepIds.length, 19);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
 
   const check = mm.canRestAndAdvance();
@@ -2315,13 +2316,13 @@ test('AT_D1_011: Unresolved target fallback runs presentation without camera mot
   assert.strictEqual(manager.isPresentationActive(), false);
 });
 
-test('AT_D1_012: All 22 tasks are uniquely configured, mapped, and validated', () => {
-  assert.strictEqual(DAY1_TASKS.length, 22, 'Must have exactly 22 Day 1 orientation tasks');
+test('AT_D1_012: 19 required tasks are uniquely configured, mapped, and validated', () => {
+  assert.strictEqual(DAY1_TASKS.length, 19, 'Only required Sol 1 tasks should be defined');
   const taskSet = new Set(DAY1_TASKS.map(t => t.taskId));
-  assert.strictEqual(taskSet.size, 22, 'All 22 task IDs must be unique');
+  assert.strictEqual(taskSet.size, 19, 'All task IDs must be unique');
 
   const day1Steps = DAYS_CONFIG[1].steps;
-  assert.strictEqual(day1Steps.length, 22, 'DAYS_CONFIG[1].steps must define all 22 tasks');
+  assert.strictEqual(day1Steps.length, 19, 'DAYS_CONFIG[1].steps must contain only required tasks');
 
   // Verify all zones are accounted for
   assert.strictEqual(DAY1_ZONES.length, 6, 'Must define all 6 outpost zones');

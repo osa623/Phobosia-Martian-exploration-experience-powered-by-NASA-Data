@@ -271,7 +271,7 @@
           "interactionMode": "InspectScreen",
           "taskId": "D1_HUB_ENVIRONMENT_STATUS",
           "completionCondition": "The player completes the configured inspection interaction.",
-          "required": true
+          "required": false
         },
         {
           "id": "HUB_INTERNAL_COMMUNICATIONS",
@@ -295,7 +295,7 @@
           "interactionMode": "InspectScreen",
           "taskId": "D1_HUB_INTERNAL_COMMUNICATIONS",
           "completionCondition": "The player completes the configured inspection interaction.",
-          "required": true
+          "required": false
         },
         {
           "id": "HUB_MODULE_STATUS",
@@ -319,7 +319,7 @@
           "interactionMode": "InspectScreen",
           "taskId": "D1_HUB_MODULE_STATUS",
           "completionCondition": "The player completes the configured inspection interaction.",
-          "required": true
+          "required": false
         }
       ]
     },
@@ -926,7 +926,7 @@
       "description": "Review the Central Hub environment-status display.",
       "zoneId": "CENTRAL_HUB",
       "interactionGroupId": "HUB_ENVIRONMENT_STATUS",
-      "required": true,
+      "required": false,
       "completionEvent": "DAY1_TASK_COMPLETED"
     },
     {
@@ -935,7 +935,7 @@
       "description": "Review the Central Hub internal communications display.",
       "zoneId": "CENTRAL_HUB",
       "interactionGroupId": "HUB_INTERNAL_COMMUNICATIONS",
-      "required": true,
+      "required": false,
       "completionEvent": "DAY1_TASK_COMPLETED"
     },
     {
@@ -944,7 +944,7 @@
       "description": "Review the outpost module-status display.",
       "zoneId": "CENTRAL_HUB",
       "interactionGroupId": "HUB_MODULE_STATUS",
-      "required": true,
+      "required": false,
       "completionEvent": "DAY1_TASK_COMPLETED"
     },
     {
