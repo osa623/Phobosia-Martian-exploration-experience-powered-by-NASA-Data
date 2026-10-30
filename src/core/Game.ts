@@ -1482,8 +1482,10 @@ export class Game {
       }
     }
 
-    // 4. Research Lab Day 8 Analysis Interaction
+    // 4. Sol 8 Research Lab analysis sequence. Sol 3 uses the same physical
+    // analysis trigger for its dataset investigation through TriggerOperatingSystem.
     if (
+      this.state.missionDay === 8 &&
       this.active === "Science" &&
       (this.nearby.identifier === "LAB_RESEARCH_ANALYSIS_01" || this.nearby.identifier === "LAB_RESEARCH_MONITORING_01")
     ) {

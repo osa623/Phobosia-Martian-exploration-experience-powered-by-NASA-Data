@@ -659,7 +659,9 @@ export class MissionManager {
     if (input.taskId === "SOL03_MISSION_CONTEXT" && !this.state.investigationRecords.some(record => record.taskId === "SOL02_READINESS_ASSESSMENT")) return { success: false, message: "A saved Sol 2 readiness assessment is required for this context review." };
     if (input.taskId === "SOL03_SYSTEM_CONSTRAINTS" && !input.evidenceReferences.includes("SOL03-COMMS-SYSTEMS")) return { success: false, message: "Reference the available communications and systems record." };
     if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && MASTER_TERRAIN_TARGETS.filter(t => input.evidenceReferences.includes(`TARGET:${t.id}`)).length < 2) return { success: false, message: "Compare and reference at least two available target profiles." };
-    if (input.taskId === "SOL03_SELECT_TARGET" && !input.evidenceReferences.includes(`TARGET:${input.selectedTargetId}`)) return { success: false, message: "Reference the selected target profile as supporting evidence." };
+    // Selecting a target is itself an explicit reference to that catalogue profile.
+    // The canonical target reference is appended to the saved record below, so do
+    // not require the player to make a second, hidden checkbox selection.
     if ((input.taskId === "SOL03_SELECT_TARGET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && !input.scientificQuestion?.trim()) return { success: false, message: "Enter a focused scientific question for this target proposal." };
     if (input.taskId === "SOL03_SELECT_DATASET" && !input.evidenceReferences.includes(`DATASET:${input.datasetId}`)) return { success: false, message: "Reference the selected dataset metadata record." };
     const prior = this.state.investigationRecords;
