@@ -23,7 +23,7 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
-import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
+import { DAYS_CONFIG, getMissionTaskProgressFor, type MissionDayNumber } from "./MissionManager";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 
 export interface MissionControlScreenPanel {
@@ -387,8 +387,9 @@ export class MissionControlScreenRenderer {
     const day = Math.min(9, Math.max(1, this.missionSol)) as MissionDayNumber;
     const mission = DAYS_CONFIG[day];
     const completedIds = this.missionState?.completedStepIds ?? [];
-    const completed = mission.steps.filter(step => completedIds.includes(step.stepId)).length;
-    const total = mission.steps.length;
+    const taskProgress = getMissionTaskProgressFor(day, completedIds);
+    const completed = taskProgress.completed;
+    const total = taskProgress.total;
     const percent = total ? Math.round((completed / total) * 100) : 0;
     const state = this.missionState?.objectiveState ?? "in_progress";
 

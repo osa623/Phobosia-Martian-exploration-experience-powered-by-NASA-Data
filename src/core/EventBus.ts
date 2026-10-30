@@ -4,6 +4,7 @@ import type {
   ScienceAnalysisRecord,
   DroneSurveyRecord
 } from "./MissionManager";
+import type { ResolvedMissionNavigation } from "../systems/navigation/missionNavigation";
 
 export type TransitionPhase = "" | "loading" | "video" | "error";
 
@@ -44,6 +45,7 @@ export interface GameState {
   showRoutePlanning: boolean;
   selectedRouteTargetId: string | null;
   notification: string | null;
+  navigationInstruction: ResolvedMissionNavigation | null;
   restFeedback: {
     type: "success" | "blocked";
     message: string;

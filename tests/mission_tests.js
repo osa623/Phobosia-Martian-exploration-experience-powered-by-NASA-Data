@@ -39,8 +39,9 @@ global.localStorage = {
   clear: () => mockStorage.clear()
 };
 
-const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = require('../dist/core/MissionManager.js');
+const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS, getMissionTaskProgressFor } = require('../dist/core/MissionManager.js');
 const { MissionManager } = require('../dist/core/MissionManager.js');
+const { resolveNextMissionNavigation, normalizeValidatedTaskIds } = require('../dist/systems/navigation/missionNavigation.js');
 const THREE = require('three');
 const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/core/Collision.js');
 
@@ -102,6 +103,47 @@ function test(name, fn) {
 }
 
 console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');
+
+test('Mission progress counts unique mission tasks rather than saved steps from prior Sols', () => {
+  const sol2 = getMissionTaskProgressFor(2, ['D1_HAB_LIFE_SUPPORT', 'SOL02_HABITAT_STATUS', 'SOL02_HABITAT_STATUS']);
+  assert.deepStrictEqual(sol2, { completed: 1, total: 7, remaining: 6 });
+  const sol4 = getMissionTaskProgressFor(4, ['DAY4_REACH_RELEVANT_MODULE']);
+  assert.deepStrictEqual(sol4, { completed: 0, total: 1, remaining: 1 });
+  const sol4Complete = getMissionTaskProgressFor(4, DAYS_CONFIG[4].steps.map(step => step.stepId));
+  assert.deepStrictEqual(sol4Complete, { completed: 1, total: 1, remaining: 0 });
+});
+
+test('Sol 2 and Sol 3 navigation instructions cover required JSON tasks and keep player names free of implementation IDs', () => {
+  for (const sol of [2, 3]) {
+    const mission = require(`../src/jsons/Missions/sol-0${sol}.json`);
+    const navigation = require(`../src/jsons/Instructions/sol-0${sol}-navigation.json`);
+    const requiredIds = mission.missionCompletion.requiredTasks;
+    assert.deepStrictEqual(navigation.instructions.map(item => item.taskId).sort(), [...requiredIds].sort());
+    const serializedPlayerContent = JSON.stringify(navigation.instructions.map(({ taskId, ...content }) => content));
+    assert(!/(HAB_MONITOR_01|HAB_WATER_NUTRITION_01|Engineering_[A-Za-z_]+_Trigger|MC_[A-Z_]+_01|LAB_[A-Z_]+_01|_Display|Screen)/.test(serializedPlayerContent));
+  }
+});
+
+test('Navigation selects the next available task, respects dependencies, and maps only validated runtime aliases', () => {
+  assert.strictEqual(resolveNextMissionNavigation(2, []).taskId, 'SOL02_HABITAT_MAIN_STATUS');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_SYSTEM_CONSTRAINTS');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS']).taskId, 'SOL03_SELECT_TARGET');
+  assert(normalizeValidatedTaskIds(3, ['SOL03_SELECT_DATASET']).includes('SOL03_DATASET_ANALYSIS'));
+  const runtimeSol2Complete = ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION', 'SOL02_ENGINEERING_MONITORING', 'SOL02_POWER_REVIEW', 'SOL02_ENGINEERING_LIFESUPPORT', 'SOL02_DIAGNOSTICS', 'SOL02_READINESS_ASSESSMENT'];
+  assert.strictEqual(resolveNextMissionNavigation(2, runtimeSol2Complete).taskId, 'SOL02_HABITAT_LIFE_SUPPORT');
+});
+
+test('A newly validated Sol 2 task refreshes the existing mission notification once; duplicates do not repeat it', () => {
+  mockStorage.clear();
+  mockStorage.set('phobosia_mission_progress_v4', JSON.stringify({ currentDay: 2, completedStepIds: [], completedIntroductionIds: [], investigationRecords: [] }));
+  const mm = new MissionManager();
+  assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), true);
+  const next = mm.getState().notification;
+  assert(next && next.includes('Habitat Life Support Section'));
+  assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), false);
+  assert.strictEqual(mm.getState().notification, next);
+});
 
 // P2-001: Initial State
 test('Initial state is Day 1 with in_progress status', () => {

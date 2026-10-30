@@ -1,0 +1,62 @@
+{
+  "sol": 3,
+  "missionId": "PHOBOSIA_SOL_03",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "SOL03_MISSION_CONTEXT",
+      "title": "Review Mission Objectives and Outpost Status",
+      "message": "Start at the Mission Control operations station.",
+      "guidance": "Review the current objective, mission context, and available Sol 2 readiness report. Note constraints relevant to planning.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Operations Station" },
+      "activity": "Use the existing Mission Control main interface and submit the context review."
+    },
+    {
+      "taskId": "SOL03_OBSERVATION_SITE_REVIEW",
+      "title": "Explore Mars Observation Sites",
+      "message": "Proceed to the Mission Control navigation station.",
+      "guidance": "Inspect available site profiles and metadata. Compare at least two candidates and record known uncertainties and limitations.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
+      "activity": "Use the existing observation-site view and submit the site comparison."
+    },
+    {
+      "taskId": "SOL03_SYSTEM_CONSTRAINTS",
+      "title": "Review Communications and Operational Constraints",
+      "message": "Review communications and system information in Mission Control.",
+      "guidance": "Check available operational constraints and relevant records, then explain how they affect observation planning.",
+      "destination": { "name": "Mission Control Systems Station", "module": "Mission Control", "section": "Communications and Systems" },
+      "activity": "Use the existing systems interface and submit the constraints review."
+    },
+    {
+      "taskId": "SOL03_SELECT_TARGET",
+      "title": "Define the Scientific Observation Target",
+      "message": "Return to the observation-site information and define a target.",
+      "guidance": "Select an available site, write a focused scientific question, reference supporting records, and state the known uncertainties.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
+      "activity": "Submit the target definition through the existing navigation interface.",
+      "requiresCompletedTasks": ["SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS"]
+    },
+    {
+      "taskId": "SOL03_DATASET_ANALYSIS",
+      "title": "Investigate and Select a Scientific Dataset",
+      "message": "Proceed to the Research Analysis Station.",
+      "guidance": "Inspect the available dataset metadata and provenance. Evaluate its relevance to your question and record limitations. Available training metadata is not a measurement dataset.",
+      "destination": { "name": "Research Analysis Station", "module": "Research Lab", "section": "Analysis Station" },
+      "activity": "Select and assess the available catalogue record in the existing analysis interface.",
+      "requiresCompletedTasks": ["SOL03_SELECT_TARGET"]
+    },
+    {
+      "taskId": "SOL03_SUBMIT_TARGET_PROPOSAL",
+      "title": "Submit the Scientific Observation Proposal",
+      "message": "Return to Mission Control to review and submit the proposal.",
+      "guidance": "Review the target, scientific question, dataset, evidence references, operational constraints, and limitations before submitting.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Proposal Review" },
+      "activity": "Submit the validated proposal through the existing Mission Control interface.",
+      "requiresCompletedTasks": ["SOL03_MISSION_CONTEXT", "SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS", "SOL03_SELECT_TARGET", "SOL03_DATASET_ANALYSIS"]
+    }
+  ],
+  "completion": {
+    "title": "Sol 3 Required Activities Complete",
+    "message": "All mandatory Sol 3 activities are complete. Return to the Habitat Rest Area and use the existing rest interaction to conclude the Sol."
+  }
+}

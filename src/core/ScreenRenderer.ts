@@ -12,6 +12,7 @@ import {
   type MissionProgressState,
   type MissionDayNumber,
   DAYS_CONFIG,
+  getMissionTaskProgressFor,
   MASTER_TERRAIN_TARGETS
 } from "./MissionManager";
 import { reprojectPlanarUVs, type PlanarUVOptions } from "./Collision";
@@ -384,10 +385,11 @@ export class ScreenRenderer {
 
     ctx.fillStyle = state.objectiveState === "completed" ? "#44d788" : "#f1b344";
     ctx.font = "bold 15px monospace";
+    const taskProgress = getMissionTaskProgressFor(state.currentDay, state.completedStepIds);
     const statusText =
       state.objectiveState === "completed"
         ? "OBJECTIVE VALIDATED — READY FOR REST PERIOD"
-        : `IN PROGRESS (${state.completedStepIds.length} / ${mission.steps.length} STEPS COMPLETED)`;
+        : `IN PROGRESS (${taskProgress.completed} / ${taskProgress.total} TASKS COMPLETED)`;
     ctx.fillText(statusText, 44, 360);
   }
 

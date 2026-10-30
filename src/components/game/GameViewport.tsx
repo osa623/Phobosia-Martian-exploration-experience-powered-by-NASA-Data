@@ -38,6 +38,7 @@ const initialState: GameState = {
   showRoutePlanning: false,
   selectedRouteTargetId: null,
   notification: null,
+  navigationInstruction: null,
   restFeedback: null,
   restTransition: null,
 
@@ -120,11 +121,11 @@ export function GameViewport() {
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
-      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove) */}
+      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove)
       <SpeedTravelBar
         activeModule={state.module}
         onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
-      />
+      />  */}
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
       {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
         <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:5] [box-shadow:inset_0_0_120px_40px_rgba(0,_0,_0,_0.75),_inset_0_0_40px_rgba(10,_25,_35,_0.6)]" aria-hidden="true">
@@ -171,12 +172,26 @@ export function GameViewport() {
               />
             </div>
             <div className="[margin-top:6px] text-[11px] font-mono [color:#87a4af]">
-              {state.completedStepCount} / {state.totalStepCount} {state.missionDay === 1 ? "TASKS COMPLETED" : "STEPS"}
+              {state.completedStepCount} / {state.totalStepCount} {"TASKS COMPLETED"}
               {state.objectiveState === "completed" && (
                 <span className="[color:#44d788] [font-weight:bold]"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
               )}
             </div>
           </div>
+        )}
+
+        {state.navigationInstruction && !state.droneModeActive && (
+          <section className="[position:absolute] [top:72px] [right:24px] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
+            <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
+              <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
+              {state.navigationInstruction.isCompletion ? "SOL OBJECTIVE COMPLETE" : "NEXT MISSION ACTIVITY"}
+            </div>
+            <div className="[margin-top:6px] font-kdam-thmor-pro font-bold [font-size:20px] [font-weight:600] [line-height:1.3] [color:#f0f6f7]">{state.navigationInstruction.title}</div>
+            {state.navigationInstruction.destinationName && <div className="[margin-top:5px] [font-size:12px] font-bricolage-grotesque [font-weight:600] [color:#e6a36e]">{state.navigationInstruction.destinationName}</div>}
+            {state.navigationInstruction.message && <div className="[margin-top:4px] [font-size:12px] [line-height:1.4] [color:#d7e6eb]">{state.navigationInstruction.message}</div>}
+            {state.navigationInstruction.guidance && <div className="[margin-top:4px] [font-size:11px] [line-height:1.45] [color:#a9c0ca]">{state.navigationInstruction.guidance}</div>}
+            {state.navigationInstruction.activity && <div className="[margin-top:6px] [font-size:11px] [line-height:1.4] [color:#eaf3f5]"><span className="[color:#55cde8]">ACTION</span> · {state.navigationInstruction.activity}</div>}
+          </section>
         )}
 
         {/* Standard Reticle (only when not in drone mode) */}
@@ -186,7 +201,7 @@ export function GameViewport() {
         {state.prompt && <div className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
 
         {/* Event Notification Toast */}
-        {state.notification && (
+        {state.notification && state.notification !== state.navigationInstruction?.notification && (
           <div className="[position:absolute] [top:24px] [left:50%] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
             <div className="text-[10px] font-bold font-mono [color:#44d788] [letter-spacing:0.14em]">MISSION EVENT</div>
             <div className="[font-size:13px] [color:#eaf2f4]">{state.notification}</div>

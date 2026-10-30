@@ -156,7 +156,7 @@ export class Game {
 
     const mission = this.missionManager.getCurrentMission();
     const mState = this.missionManager.getState();
-    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
+    const taskProgress = this.missionManager.getMissionTaskProgress();
 
     this.state = {
       ready: false,
@@ -173,10 +173,8 @@ export class Game {
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: day1RequiredTasks
-        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
-        : mState.completedStepIds.length,
-      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
+      completedStepCount: taskProgress.completed,
+      totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
       briefingText: mission.briefing,
@@ -185,7 +183,8 @@ export class Game {
       isOutdoorTerrain: false,
       showRoutePlanning: false,
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
-      notification: mState.notification,
+      notification: mState.notification ?? this.missionManager.getCurrentNavigationNotification(),
+      navigationInstruction: this.missionManager.getCurrentNavigationInstruction(),
       restFeedback: null,
       restTransition: null,
 
@@ -244,22 +243,21 @@ export class Game {
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
     const mission = this.missionManager.getCurrentMission();
-    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
+    const taskProgress = this.missionManager.getMissionTaskProgress();
     this.set({
       missionDay: mState.currentDay,
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: day1RequiredTasks
-        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
-        : mState.completedStepIds.length,
-      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
+      completedStepCount: taskProgress.completed,
+      totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
       briefingText: mission.briefing,
       primaryObjective: mission.primaryObjective,
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
       notification: mState.notification,
+      navigationInstruction: this.missionManager.getCurrentNavigationInstruction(),
       geologicalSurvey: mState.geologicalSurvey,
       surfaceObservation: mState.surfaceObservation,
       scienceAnalysis: mState.scienceAnalysis,

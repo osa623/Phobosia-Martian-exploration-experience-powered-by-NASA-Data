@@ -5,9 +5,10 @@
  * observation/verification/survey record persistence, and guarded rest-based day progression.
  */
 
-import { DAY1_TASKS, TRIGGER_TO_TASK_MAP } from "./Day1Config";
+import { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP } from "./Day1Config";
 import { SOL2_INVESTIGATION_RULES } from "../missions/sol-02/taskDefinitions";
 import { SOL3_DATASET_IDS } from "../missions/sol-03/taskDefinitions";
+import { resolveNextMissionNavigation } from "../systems/navigation/missionNavigation";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -21,6 +22,53 @@ export interface MissionStep {
   targetTrigger?: string;
   completed: boolean;
 }
+
+export interface MissionTaskCard {
+  id: string;
+  title: string;
+  description: string;
+  status: "locked" | "available" | "in_progress" | "completed";
+  steps: MissionStep[];
+  targetTrigger?: string;
+  moduleName: string;
+  sectionName: string;
+  interfaceName: string;
+  viewName?: string;
+  prerequisiteTaskTitles: string[];
+}
+
+const TRIGGER_GUIDANCE: Record<string, { moduleName: string; sectionName: string; interfaceName: string; viewName?: string }> = {
+  HAB_MONITOR_01: { moduleName: "Habitat", sectionName: "Main Monitor", interfaceName: "Habitat Main Monitor" },
+  HAB_WATER_NUTRITION_01: { moduleName: "Habitat", sectionName: "Water and Nutrition Station", interfaceName: "Water and Nutrition" },
+  Engineering_Monitoring_Trigger: { moduleName: "Engineering Unit", sectionName: "Monitoring Section", interfaceName: "Engineering Monitoring" },
+  Engineering_PowerUnit_Trigger: { moduleName: "Engineering Unit", sectionName: "Power Unit", interfaceName: "Power Unit Interface" },
+  Engineering_LifeSupport_Trigger: { moduleName: "Engineering Unit", sectionName: "Life Support Section", interfaceName: "Engineering Life Support" },
+  Engineering_Diagnostics_Trigger: { moduleName: "Engineering Unit", sectionName: "Diagnostics Workbench", interfaceName: "Diagnostics Interface" },
+  Engineering_InfoDisplay_Trigger: { moduleName: "Engineering Unit", sectionName: "Storage Section", interfaceName: "Storage Interface" },
+  MC_MAIN_01: { moduleName: "Mission Control", sectionName: "Main Operations Console", interfaceName: "Mission Control Main" },
+  MC_SYSTEMS_01: { moduleName: "Mission Control", sectionName: "Systems Console", interfaceName: "Mission Control Systems" },
+  MC_NAVIGATION_01: { moduleName: "Mission Control", sectionName: "Navigation Console", interfaceName: "Mission Control Navigation" },
+  LAB_RESEARCH_ANALYSIS_01: { moduleName: "Research Laboratory", sectionName: "Analysis Station", interfaceName: "Research Analysis" },
+  LAB_RESEARCH_MONITORING_01: { moduleName: "Research Laboratory", sectionName: "Monitoring Station", interfaceName: "Research Monitoring" },
+  Airlock_Control_Console_Trigger: { moduleName: "Airlock", sectionName: "Control Console", interfaceName: "Airlock Control Console" },
+  HAB_REST_01: { moduleName: "Habitat", sectionName: "Rest Area", interfaceName: "Habitat Rest Area" }
+};
+
+const TASK_VIEW_NAMES: Record<string, string> = {
+  SOL02_HABITAT_STATUS: "Main Status, Life Support, and Emergency Status views",
+  SOL02_WATER_NUTRITION: "Water and Nutrition view",
+  SOL02_ENGINEERING_MONITORING: "Monitoring overview",
+  SOL02_POWER_REVIEW: "Power status and logs",
+  SOL02_ENGINEERING_LIFESUPPORT: "Engineering Life Support records",
+  SOL02_DIAGNOSTICS: "Diagnostics records",
+  SOL02_READINESS_ASSESSMENT: "Readiness assessment",
+  SOL03_MISSION_CONTEXT: "Objectives, Outpost Status, and Mission Overview views",
+  SOL03_OBSERVATION_SITE_REVIEW: "Observation Sites view",
+  SOL03_SYSTEM_CONSTRAINTS: "Communications and Systems views",
+  SOL03_SELECT_TARGET: "Observation Sites view",
+  SOL03_SELECT_DATASET: "Dataset analysis view",
+  SOL03_SUBMIT_TARGET_RECORD: "Target proposal review"
+};
 
 export interface ObservationRecord {
   id: string;
@@ -368,6 +416,23 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   }
 };
 
+export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepIds: readonly string[]): { completed: number; total: number; remaining: number } {
+  const completedSet = new Set(completedStepIds);
+  if (day === 1) {
+    const required = DAY1_TASKS.filter(task => task.required);
+    const completed = required.filter(task => completedSet.has(task.taskId)).length;
+    return { completed, total: required.length, remaining: required.length - completed };
+  }
+  const steps = DAYS_CONFIG[day].steps;
+  // Sols 2–3 define each validated investigation record as one mission task.
+  // Sols 4–9 define one primary objective, with their listed steps as sub-actions.
+  const total = day === 2 || day === 3 ? steps.length : steps.length ? 1 : 0;
+  const completed = day === 2 || day === 3
+    ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
+    : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
+  return { completed, total, remaining: total - completed };
+}
+
 export class MissionManager {
   private state: MissionProgressState;
   private listeners = new Set<(state: Readonly<MissionProgressState>) => void>();
@@ -499,6 +564,74 @@ export class MissionManager {
   }
 
   public getInvestigationRecords(): InvestigationRecord[] { return [...this.state.investigationRecords]; }
+
+  /** Mission-level progress. Sols 4–9 have one primary objective with several implementation steps. */
+  public getMissionTaskCards(): MissionTaskCard[] {
+    const mission = this.getCurrentMission();
+    const currentDay = this.state.currentDay;
+    const stepById = new Map(mission.steps.map(step => [step.stepId, step]));
+    let groups: MissionStep[][];
+
+    if (currentDay === 1) {
+      groups = DAY1_TASKS.filter(task => task.required).map(task => {
+        const step = stepById.get(task.taskId);
+        if (!step) return [];
+        const group = DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.interactionGroups.find(item => item.id === task.interactionGroupId);
+        return [{ ...step, targetTrigger: group?.triggerObjectName ?? undefined, targetModule: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.moduleName }];
+      }).filter(group => group.length > 0);
+    } else if (currentDay === 2 || currentDay === 3) {
+      groups = mission.steps.map(step => [step]);
+    } else {
+      // The Sol 4–9 definitions describe one primary mission outcome; their
+      // listed steps are its sub-actions and must not inflate task progress.
+      groups = mission.steps.length ? [mission.steps] : [];
+    }
+
+    const prerequisiteMap: Record<string, string[]> = {
+      SOL02_READINESS_ASSESSMENT: mission.steps.slice(0, 6).map(step => step.stepId),
+      SOL03_SELECT_TARGET: ["SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS"],
+      SOL03_SELECT_DATASET: ["SOL03_SELECT_TARGET"],
+      SOL03_SUBMIT_TARGET_RECORD: mission.steps.slice(0, 5).map(step => step.stepId)
+    };
+
+    return groups.map((steps, index) => {
+      const first = steps.find(step => step.targetTrigger) ?? steps.find(step => step.targetModule) ?? steps[0];
+      const triggerId = first?.targetTrigger;
+      const mapped = triggerId ? TRIGGER_GUIDANCE[triggerId] : undefined;
+      const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule ?? "Location not mapped");
+      const prereqs = prerequisiteMap[first?.stepId ?? ""] ?? [];
+      const lockedOn = prereqs.filter(id => !this.state.completedStepIds.includes(id));
+      const completed = steps.length > 0 && steps.every(step => this.state.completedStepIds.includes(step.stepId));
+      const started = steps.some(step => this.state.completedStepIds.includes(step.stepId));
+      const section = mapped?.sectionName ?? (triggerId ? "Interaction point" : "Location guidance only");
+      return {
+        id: steps.length === 1 ? steps[0].stepId : `SOL${String(currentDay).padStart(2, "0")}_MISSION_OBJECTIVE`,
+        title: steps.length === 1 ? steps[0].label : mission.title,
+        description: steps.length === 1 ? steps[0].description : mission.primaryObjective,
+        status: completed ? "completed" : lockedOn.length ? "locked" : started ? "in_progress" : "available",
+        steps,
+        targetTrigger: triggerId,
+        moduleName: module,
+        sectionName: section,
+        interfaceName: mapped?.interfaceName ?? (triggerId ? "Existing module interaction" : "No interface mapping available"),
+        viewName: TASK_VIEW_NAMES[first?.stepId ?? ""] ?? mapped?.viewName,
+        prerequisiteTaskTitles: lockedOn.map(id => mission.steps.find(step => step.stepId === id)?.label ?? id)
+      };
+    });
+  }
+
+  public getMissionTaskProgress(): { completed: number; total: number; remaining: number } {
+    return getMissionTaskProgressFor(this.state.currentDay, this.state.completedStepIds);
+  }
+
+  public getCurrentNavigationNotification(): string | null {
+    return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds)?.notification ?? null;
+  }
+
+  public getCurrentNavigationInstruction() {
+    if (this.state.currentDay !== 2 && this.state.currentDay !== 3) return null;
+    return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
+  }
 
   public submitInvestigation(input: { taskId: string; evidenceReferences: string[]; classification: string; rationale: string; playerComment?: string; recommendedFollowUp?: string; limitations?: string[]; procedureChecks: string[]; selectedTargetId?: string; datasetId?: string; scientificQuestion?: string }): { success: boolean; message: string } {
     const day = this.state.currentDay;
@@ -632,6 +765,9 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
+      if (this.state.currentDay === 2 || this.state.currentDay === 3) {
+        this.state.notification = this.getCurrentNavigationNotification();
+      }
       this.emit();
       return true;
     }
@@ -1069,7 +1205,7 @@ export class MissionManager {
     this.state.currentDay = nextDay;
     this.state.objectiveState = "in_progress";
     this.state.dayBriefingSeen = false;
-    this.state.notification = `Day ${nextDay} Begun: ${DAYS_CONFIG[nextDay].title}`;
+    this.state.notification = this.getCurrentNavigationNotification() ?? `Day ${nextDay} Begun: ${DAYS_CONFIG[nextDay].title}`;
 
     this.emit();
 
