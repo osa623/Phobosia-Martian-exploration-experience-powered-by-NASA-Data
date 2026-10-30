@@ -1,5 +1,5 @@
 /**
- * PHOBOSIA — Phase 2 & Phase 3 Automated Mission Logic & Progression Test Suite
+ * PHOBOSIA â€” Phase 2 & Phase 3 Automated Mission Logic & Progression Test Suite
  *
  * Validates:
  * - P2-001: Correct initial Day 1 state
@@ -43,7 +43,7 @@ const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS, getMiss
 const { MissionManager } = require('../dist/core/MissionManager.js');
 const { resolveNextMissionNavigation, normalizeValidatedTaskIds } = require('../dist/systems/navigation/missionNavigation.js');
 const THREE = require('three');
-const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/core/Collision.js');
+const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight } = require('../dist/core/Collision.js');
 
 function completeSol2(mm) {
   const tasks = [
@@ -101,6 +101,7 @@ const { AirlockScreenRenderer } = require('../dist/core/AirlockScreenRenderer.js
 const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/core/ModuleLighting.js');
 const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/core/Day1Config.js');
 const { CameraPresentationManager } = require('../dist/core/CameraPresentation.js');
+const { getScreenConfigForSol } = require('../dist/core/ScreenConfigRegistry.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -109,14 +110,70 @@ function test(name, fn) {
   totalTests++;
   try {
     fn();
-    console.log(`  ✓ PASS: ${name}`);
+    console.log(`  âœ“ PASS: ${name}`);
     passedTests++;
   } catch (err) {
-    console.error(`  ✗ FAIL: ${name}`);
+    console.error(`  âœ— FAIL: ${name}`);
     console.error(err);
     process.exitCode = 1;
   }
 }
+
+test('Sol 1-4 routing covers all six physical-screen sections and preserves every screen association', () => {
+  const sections = { airlock: 'airlock-screen-data.json', centralHub: 'central-hub-screens.json', engineering: 'engineeringScreenData.json', habitat: 'habitatScreenData.json', missionControl: 'mission-control-screens.json', research: 'research-zone-screens.json' };
+  const signature = config => Array.isArray(config.screens)
+    ? config.screens.map(({ screenId, meshName, rendererId }) => ({ screenId, meshName, rendererId }))
+    : Object.entries(config.screens).map(([id, item]) => ({ id, physicalMesh: item.physicalMesh, geometry: item.geometry, orientation: item.orientation }));
+  for (const sol of [1, 2, 3, 4]) for (const [section, file] of Object.entries(sections)) {
+    const baseline = require(`../src/jsons/Screens/Sol_${sol < 3 ? sol : 2}/${file}`);
+    const selected = getScreenConfigForSol(section, sol, baseline);
+    assert.deepStrictEqual(signature(selected), signature(baseline), `Sol ${sol} ${section} must preserve physical screen bindings`);
+    assert.strictEqual(signature(selected).length, signature(baseline).length);
+  }
+  const legacy = require('../src/jsons/Screens/Sol_2/mission-control-screens.json');
+  for (const sol of [3, 4]) {
+    const selected = getScreenConfigForSol('missionControl', sol, legacy);
+    const renderer = new MissionControlScreenRenderer(selected);
+    renderer.missionSol = sol;
+    const overview = selected.screens.find(screen => screen.screenId === 'MC_OVERVIEW');
+    const content = renderer.getMissionAwareContent(overview);
+    assert(content.header.subtitle.includes(`SOL 0${sol}`));
+  }
+});
+
+test('Sol 3 target catalogue screen references all nine existing image assets without duplicating selection state', () => {
+  const mission = require('../src/jsons/Missions/sol-03.json');
+  const config = getScreenConfigForSol('missionControl', 3, require('../src/jsons/Screens/Sol_2/mission-control-screens.json'));
+  const screen = config.screens.find(item => item.screenId === 'MC_OBSERVATION_SITES');
+  const gallery = screen.content.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+  const expected = mission.targetCatalogue.flatMap(target => Object.values(target.images));
+  assert.deepStrictEqual(gallery.images.map(image => image.src).sort(), expected.sort());
+  assert(mission.targetCatalogue.every(target => target.marsCoordinates === null && target.outpostDistance === null));
+});
+
+test('Sol 4 screen content follows the selected Sol 3 target and saved investigation state', () => {
+  const mission = require('../src/jsons/Missions/sol-03.json');
+  const beta = mission.targetCatalogue[1];
+  const config = getScreenConfigForSol('missionControl', 4, require('../src/jsons/Screens/Sol_2/mission-control-screens.json'));
+  const renderer = new MissionControlScreenRenderer(config);
+  renderer.missionSol = 4;
+  renderer.missionState = { currentSol: 4, selectedSiteId: beta.targetId, completedStepIds: ['SOL04_DRONE_PHYSICAL_INSPECTION'], investigationRecords: [{ taskId: 'SOL04_SELECTED_TARGET_INVESTIGATION', rationale: 'Selected target record.', limitations: ['Coordinates unavailable.'] }] };
+  const screen = config.screens.find(item => item.screenId === 'MC_OBSERVATION_SITES');
+  const content = renderer.getMissionAwareContent(screen);
+  const gallery = content.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+  assert.strictEqual(content.header.title, 'SELECTED TARGET INVESTIGATION');
+  assert(content.header.subtitle.includes(beta.name));
+  assert.deepStrictEqual(gallery.images.map(image => image.src).sort(), Object.values(beta.images).sort());
+  assert(!gallery.images.some(image => mission.targetCatalogue[0].images.color === image.src));
+
+  const researchConfig = getScreenConfigForSol('research', 4, require('../src/jsons/Screens/Sol_2/research-zone-screens.json'));
+  const research = new ResearchScreenRenderer(researchConfig);
+  research.missionDay = 4;
+  research.missionState = { currentDay: 4, selectedSiteId: beta.targetId };
+  const researchScreen = researchConfig.screens.find(item => item.screenId === 'research_monitoring_system');
+  const researchContent = research.getMissionAwareContent(researchScreen);
+  assert(researchContent.header.subtitle.includes(beta.name));
+});
 
 console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');
 
@@ -398,7 +455,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
     observedCategories: {
       surfaceTexture: 'Vesicular Basalt & Fractured Regolith',
       fragmentDistribution: 'Scattered Angular Clasts (< 5 cm)',
-      terrainShape: 'Low-Angle Talus Incline (8–12°)',
+      terrainShape: 'Low-Angle Talus Incline (8â€“12Â°)',
       dustCoverage: 'Thin Mantle (< 2 mm) with High Rock Exposure'
     },
     summary: 'Preliminary field survey at Crater Rim.'
@@ -752,6 +809,35 @@ test('STAB-005: buildHabitatColliderSection builds Collider_Section and sets vis
   assert.strictEqual(m2.visible, false, 'Collider_Section_01 mesh must have visible = false');
 });
 
+test('STAB-007: Drone Section collision retains barriers outside a clear entrance-to-drone walkway', () => {
+  const root = new THREE.Group();
+  const colliderSection = new THREE.Group();
+  colliderSection.name = 'Collider_Section02';
+  const walkwayWall = new THREE.Mesh(new THREE.BoxGeometry(3, 0.01, 1));
+  walkwayWall.position.set(-2, 0, 0);
+  const sideWall = new THREE.Mesh(new THREE.BoxGeometry(2, 0.01, 2));
+  sideWall.position.set(8, 0, 5);
+  colliderSection.add(walkwayWall, sideWall);
+  root.add(colliderSection);
+  const entrance = new THREE.Object3D();
+  entrance.name = 'DroneZone_Entrance_Trigger';
+  const drone = new THREE.Object3D();
+  drone.name = 'Drone';
+  drone.position.set(-5, 0, 0);
+  root.add(entrance, drone);
+
+  const colliders = buildDroneSectionColliders(root);
+  assert.strictEqual(colliders.length, 1, 'Only the proxy blocking the entrance-to-drone route should be cleared');
+  assert(colliders[0].getCenter(new THREE.Vector3()).x > 7, 'Unrelated side-wall collision must remain');
+});
+
+test('STAB-008: Drone movement uses the authored walkable floor height', () => {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 4));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -2.264;
+  assert(Math.abs(getSurfaceHeight(floor) - (-2.264)) < 0.001, 'World floor height should match the model instead of assuming y=0');
+});
+
 test('STAB-003: ScreenRenderer correctly matches screen identifiers across all outpost modules', () => {
   const sr = new ScreenRenderer();
 
@@ -795,7 +881,7 @@ test('LIGHT-001: configureModuleLighting creates shadow-casting Sun for Terrain 
 });
 
 test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights for indoor modules', () => {
-  const modules = ['Habitat', 'Hub', 'MissionControl', 'Science', 'Engineering', 'Airlock'];
+  const modules = ['Habitat', 'Hub', 'MissionControl', 'Science', 'Engineering', 'Airlock', 'Drone'];
 
   for (const mod of modules) {
     const root = new THREE.Group();
@@ -810,6 +896,17 @@ test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights f
       assert(spot.target, `${spot.name} must have a designated target`);
     }
   }
+  const droneRoot = new THREE.Group();
+  const droneFloorMaterial = new THREE.MeshStandardMaterial();
+  droneFloorMaterial.name = 'Floor';
+  const droneFloor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), droneFloorMaterial);
+  droneFloor.name = 'Floor';
+  droneRoot.add(droneFloor);
+  const droneLights = new THREE.Group();
+  configureModuleLighting(droneRoot, droneLights, 'Drone');
+  assert.strictEqual(droneLights.children.filter(child => child.isSpotLight).length, 3, 'Drone garage must receive three overhead key lights');
+  assert(getModuleHemisphereConfig('Drone').intensity > getModuleHemisphereConfig('Habitat').intensity, 'Drone garage ambient fill must lift its dark floor texture');
+  assert(droneFloorMaterial.emissiveIntensity > 0 && droneFloorMaterial.emissive.getHex() !== 0, 'Authored Floor material should get a subtle visibility lift');
 });
 
 test('LIGHT-003: configureMeshShadows correctly configures Terrain ground and structures', () => {
@@ -2152,6 +2249,7 @@ test('AIR-005: ScreenRenderer skips Airlock physical screens so they are solely 
 test('AT_D1_001: The player begins at the existing Habitat spawn', () => {
   const day1Config = DAYS_CONFIG[1];
   assert.strictEqual(day1Config.allowedModules[0], 'Habitat', 'Initial module must be Habitat');
+  assert(day1Config.allowedModules.includes('Drone'), 'The existing Drone Section should be visitable during Sol 1');
   assert.strictEqual(day1Config.id, 'DAY_01_OUTPOST_ORIENTATION');
 });
 

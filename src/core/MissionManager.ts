@@ -281,7 +281,7 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
       description: t.description,
       completed: false
     })),
-    allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl"],
+    allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl", "Drone"],
     completionFeedback: "Outpost orientation complete. All 19 required tasks are complete. Return to Habitat Rest Area to finish Day 1."
   },
   2: {

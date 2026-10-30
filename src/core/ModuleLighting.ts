@@ -216,7 +216,47 @@ const MODULE_KEY_LIGHTS: Record<Exclude<ModuleName, "Terrain">, KeySpotlightDef[
       normalBias: 0.03
     }
   ],
-  Drone: [],
+  Drone: [
+    {
+      name: "Drone_Garage_Front_Spot",
+      position: [-6.0, 3.35, 0.0],
+      target: [-6.0, -2.15, 0.0],
+      intensity: 18,
+      distance: 15,
+      angle: Math.PI / 2.8,
+      penumbra: 0.5,
+      color: 0xeaf4ff,
+      mapSize: 1024,
+      bias: -0.0004,
+      normalBias: 0.03
+    },
+    {
+      name: "Drone_Garage_Center_Spot",
+      position: [0.0, 3.35, 0.0],
+      target: [0.0, -2.15, 0.0],
+      intensity: 18,
+      distance: 15,
+      angle: Math.PI / 2.8,
+      penumbra: 0.5,
+      color: 0xeaf4ff,
+      mapSize: 1024,
+      bias: -0.0004,
+      normalBias: 0.03
+    },
+    {
+      name: "Drone_Garage_Rear_Spot",
+      position: [6.0, 3.35, 0.0],
+      target: [6.0, -2.15, 0.0],
+      intensity: 18,
+      distance: 15,
+      angle: Math.PI / 2.8,
+      penumbra: 0.5,
+      color: 0xeaf4ff,
+      mapSize: 1024,
+      bias: -0.0004,
+      normalBias: 0.03
+    }
+  ],
   Airlock: [
     {
       name: "Airlock_OuterChamber_Spot",
@@ -291,6 +331,20 @@ export function configureModuleLighting(
     return;
   }
 
+  if (module === "Drone") {
+    const floor = moduleRoot.getObjectByName("Floor") as THREE.Mesh | undefined;
+    if (floor?.isMesh && floor.material) {
+      const materials = Array.isArray(floor.material) ? floor.material : [floor.material];
+      for (const material of materials) {
+        if (material.name !== "Floor" || !(material as THREE.MeshStandardMaterial).emissive) continue;
+        const standard = material as THREE.MeshStandardMaterial;
+        standard.emissive.setHex(0x40596b);
+        standard.emissiveIntensity = 0.85;
+        standard.needsUpdate = true;
+      }
+    }
+  }
+
   // Indoor Modules: Add key shadow-casting spotlights
   const keyDefs = MODULE_KEY_LIGHTS[module] ?? [];
   for (const def of keyDefs) {
@@ -335,6 +389,7 @@ export function configureModuleLighting(
   if (module === "Hub") {
     configureHubLights(moduleRoot, additions);
   }
+
 }
 
 export interface HabitatAreaLightOptions {
@@ -588,6 +643,14 @@ export function getModuleHemisphereConfig(module: ModuleName): {
       skyColor: 0x58728a,
       groundColor: 0x222e3a,
       intensity: 0.65
+    };
+  }
+
+  if (module === "Drone") {
+    return {
+      skyColor: 0x8299aa,
+      groundColor: 0x35424d,
+      intensity: 0.72
     };
   }
 

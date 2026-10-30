@@ -9,10 +9,12 @@ export interface ScreenMissionSnapshot {
   objectiveState?: string;
   completedStepIds?: string[];
   observationRecords?: Array<{ day: number; type: string; summary?: string }>;
+  selectedSiteId?: string | null;
+  investigationRecords?: Array<{ taskId: string; classification?: string; rationale?: string; playerComment?: string; limitations?: string[]; evidenceReferences?: string[] }>;
 }
 
 type ScreenConfigPair = { browser: () => any; node: () => any; path: string };
-type SolScreenConfigs = Record<ScreenConfigSection, ScreenConfigPair>;
+type SolScreenConfigs = Partial<Record<ScreenConfigSection, ScreenConfigPair>>;
 
 function loadNodeScreenConfig(path: string): unknown {
   const dynamicRequire = eval("require") as (modulePath: string) => unknown;
@@ -24,7 +26,7 @@ function loadNodeScreenConfig(path: string): unknown {
   }
 }
 
-const bySol: Record<1 | 2, SolScreenConfigs> = {
+const bySol: Record<1 | 2 | 3 | 4, SolScreenConfigs> = {
   1: {
     airlock: { browser: () => require("../jsons/Screens/Sol_1/airlock-screen-data.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_1/airlock-screen-data.json"), path: "Screens/Sol_1/airlock-screen-data.json" },
     centralHub: { browser: () => require("../jsons/Screens/Sol_1/central-hub-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_1/central-hub-screens.json"), path: "Screens/Sol_1/central-hub-screens.json" },
@@ -40,14 +42,31 @@ const bySol: Record<1 | 2, SolScreenConfigs> = {
     habitat: { browser: () => require("../jsons/Screens/Sol_2/habitatScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_2/habitatScreenData.json"), path: "Screens/Sol_2/habitatScreenData.json" },
     missionControl: { browser: () => require("../jsons/Screens/Sol_2/mission-control-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_2/mission-control-screens.json"), path: "Screens/Sol_2/mission-control-screens.json" },
     research: { browser: () => require("../jsons/Screens/Sol_2/research-zone-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_2/research-zone-screens.json"), path: "Screens/Sol_2/research-zone-screens.json" }
+  },
+  3: {
+    airlock: { browser: () => require("../jsons/Screens/Sol_3/airlock-screen-data.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/airlock-screen-data.json"), path: "Screens/Sol_3/airlock-screen-data.json" },
+    centralHub: { browser: () => require("../jsons/Screens/Sol_3/central-hub-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/central-hub-screens.json"), path: "Screens/Sol_3/central-hub-screens.json" },
+    engineering: { browser: () => require("../jsons/Screens/Sol_3/engineeringScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/engineeringScreenData.json"), path: "Screens/Sol_3/engineeringScreenData.json" },
+    habitat: { browser: () => require("../jsons/Screens/Sol_3/habitatScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/habitatScreenData.json"), path: "Screens/Sol_3/habitatScreenData.json" },
+    missionControl: { browser: () => require("../jsons/Screens/Sol_3/mission-control-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/mission-control-screens.json"), path: "Screens/Sol_3/mission-control-screens.json" },
+    research: { browser: () => require("../jsons/Screens/Sol_3/research-zone-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_3/research-zone-screens.json"), path: "Screens/Sol_3/research-zone-screens.json" }
+  },
+  4: {
+    airlock: { browser: () => require("../jsons/Screens/Sol_4/airlock-screen-data.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/airlock-screen-data.json"), path: "Screens/Sol_4/airlock-screen-data.json" },
+    centralHub: { browser: () => require("../jsons/Screens/Sol_4/central-hub-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/central-hub-screens.json"), path: "Screens/Sol_4/central-hub-screens.json" },
+    engineering: { browser: () => require("../jsons/Screens/Sol_4/engineeringScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/engineeringScreenData.json"), path: "Screens/Sol_4/engineeringScreenData.json" },
+    habitat: { browser: () => require("../jsons/Screens/Sol_4/habitatScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/habitatScreenData.json"), path: "Screens/Sol_4/habitatScreenData.json" },
+    missionControl: { browser: () => require("../jsons/Screens/Sol_4/mission-control-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/mission-control-screens.json"), path: "Screens/Sol_4/mission-control-screens.json" },
+    research: { browser: () => require("../jsons/Screens/Sol_4/research-zone-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_4/research-zone-screens.json"), path: "Screens/Sol_4/research-zone-screens.json" }
   }
 };
 
-/** Select Sol 1/2 content, retaining the legacy configuration for later Sols. */
+/** Select content for Sols 1-4 while leaving legacy behavior available to later Sols. */
 export function getScreenConfigForSol<T>(section: ScreenConfigSection, sol: number, legacyConfig: T): T {
-  if (sol !== 1 && sol !== 2) return legacyConfig;
+  if (sol !== 1 && sol !== 2 && sol !== 3 && sol !== 4) return legacyConfig;
 
   const entry = bySol[sol][section];
+  if (!entry) return legacyConfig;
   try {
     let data: any;
     try {
@@ -57,6 +76,14 @@ export function getScreenConfigForSol<T>(section: ScreenConfigSection, sol: numb
     }
     if (!data || !(Array.isArray(data.screens) || (data.screens && typeof data.screens === "object"))) {
       throw new Error("The file does not contain a valid screens collection.");
+    }
+    if ((sol === 3 || sol === 4) && Array.isArray((legacyConfig as any)?.screens) && Array.isArray(data.screens)) {
+      const overrides = new Map<string, any>(data.screens.map((screen: any) => [screen.screenId, screen]));
+      const mergedScreens = (legacyConfig as any).screens.map((screen: any) => {
+        const override = overrides.get(screen.screenId);
+        return override ? { ...screen, ...override, content: override.content ?? screen.content } : screen;
+      });
+      return { ...(legacyConfig as any), screens: mergedScreens } as T;
     }
     return data as T;
   } catch (error) {

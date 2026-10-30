@@ -23,6 +23,9 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
+import { type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
+import sol03Mission from "../jsons/Missions/sol-03.json";
 
 export interface ResearchScreenPanel {
   id?: string;
@@ -154,6 +157,7 @@ export class ResearchScreenRenderer {
   private missionDay: number = 1;
   private configSol = 4;
   private customConfig: boolean;
+  private missionState?: ScreenMissionSnapshot;
 
   constructor(customConfig?: ResearchScreenDataRoot) {
     this.customConfig = Boolean(customConfig);
@@ -192,12 +196,13 @@ export class ResearchScreenRenderer {
   /**
    * Alias conforming to outpost convention (attachToHabitat, attachToEngineering, attachToScience).
    */
-  public attachToScience(model: THREE.Group, missionState?: { currentDay?: number }): void {
+  public attachToScience(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState) this.missionState = missionState;
     this.selectSolConfig(this.missionDay);
 
     const targetScreens = this.rawConfig.screens || [];
@@ -322,10 +327,11 @@ export class ResearchScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState) this.missionState = missionState;
     this.selectSolConfig(this.missionDay);
 
     for (const binding of this.activeBindings) {
@@ -342,7 +348,7 @@ export class ResearchScreenRenderer {
     const screenConf = this.screensMap.get(meshName.trim()) || this.screensMap.get(binding.screenId);
     if (!screenConf) return;
 
-    const content = screenConf.content || {};
+    const content = this.getMissionAwareContent(screenConf);
 
     // Background & HUD Grid
     ctx.fillStyle = "#07111F";
@@ -393,6 +399,54 @@ export class ResearchScreenRenderer {
 
     // Outer cybernetic border brackets
     this.drawBrackets(ctx, width, height, "#36C5E8");
+  }
+
+  private getMissionAwareContent(screenConf: ResearchScreenItem): ResearchScreenItem["content"] {
+    const content = JSON.parse(JSON.stringify(screenConf.content || {}));
+    if ((this.missionDay !== 3 && this.missionDay !== 4) || screenConf.screenId !== "research_monitoring_system") return content;
+    const day = this.missionDay as MissionDayNumber;
+    const selected = sol03Mission.targetCatalogue.find(item => item.targetId === this.missionState?.selectedSiteId);
+    const mission = DAYS_CONFIG[day];
+    if (content.header) {
+      content.header.title = day === 3 ? "TARGET DATASET REVIEW" : "TERRAIN EVIDENCE REVIEW";
+      content.header.subtitle = selected ? `${selected.name} · ELYSIUM PLANITIA` : "Selected target unavailable";
+      content.header.dataMode = "PHOBOSIA TARGET PLANNING METADATA · NO MEASUREMENTS";
+    }
+    const workflow = content.panels?.find((panel: any) => panel.type === "WORKFLOW_GRAPH");
+    if (workflow) {
+      workflow.title = day === 3 ? "SOL 3 ANALYSIS WORKFLOW" : "SOL 4 TERRAIN REVIEW";
+      workflow.stages = day === 3
+        ? ["TARGET PROFILES", "NASA MATCH", "DATA LIMITS"]
+        : [selected ? "SOL 3 TARGET" : "TARGET UNKNOWN", "TERRAIN REVIEW", "LIMITATIONS"];
+    }
+    const health = content.panels?.find((panel: any) => panel.type === "HEALTH_GRID");
+    if (health) {
+      health.title = "AVAILABLE EVIDENCE";
+      health.subsystems = [
+        { name: "NASA observations", status: "UNAVAILABLE" },
+        { name: "Elevation / slope", status: "UNAVAILABLE" },
+        { name: "LiDAR / DEM", status: "UNAVAILABLE" },
+        { name: "Target coordinates", status: "UNAVAILABLE" }
+      ];
+    }
+    const data = content.panels?.find((panel: any) => panel.type === "DATA_TABLE");
+    if (data) {
+      data.title = "TRACEABLE TARGET DATA";
+      data.columns = ["Record", "Provider", "Coverage", "Status"];
+      const assessment = this.missionState?.investigationRecords?.find(record => record.taskId === "SOL04_TERRAIN_DATA_REVIEW");
+      data.rows = day === 3
+        ? [{ record: "PHOBOSIA target profiles", provider: "PHOBOSIA", coverage: "Scene metadata only", status: "Training metadata" }]
+        : [
+          { record: "Selected target", provider: "Sol 3 saved state", coverage: selected?.geographicName || "Unavailable", status: selected ? "Resolved" : "Unavailable" },
+          ...(assessment ? [{ record: "Player terrain assessment", provider: "Sol 4 saved record", coverage: assessment.playerComment || assessment.rationale, status: "Player analysis" }] : [])
+        ];
+    }
+    const events = content.panels?.find((panel: any) => panel.type === "EVENT_FEED");
+    if (events) {
+      events.title = "OBSERVATION RECORD STATUS";
+      events.events = [{ time: `SOL 0${day}`, level: "WARN", message: selected?.observationStatus || "No target-specific NASA observation record is matched." }];
+    }
+    return content;
   }
 
   // =========================================================================

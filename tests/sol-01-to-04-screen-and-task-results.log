@@ -1,0 +1,71 @@
+﻿PHOBOSIA — Sol 1 to Sol 4 Screen and Mission Validation
+Run timestamp: 2026-10-30 19:43:43 Asia/Colombo (2026-10-30 14:13:43 UTC)
+
+Commands and results
+- npm.cmd test: PASS (TypeScript test compilation; 81/81 mission and screen tests; Sol 2 and Sol 3 investigation validation checks passed).
+- npm.cmd run typecheck: PASS (tsc --noEmit).
+- JSON and asset validation: PASS (4 Sol 3/4 screen JSON files parsed; all 9 referenced target image paths exist under public/assets).
+
+Coverage
+- Sol 1 Day 1 required task mapping, progression, and existing physical trigger/presentation checks: covered by mission suite; passed.
+- Sol 2 investigation requirements and navigation/task configuration: covered; passed.
+- Sol 3 target selection and proposal lifecycle: covered; passed.
+- Sol 4 selected target carryover, physical drone inspection record, preparation report, and Sol 5 progression gate: covered; passed.
+- Sol 1–4 Mission Control physical screen IDs, mesh names, and renderer IDs: checked unchanged for the reused mappings; passed.
+- Sol 3 catalogue imagery: all three target image sets (grayscale, colour, thermal) match existing mission asset references; passed.
+- Sol 4 selected-target screen content: verified using Target 02 as a non-default selected target; Mission Control and Research Lab content follow that saved selection; passed.
+
+Limitations
+These are automated mission/state, JSON, and renderer-content checks. The browser game was not launched for manual 3D traversal, so actual on-screen visual appearance and an in-game E-key interaction were not manually exercised in this run. Existing trigger mappings were not changed.
+
+Scope expansion validation update
+Run timestamp: 2026-10-30 20:14:10 Asia/Colombo (2026-10-30 14:44:10 UTC)
+
+- npm.cmd test: PASS (81/81 tests; expanded routing test checks all six physical-screen sections for Sols 1-4 and preserved screen-to-mesh/renderer associations).
+- npm.cmd run typecheck: PASS.
+- JSON validation: PASS (all 12 Sol 3/4 section JSON files parse; all 9 image references resolve).
+
+Complete physical-screen inventory from the existing Sol 2 section configs (same associations retained in Sol 3/4):
+- Habitat: 4 — Habitat_LifeSupport_Display, Habitat_Main_Status_Display, Habitat_Emergency_Status_Display, Habitat_WaterNutrition_Display.
+- Mission Control: 8 — MC_OBJECTIVES, MC_OUTPOST_STATUS, MC_OVERVIEW, MC_COMMUNICATIONS, MC_SYSTEMS, MC_DRONE_OPERATIONS, MC_OBSERVATION_SITES, MC_TERRAIN_MAP.
+- Research Lab: 6 — research_monitoring_main, research_monitoring_system, seed_storage_inventory, water_nutrition_mixing, water_nutrition_quality, cultivation_environment.
+- Engineering Unit: 12 — MonitoringSection_Indicator_Screen, MonitoringSection_Operational_Screen, MonitoringSection_Screen, PowerUnitScreenMain, PowerUnitScreenMain02, PowerUnitScreen000, PowerUnitScreen000.001, LifeSupportUnitScreenMain04, LifeSupportUnitScreenMain02.001, LifeSupportUnitScreenMain03, DiagnosticsWorkbenchScreen_01, Storage_Screen.
+- Central Hub: 3 — CH_ENV_STATUS, CH_INTERNAL_COMMUNICATION, CH_MODULE_STATUS.
+- Airlock: 1 — AL_CONTROL_CONSOLE.
+Total: 34 existing physical displays across six configured sections. Trigger IDs are defined in the existing interaction/operating-system layer rather than these screen-content JSONs; that layer was not changed.
+
+Sol 3/4 section configs preserve subsystem functions: Habitat status/readiness, Engineering systems, Central Hub environment/comms/module status, and Airlock control remain operational displays; their existing renderers select the current Sol. Mission Control and Research Lab provide the target investigation content. Engineering and other operational values remain marked by the source configs' SIMULATED data mode; no new real telemetry is claimed.
+
+Sol 1 Drone Section access fix
+Run timestamp: 2026-10-30 20:28:34 Asia/Colombo (2026-10-30 14:58:34 UTC)
+- Added Drone to Sol 1's allowed module list.
+- Airlock entrance selection now uses the camera aim ray when multiple existing portal triggers are in proximity, so E can select the aimed Drone entrance beside the Hub/Terrain exits.
+- Existing Drone_Section_Entrance_Trigger route and E-key transition are reused; no trigger, transform, or flight behavior was added.
+- npm.cmd test: PASS (81/81 tests, including Sol 1 Drone module availability).
+- npm.cmd run typecheck: PASS.
+- Manual in-game interaction check: NOT RUN. Computer-use inventory had no browser available, so the local game could not be opened in this session.
+
+Drone Section floor visibility and walkability fix
+Run timestamp: 2026-10-30 20:48:24 Asia/Colombo (2026-10-30 15:18:24 UTC)
+- Added three overhead key spotlights and brighter Drone-specific ambient fill so the authored dark deck texture receives usable illumination.
+- Player ground height now comes from the existing Drone GLB Floor mesh (world-space top), instead of the generic y=0 fallback.
+- Drone collision keeps authored barriers but clears the entrance-to-drone walkway derived from the existing entrance marker and Drone object positions.
+- Removed three duplicate point lights that were all placed at the scene origin instead of at the light fixtures.
+- npm.cmd test: PASS (83/83 tests; includes Drone garage lighting, model floor height, and walkable corridor coverage).
+- npm.cmd run typecheck: PASS.
+- Manual rendering/movement check: NOT RUN because this session has no available browser surface.
+
+Follow-up based on user screenshot
+Run timestamp: 2026-10-30 20:54:12 Asia/Colombo (2026-10-30 15:24:12 UTC)
+- The screenshot showed the Drone module had loaded but the camera faced away from the drone and the deck remained visually near-black. Drone entry now faces the existing Drone object.
+- Added a restrained emissive lift to only the GLB material named Floor, preserving its texture and the separate helipad material.
+- npm.cmd test: PASS (83/83, including floor-material light lift).
+- npm.cmd run typecheck: PASS.
+- The session cannot access the user's live browser to verify a new screenshot.
+
+Drone Section return-to-Airlock fix
+Run timestamp: 2026-10-30 21:03:53 Asia/Colombo (2026-10-30 15:33:53 UTC)
+- E near the existing DroneZone_Entrance_Trigger now explicitly selects the existing return route to Airlock and its authored spawn point.
+- Nearby Drone interactions no longer override the exit prompt while standing at the portal.
+- npm.cmd test: PASS (83/83); npm.cmd run typecheck: PASS.
+- Manual in-game transition check: not run; no browser surface is available in this session.

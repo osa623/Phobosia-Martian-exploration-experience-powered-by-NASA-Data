@@ -238,6 +238,37 @@ export function buildCustomColliderSections(root: THREE.Object3D, names: readonl
   });
 }
 
+/**
+ * Keeps the authored Drone Section wall colliders while clearing the passage
+ * between its existing entrance marker and the existing drone object.
+ */
+export function buildDroneSectionColliders(root: THREE.Object3D): THREE.Box3[] {
+  const colliders = buildCustomColliderSections(root, ["Collider_Section02"]);
+  const entrance = root.getObjectByName("DroneZone_Entrance_Trigger");
+  const drone = root.getObjectByName("Drone");
+  if (!entrance || !drone || colliders.length === 0) return colliders;
+
+  root.updateWorldMatrix(true, true);
+  const start = entrance.getWorldPosition(new THREE.Vector3());
+  const end = drone.getWorldPosition(new THREE.Vector3());
+  const clearance = 0.9;
+  const minX = Math.min(start.x, end.x) - clearance;
+  const maxX = Math.max(start.x, end.x) + clearance;
+  const minZ = Math.min(start.z, end.z) - clearance;
+  const maxZ = Math.max(start.z, end.z) + clearance;
+
+  return colliders.filter(box =>
+    box.max.x < minX || box.min.x > maxX || box.max.z < minZ || box.min.z > maxZ
+  );
+}
+
+/** Returns the world-space top of a horizontal walkable surface. */
+export function getSurfaceHeight(surface: THREE.Object3D): number | undefined {
+  surface.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(surface);
+  return bounds.isEmpty() ? undefined : bounds.max.y;
+}
+
 export function buildHabitatColliderSection(root: THREE.Object3D): THREE.Box3[] {
   // Collect all Collider_Section variations (Mesh, Group, or Collider_Section_01)
   const candidateNames = ["Collider_Section", "Collider_Section_01", "Collider_Section01"];

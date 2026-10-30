@@ -4,7 +4,7 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
-import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
@@ -89,6 +89,7 @@ export class Game {
   private interactive: InteractionTarget[] = [];
   private colliders: THREE.Box3[] = [];
   private terrain?: THREE.Object3D;
+  private droneFloorHeight?: number;
   private raycaster = new THREE.Raycaster();
   private down = new THREE.Vector3(0, -1, 0);
   private temp = new THREE.Vector3();
@@ -948,6 +949,7 @@ export class Game {
     this.interactive = [];
     this.colliders = [];
     this.terrain = undefined;
+    this.droneFloorHeight = undefined;
 
     const previous = model.getObjectByName("Runtime interaction indicators and lighting");
     if (previous) {
@@ -988,6 +990,9 @@ export class Game {
       if (o.name === "PHOBOSIA_MarsTerrain_2km") {
         this.terrain = o;
       }
+      if (module === "Drone" && o.name === "Floor" && (o as THREE.Mesh).isMesh) {
+        this.droneFloorHeight = getSurfaceHeight(o);
+      }
     });
 
     // 1. Configure mesh castShadow and receiveShadow flags across the module hierarchy
@@ -996,20 +1001,6 @@ export class Game {
     // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
     configureModuleLighting(model, additions, module);
 
-    if (module === "Drone") {
-      // The three authored GLB light nodes are meshes, not glTF light objects.
-      // Use their authored transforms as fixed, low-cost point-light anchors.
-      for (const [index, name] of ["Light_01", "Light_02", "Light_03"].entries()) {
-        const anchor = model.getObjectByName(name);
-        if (!anchor) continue;
-        const position = anchor.getWorldPosition(new THREE.Vector3());
-        const light = new THREE.PointLight(0xc9e9f2, 1.2, 12, 2);
-        light.name = `Runtime_${name}`;
-        light.position.copy(position);
-        additions.add(light);
-      }
-    }
-
     if (module === "Habitat") {
       this.colliders = buildHabitatColliderSection(model);
     } else if (module === "Hub") {
@@ -1017,7 +1008,7 @@ export class Game {
     } else if (module === "Science") {
       this.colliders = buildScienceLabColliders(model);
     } else if (module === "Drone") {
-      this.colliders = buildCustomColliderSections(model, ["Collider_Section02"]);
+      this.colliders = buildDroneSectionColliders(model);
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     } else if (module !== "Terrain") {
@@ -1266,7 +1257,7 @@ export class Game {
       this.active = route.module;
 
       this.updateEnvironment();
-      this.player.setEyeHeight(route.module === "Hub" ? 0.95 : 1.65);
+      this.player.setEyeHeight(route.module === "Hub" ? 0.95 : route.module === "Drone" ? 0.55 : 1.65);
       this.configureModule(model, route.module);
 
       const marker = model.getObjectByName(route.spawn);
@@ -1304,6 +1295,16 @@ export class Game {
       } else if (route.module === "Engineering") {
         const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
         this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+      } else if (route.module === "Drone") {
+        const drone = model.getObjectByName("Drone");
+        if (drone) {
+          const forwardDir = drone.getWorldPosition(new THREE.Vector3()).sub(this.camera.position);
+          forwardDir.y = 0;
+          if (forwardDir.lengthSq() > 0.001) {
+            forwardDir.normalize();
+            this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+          }
+        }
       }
 
       this.player.resetVelocity();
@@ -1332,6 +1333,15 @@ export class Game {
 
   private interact(key: "E" | "Q" = "E") {
     if (this.transitioning) return;
+
+    if (key === "E" && this.active === "Drone") {
+      const exitTarget = this.interactive.find(target => target.identifier === "DroneZone_Entrance_Trigger");
+      if (exitTarget && this.camera.position.distanceTo(exitTarget.center) <= exitTarget.range + 0.5) {
+        this.nearby = exitTarget;
+        void this.beginTransition(transitions.Drone.DroneZone_Entrance_Trigger);
+        return;
+      }
+    }
 
     // A. Check outdoor terrain survey triggers if outdoors on Terrain
     if (this.active === "Terrain") {
@@ -1633,6 +1643,43 @@ export class Game {
       }
     }
 
+    // The three Airlock portal meshes are authored close together. Resolve an
+    // aimed-at portal before falling back to nearest-center proximity so the
+    // Drone Section entrance remains selectable beside the Hub/Terrain exits.
+    if (this.active === "Airlock") {
+      const routeTargets = this.interactive.filter(target =>
+        Boolean(transitions.Airlock[target.identifier]) && at.distanceTo(target.center) <= target.range
+      );
+      if (routeTargets.length > 1) {
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+        const intersections = raycaster.intersectObjects(routeTargets.map(target => target.object), true);
+        for (const hit of intersections) {
+          const aimedTarget = routeTargets.find(target => {
+            let object: THREE.Object3D | null = hit.object;
+            while (object) {
+              if (object === target.object) return true;
+              object = object.parent;
+            }
+            return false;
+          });
+          if (aimedTarget) {
+            best = aimedTarget;
+            break;
+          }
+        }
+      }
+    }
+
+    // Prefer the authored return portal when the player is standing on it,
+    // even if the Drone interaction is also within proximity range.
+    if (this.active === "Drone") {
+      const exitTarget = this.interactive.find(target => target.identifier === "DroneZone_Entrance_Trigger");
+      if (exitTarget && at.distanceTo(exitTarget.center) <= exitTarget.range + 0.5) {
+        best = exitTarget;
+      }
+    }
+
     this.nearby = best;
     if (!best) {
       // Don't clear prompt if on terrain and inside survey zone
@@ -1692,6 +1739,9 @@ export class Game {
     );
 
   private groundHeight = (position: THREE.Vector3) => {
+    if (this.active === "Drone" && this.droneFloorHeight !== undefined) {
+      return this.droneFloorHeight;
+    }
     if (!this.terrain) return 0;
     this.raycaster.set(new THREE.Vector3(position.x, 1000, position.z), this.down);
     const hit = this.raycaster.intersectObject(this.terrain, true)[0];
