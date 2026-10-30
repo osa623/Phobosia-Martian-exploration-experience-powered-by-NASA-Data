@@ -2,323 +2,403 @@
   "missionId": "PHOBOSIA_SOL_03",
   "sol": 3,
   "title": "Scientific Target Selection",
-  "subtitle": "Choose a Mars observation target and build an evidence-based investigation plan.",
-  "description": "Use available mission context, observation-site information, operational constraints, and scientific datasets to define a focused research question. Submit a target proposal with supporting evidence and explicit limitations.",
-  "missionType": "scientific_investigation_planning",
-  "status": "locked_until_prerequisites_met",
+  "subtitle": "Select a Mars observation target and establish a research objective.",
+  "missionType": "trigger_scoped_scientific_investigation",
+  "description": "Use Mission Control and Research Lab interfaces to review available Mars observation sites, examine operational constraints, select a scientific target, evaluate available datasets, and submit a justified observation proposal.",
   "prerequisites": {
-    "completedMissions": [
-      "PHOBOSIA_SOL_02"
-    ]
+    "completedMissions": ["PHOBOSIA_SOL_02"]
   },
-  "completionPolicy": {
-    "requireAllMandatoryTasks": true,
-    "requireValidSubmittedRecords": true,
-    "requireFinalProposal": true,
-    "allowDataLimitationsToBeReported": true,
-    "unlockNextSolOnValidatedCompletion": true
+  "progression": {
+    "completionUnlocks": "PHOBOSIA_SOL_04",
+    "dayAdvancementTrigger": "HAB_REST_01",
+    "requireMissionCompletionBeforeRestAdvancement": true
   },
-  "dataIntegrity": {
-    "requireDataProvenance": true,
-    "requireActualAvailableTargetReferences": true,
-    "requireActualAvailableDatasetReferences": true,
-    "allowSimulatedTrainingData": true,
-    "simulatedDataMustBeLabelled": true,
+  "accessPolicy": {
+    "accessMode": "physical_trigger_only",
+    "remoteSectionAccess": false,
+    "allowCrossSectionNavigationFromUI": false,
+    "allowOverviewNotifications": true,
+    "requireExistingTriggerId": true
+  },
+  "dataPolicy": {
+    "useActualAvailableMarsDataWherePresent": true,
+    "requireDatasetProvenance": true,
+    "requireSiteMetadata": true,
+    "allowClearlyLabelledSimulation": true,
     "neverInventNASAData": true,
-    "neverInventSiteCoordinates": true,
-    "missingMetadataMustBeReported": true,
-    "playerHypothesisMustNotBePresentedAsVerifiedFact": true
+    "neverInventCoordinates": true,
+    "unknownMetadataMustRemainUnknown": true,
+    "hypothesisMustNotBePresentedAsVerifiedFinding": true
   },
-  "locations": [
-    "Mission Control",
-    "Central Hub",
-    "Research Lab"
+  "logSchema": {
+    "requiredFields": [
+      "logId",
+      "title",
+      "eventTime",
+      "displayLocation",
+      "systemName",
+      "category",
+      "severity",
+      "detailedDescription",
+      "observations",
+      "dataSourceType"
+    ],
+    "locationRules": {
+      "showHumanReadableLocation": true,
+      "showInternalFilePaths": false,
+      "showJsonFilenames": false,
+      "example": "Mission Control — Observation Planning Console"
+    }
+  },
+  "interfaces": [
+    {
+      "interfaceId": "MISSION_CONTROL_MAIN",
+      "location": "Mission Control",
+      "triggerId": "MC_MAIN_01",
+      "screens": [
+        "MissionControl_ObjectivesScreen",
+        "MissionControl_OutpostStatusScreen",
+        "MissionControl_OverviewScreen"
+      ],
+      "interfaceMode": "grouped_views_within_one_trigger",
+      "views": [
+        {
+          "viewId": "mission_objectives",
+          "screen": "MissionControl_ObjectivesScreen",
+          "content": [
+            "current_sol",
+            "daily_mission_objective",
+            "required_tasks",
+            "completed_tasks",
+            "mission_constraints"
+          ]
+        },
+        {
+          "viewId": "outpost_status",
+          "screen": "MissionControl_OutpostStatusScreen",
+          "content": [
+            "overall_outpost_status",
+            "validated_sol02_readiness_summary",
+            "section_notifications",
+            "outstanding_operational_concerns"
+          ],
+          "restrictions": [
+            "Do not expose detailed Engineering system interfaces.",
+            "Do not expose detailed Habitat system interfaces."
+          ]
+        },
+        {
+          "viewId": "mission_overview",
+          "screen": "MissionControl_OverviewScreen",
+          "content": [
+            "mission_context",
+            "current_scientific_phase",
+            "available_mission_records",
+            "mission_progress"
+          ]
+        }
+      ],
+      "mandatoryTasks": ["SOL03_MISSION_CONTEXT"]
+    },
+    {
+      "interfaceId": "MISSION_CONTROL_SYSTEMS",
+      "location": "Mission Control",
+      "triggerId": "MC_SYSTEMS_01",
+      "screens": [
+        "MissionControl_CommunicationsScreen",
+        "MissionControl_SystemsScreen"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "communications_status_if_available",
+        "communications_constraints",
+        "operational_system_status",
+        "observation_planning_constraints",
+        "system_logs",
+        "warnings",
+        "player_review_notes"
+      ],
+      "mandatoryTasks": ["SOL03_SYSTEM_CONSTRAINTS"]
+    },
+    {
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "location": "Mission Control",
+      "triggerId": "MC_NAVIGATION_01",
+      "screens": [
+        "MissionControl_DroneOperationScreen",
+        "MissionControl_ObservationSitesScreen",
+        "MissionControl_TerrainMapScreen"
+      ],
+      "interfaceMode": "grouped_views_within_one_trigger",
+      "views": [
+        {
+          "viewId": "observation_sites",
+          "screen": "MissionControl_ObservationSitesScreen",
+          "content": [
+            "available_observation_sites",
+            "site_descriptions",
+            "available_site_metadata",
+            "site_observation_history",
+            "site_related_logs"
+          ]
+        },
+        {
+          "viewId": "terrain_map",
+          "screen": "MissionControl_TerrainMapScreen",
+          "content": [
+            "available_terrain_map",
+            "terrain_metadata",
+            "known_access_constraints",
+            "map_observation_markers"
+          ]
+        },
+        {
+          "viewId": "drone_operations",
+          "screen": "MissionControl_DroneOperationScreen",
+          "content": [
+            "drone_status",
+            "available_drone_information",
+            "drone_operation_records"
+          ],
+          "restrictions": [
+            "Sol 3 must not automatically launch the drone.",
+            "Do not implement unrequested drone operations as mandatory Sol 3 tasks."
+          ]
+        }
+      ],
+      "mandatoryTasks": [
+        "SOL03_OBSERVATION_SITE_REVIEW",
+        "SOL03_SELECT_TARGET"
+      ]
+    },
+    {
+      "interfaceId": "RESEARCH_ANALYSIS",
+      "location": "Research Lab",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "screens": ["ResearchMonitoring_SystemScreen"],
+      "interfaceMode": "single_section",
+      "content": [
+        "available_scientific_datasets",
+        "dataset_metadata",
+        "data_provenance",
+        "measurement_types",
+        "coverage_information",
+        "dataset_limitations",
+        "analysis_workspace",
+        "player_analysis_notes"
+      ],
+      "mandatoryTasks": ["SOL03_DATASET_ANALYSIS"]
+    },
+    {
+      "interfaceId": "RESEARCH_MONITORING",
+      "location": "Research Lab",
+      "triggerId": "LAB_RESEARCH_MONITORING_01",
+      "screens": ["ResearchMonitoring_MainScreen"],
+      "interfaceMode": "single_section",
+      "content": [
+        "research_monitoring_status",
+        "research_procedure",
+        "research_logs",
+        "research_warnings"
+      ],
+      "mandatoryTasks": []
+    }
   ],
   "tasks": [
     {
       "taskId": "SOL03_MISSION_CONTEXT",
-      "title": "Review Mission Context",
-      "description": "Review the current mission objectives, available operational information, and relevant findings from the Sol 2 readiness assessment.",
-      "location": "Mission Control",
-      "interaction": {
-        "triggerId": "MC_MAIN_01",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Review Mission Objectives and Outpost Status",
+      "triggerId": "MC_MAIN_01",
+      "interfaceId": "MISSION_CONTROL_MAIN",
       "mandatory": true,
-      "workflow": [
-        "open_mission_context",
-        "review_previous_readiness_record",
-        "identify_relevant_constraints",
-        "submit_context_review"
+      "objective": "Review the scientific mission context, today's objectives, and the validated Sol 2 readiness assessment.",
+      "requiredActions": [
+        "review_mission_objectives",
+        "review_outpost_status",
+        "read_sol02_readiness_summary",
+        "record_context_notes"
       ],
-      "requiredEvidence": [
-        "mission_context_reviewed",
-        "sol02_readiness_record_reviewed"
-      ],
-      "submission": {
-        "recordType": "mission_context_review",
-        "requiredFields": [
-          "readinessRecordId",
-          "relevantConstraints",
-          "contextNotes"
-        ]
-      },
-      "completionCondition": "The player submits a context review referencing the actual Sol 2 readiness record and identifies relevant constraints."
+      "submissionFields": [
+        "reviewedMissionRecords",
+        "relevantConstraints",
+        "playerComment"
+      ]
     },
     {
       "taskId": "SOL03_OBSERVATION_SITE_REVIEW",
-      "title": "Investigate Observation Sites",
-      "description": "Review available observation-site records and compare candidate targets using supported scientific and operational criteria.",
-      "location": "Mission Control",
-      "interaction": {
-        "triggerId": "MC_NAVIGATION_01",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Explore Mars Observation Sites",
+      "triggerId": "MC_NAVIGATION_01",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "viewId": "observation_sites",
       "mandatory": true,
-      "workflow": [
-        "open_available_site_records",
-        "inspect_site_metadata",
+      "objective": "Inspect available observation-site information and compare candidates using their available metadata.",
+      "requiredActions": [
+        "open_observation_sites_view",
+        "inspect_site_records",
+        "review_available_site_metadata",
         "compare_candidate_sites",
-        "record_comparison",
-        "submit_site_review"
+        "record_site_comparison"
       ],
-      "siteSelectionCriteria": [
-        {
-          "id": "scientific_relevance",
-          "label": "Scientific relevance",
-          "description": "How well the available site information supports the proposed scientific question."
-        },
-        {
-          "id": "data_availability",
-          "label": "Data availability",
-          "description": "Whether usable observations or datasets are available for the site."
-        },
-        {
-          "id": "operational_accessibility",
-          "label": "Operational accessibility",
-          "description": "Whether the available terrain and mission information supports access to the site."
-        },
-        {
-          "id": "data_quality",
-          "label": "Data quality and uncertainty",
-          "description": "Whether the available data is sufficiently documented and suitable for the intended investigation."
-        }
+      "comparisonCriteria": [
+        "scientific_relevance",
+        "data_availability",
+        "terrain_information",
+        "operational_accessibility",
+        "metadata_completeness",
+        "known_uncertainties"
       ],
-      "requiredEvidence": [
-        "observation_site_records_reviewed",
-        "candidate_site_comparison_submitted"
-      ],
-      "submission": {
-        "recordType": "observation_site_comparison",
-        "requiredFields": [
-          "candidateSiteIds",
-          "comparisonCriteria",
-          "selectedSiteId",
-          "selectionRationale",
-          "dataLimitations"
-        ],
-        "validationRules": [
-          "Every candidate site ID must refer to an actual available site record.",
-          "The selected site must be included among the reviewed candidates.",
-          "The rationale must use available site information.",
-          "Unknown site properties must remain unknown rather than being invented."
-        ]
-      },
-      "completionCondition": "A valid site comparison is submitted with an evidence-supported provisional site selection."
+      "submissionFields": [
+        "candidateSiteIds",
+        "selectedSiteId",
+        "comparisonNotes",
+        "supportingRecordIds",
+        "knownLimitations"
+      ]
     },
     {
       "taskId": "SOL03_SYSTEM_CONSTRAINTS",
-      "title": "Review Mission Systems and Constraints",
-      "description": "Inspect available communications, systems, and operational information that could affect the planned observation.",
-      "location": "Mission Control",
-      "interaction": {
-        "triggerId": "MC_SYSTEMS_01",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Review Communications and Operational Constraints",
+      "triggerId": "MC_SYSTEMS_01",
+      "interfaceId": "MISSION_CONTROL_SYSTEMS",
       "mandatory": true,
-      "workflow": [
-        "open_system_status",
-        "review_available_constraints",
-        "inspect_relevant_records",
-        "record_planning_implications",
-        "submit_constraints_review"
+      "objective": "Review available communication and system information that could affect observation planning.",
+      "requiredActions": [
+        "review_communications_status",
+        "review_operational_systems",
+        "inspect_relevant_logs",
+        "record_planning_constraints"
       ],
-      "requiredEvidence": [
-        "mission_system_constraints_reviewed"
-      ],
-      "submission": {
-        "recordType": "operational_constraints_review",
-        "requiredFields": [
-          "inspectedRecordIds",
-          "identifiedConstraints",
-          "planningImplications"
-        ]
-      },
-      "completionCondition": "The player submits a constraints review referencing available records and explaining their relevance to the planned observation."
+      "submissionFields": [
+        "reviewedLogIds",
+        "identifiedConstraints",
+        "planningImplications",
+        "playerComment"
+      ]
     },
     {
       "taskId": "SOL03_SELECT_TARGET",
-      "title": "Define a Scientific Target and Question",
-      "description": "Select an available observation target and formulate a focused scientific question that can reasonably be investigated with the available evidence.",
-      "location": "Mission Control",
-      "interaction": {
-        "triggerId": "MC_NAVIGATION_01",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Define the Scientific Observation Target",
+      "triggerId": "MC_NAVIGATION_01",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "viewId": "observation_sites",
       "mandatory": true,
       "requiresCompletedTasks": [
         "SOL03_OBSERVATION_SITE_REVIEW",
         "SOL03_SYSTEM_CONSTRAINTS"
       ],
-      "workflow": [
-        "select_available_target",
+      "objective": "Choose a supported observation target and write a focused scientific question.",
+      "requiredActions": [
+        "select_available_site",
         "write_scientific_question",
-        "select_supporting_observations",
+        "select_supporting_site_records",
         "identify_uncertainties",
         "submit_target_definition"
       ],
-      "targetRequirements": {
-        "targetMustExistInAvailableData": true,
-        "questionMustBeNonEmpty": true,
-        "questionMustBeRelevantToTarget": true,
-        "supportingEvidenceMustExist": true,
-        "limitationsMustBeDocumented": true
-      },
-      "submission": {
-        "recordType": "scientific_target_definition",
-        "requiredFields": [
-          "targetId",
-          "scientificQuestion",
-          "selectionRationale",
-          "supportingEvidenceReferences",
-          "knownLimitations"
-        ],
-        "validationRules": [
-          "The target ID must reference a real available target record or an explicitly labelled simulation record.",
-          "The scientific question must not be empty.",
-          "Supporting evidence references must resolve to existing records.",
-          "A proposed explanation must not be stored as an established scientific result."
-        ]
-      },
-      "completionCondition": "The player submits a valid target definition and a focused scientific question supported by available information."
+      "submissionFields": [
+        "targetId",
+        "scientificQuestion",
+        "selectionRationale",
+        "supportingRecordIds",
+        "knownLimitations"
+      ],
+      "validationRules": [
+        "The target must exist in the available site catalogue.",
+        "The scientific question must be relevant to the selected target.",
+        "Supporting references must resolve to actual records.",
+        "Unknown site properties must not be invented."
+      ]
     },
     {
-      "taskId": "SOL03_SELECT_DATASET",
-      "title": "Select and Evaluate a Scientific Dataset",
-      "description": "Explore the available scientific datasets, inspect their metadata and limitations, and choose a dataset relevant to the proposed target and question.",
-      "location": "Research Lab",
-      "interaction": {
-        "triggerId": "LAB_RESEARCH_ANALYSIS_01",
-        "mode": "existing_frontend_ui"
-      },
+      "taskId": "SOL03_DATASET_ANALYSIS",
+      "title": "Investigate and Select a Scientific Dataset",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "interfaceId": "RESEARCH_ANALYSIS",
       "mandatory": true,
-      "requiresCompletedTasks": [
-        "SOL03_SELECT_TARGET"
-      ],
-      "workflow": [
-        "open_available_dataset_catalogue",
+      "requiresCompletedTasks": ["SOL03_SELECT_TARGET"],
+      "objective": "Inspect available scientific datasets, review their metadata and provenance, and determine whether a dataset is suitable for the selected scientific question.",
+      "requiredActions": [
+        "open_dataset_catalogue",
         "inspect_dataset_metadata",
-        "review_provenance_and_coverage",
-        "evaluate_relevance",
-        "identify_limitations",
+        "review_data_provenance",
+        "review_spatial_and_temporal_coverage_if_available",
+        "evaluate_dataset_relevance",
+        "identify_data_limitations",
         "select_dataset",
         "submit_dataset_assessment"
       ],
-      "datasetEvaluation": {
-        "metadataFieldsToShowWhenAvailable": [
-          "datasetId",
-          "title",
-          "source",
-          "provider",
-          "productType",
-          "measurementType",
-          "units",
-          "spatialCoverage",
-          "temporalCoverage",
-          "resolution",
-          "processingLevel",
-          "limitations",
-          "provenance"
-        ],
-        "requiredPlayerInputs": [
-          "datasetId",
-          "relevanceExplanation",
-          "knownLimitations"
-        ],
-        "validationRules": [
-          "The selected dataset must exist in the actual available dataset catalogue.",
-          "Unavailable metadata must be marked unknown or unavailable.",
-          "The dataset's stated coverage and measurement type must support the proposed use.",
-          "A dataset must not be described as proving a conclusion it does not establish."
-        ]
-      },
-      "submission": {
-        "recordType": "scientific_dataset_assessment",
-        "requiredFields": [
-          "datasetId",
-          "relevanceExplanation",
-          "knownLimitations",
-          "provenanceReference"
-        ]
-      },
-      "completionCondition": "The player submits a dataset assessment referencing an available dataset and explaining its suitability and limitations."
+      "metadataFields": [
+        "datasetId",
+        "title",
+        "provider",
+        "source",
+        "productType",
+        "measurementType",
+        "units",
+        "spatialCoverage",
+        "temporalCoverage",
+        "resolution",
+        "processingLevel",
+        "provenance",
+        "limitations"
+      ],
+      "submissionFields": [
+        "datasetId",
+        "relevanceExplanation",
+        "supportingMetadata",
+        "knownLimitations",
+        "playerComment"
+      ],
+      "validationRules": [
+        "The dataset must exist in the available catalogue.",
+        "The dataset must be relevant to the selected target and question.",
+        "Missing metadata must be labelled unavailable.",
+        "The player must not claim that a dataset proves a result beyond its capabilities."
+      ]
     },
     {
-      "taskId": "SOL03_SUBMIT_TARGET_RECORD",
-      "title": "Submit the Scientific Target Proposal",
-      "description": "Review the selected target, scientific question, dataset, supporting evidence, operational constraints, and known limitations. Submit the final investigation plan.",
-      "location": "Mission Control",
-      "interaction": {
-        "triggerId": "MC_MAIN_01",
-        "mode": "existing_frontend_ui"
-      },
+      "taskId": "SOL03_SUBMIT_TARGET_PROPOSAL",
+      "title": "Submit the Scientific Observation Proposal",
+      "triggerId": "MC_MAIN_01",
+      "interfaceId": "MISSION_CONTROL_MAIN",
       "mandatory": true,
       "requiresCompletedTasks": [
         "SOL03_MISSION_CONTEXT",
         "SOL03_OBSERVATION_SITE_REVIEW",
         "SOL03_SYSTEM_CONSTRAINTS",
         "SOL03_SELECT_TARGET",
-        "SOL03_SELECT_DATASET"
+        "SOL03_DATASET_ANALYSIS"
       ],
-      "reviewSections": [
-        "missionContext",
-        "selectedTarget",
+      "objective": "Review and submit the final scientific target proposal with its supporting site records, selected dataset, rationale and known limitations.",
+      "submissionFields": [
+        "targetId",
         "scientificQuestion",
-        "selectedDataset",
-        "supportingEvidence",
+        "datasetId",
+        "selectionRationale",
+        "supportingRecordIds",
         "operationalConstraints",
         "knownLimitations"
       ],
-      "submission": {
-        "recordType": "scientific_target_proposal",
-        "requiredFields": [
-          "targetId",
-          "scientificQuestion",
-          "datasetId",
-          "selectionRationale",
-          "supportingEvidenceReferences",
-          "operationalConstraints",
-          "knownLimitations"
-        ],
-        "validationRules": [
-          "The selected target must exist.",
-          "The selected dataset must exist.",
-          "The target and dataset must be relevant to the proposed question.",
-          "All evidence references must resolve.",
-          "Known limitations must be retained in the final record.",
-          "The proposal must not claim a scientific result that has not been established."
-        ]
-      },
-      "completionCondition": "The proposal passes validation and is saved as the player's final Sol 3 scientific investigation plan."
+      "validationRules": [
+        "The selected target and dataset must exist.",
+        "The question must be nonempty and relevant.",
+        "Supporting records must exist.",
+        "Known limitations must be included.",
+        "The proposal must not present a hypothesis as an established scientific result."
+      ]
     }
   ],
-  "missionOutputs": [
-    "mission_context_review",
-    "observation_site_comparison",
-    "operational_constraints_review",
-    "scientific_target_definition",
-    "scientific_dataset_assessment",
-    "scientific_target_proposal"
-  ],
-  "nextMission": "PHOBOSIA_SOL_04"
+  "missionCompletion": {
+    "requiredTasks": [
+      "SOL03_MISSION_CONTEXT",
+      "SOL03_OBSERVATION_SITE_REVIEW",
+      "SOL03_SYSTEM_CONSTRAINTS",
+      "SOL03_SELECT_TARGET",
+      "SOL03_DATASET_ANALYSIS",
+      "SOL03_SUBMIT_TARGET_PROPOSAL"
+    ],
+    "requireValidSubmittedRecords": true,
+    "requireEvidenceReferences": true,
+    "requireKnownLimitations": true,
+    "unlockNextSol": "PHOBOSIA_SOL_04"
+  }
 }

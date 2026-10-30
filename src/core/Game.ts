@@ -571,6 +571,8 @@ export class Game {
 
   openScreenOS(initialApp?: string) {
     this.cinematicGliding = false;
+    // Every OS entry path must release first-person pointer lock so UI controls can receive clicks.
+    if (document.pointerLockElement) document.exitPointerLock();
     this.set({
       showCinematicOverlay: false,
       showOSDesktop: true,
