@@ -1,14 +1,17 @@
 import sol02Mission from "../../jsons/Missions/sol-02.json";
 import sol03Mission from "../../jsons/Missions/sol-03.json";
+import sol04Mission from "../../jsons/Missions/sol-04.json";
 import sol02Navigation from "../../jsons/Instructions/sol-02-navigation.json";
 import sol03Navigation from "../../jsons/Instructions/sol-03-navigation.json";
+import sol04Navigation from "../../jsons/Instructions/sol-04-navigation.json";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
-  3: { mission: sol03Mission, navigation: sol03Navigation }
+  3: { mission: sol03Mission, navigation: sol03Navigation },
+  4: { mission: sol04Mission, navigation: sol04Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -21,6 +24,13 @@ const RUNTIME_TASK_TO_MISSION_TASK: Record<number, Record<string, string>> = {
   3: {
     SOL03_SELECT_DATASET: "SOL03_DATASET_ANALYSIS",
     SOL03_SUBMIT_TARGET_RECORD: "SOL03_SUBMIT_TARGET_PROPOSAL"
+  },
+  4: {
+    SOL04_MISSION_CONTEXT: "MC_MAIN_01",
+    SOL04_SELECTED_TARGET_INVESTIGATION: "MC_NAVIGATION_01",
+    SOL04_TERRAIN_DATA_REVIEW: "LAB_RESEARCH_ANALYSIS_01",
+    SOL04_DRONE_MISSION_PLAN: "MC_NAVIGATION_01",
+    SOL04_SUBMIT_PREPARATION_REPORT: "MC_MAIN_01"
   }
 };
 
@@ -41,7 +51,12 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL03_SYSTEM_CONSTRAINTS: "MC_SYSTEMS_01",
   SOL03_SELECT_TARGET: "MC_NAVIGATION_01",
   SOL03_DATASET_ANALYSIS: "LAB_RESEARCH_ANALYSIS_01",
-  SOL03_SUBMIT_TARGET_PROPOSAL: "MC_MAIN_01"
+  SOL03_SUBMIT_TARGET_PROPOSAL: "MC_MAIN_01",
+  SOL04_MISSION_CONTEXT: "MC_MAIN_01",
+  SOL04_SELECTED_TARGET_INVESTIGATION: "MC_NAVIGATION_01",
+  SOL04_TERRAIN_DATA_REVIEW: "LAB_RESEARCH_ANALYSIS_01",
+  SOL04_DRONE_MISSION_PLAN: "MC_NAVIGATION_01",
+  SOL04_SUBMIT_PREPARATION_REPORT: "MC_MAIN_01"
 };
 
 export interface ResolvedMissionNavigation {

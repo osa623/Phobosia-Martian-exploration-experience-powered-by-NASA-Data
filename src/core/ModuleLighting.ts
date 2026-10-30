@@ -216,6 +216,7 @@ const MODULE_KEY_LIGHTS: Record<Exclude<ModuleName, "Terrain">, KeySpotlightDef[
       normalBias: 0.03
     }
   ],
+  Drone: [],
   Airlock: [
     {
       name: "Airlock_OuterChamber_Spot",
@@ -491,8 +492,8 @@ export function createModuleLights(
       : THREE.MathUtils.clamp(Math.max(size.x, size.z) * 1.1 + 2, 4, 7);
 
     // Balanced soft fill intensity
-    const intensity = isTopFixture ? 3.5 : 1.8;
-    const light = new THREE.PointLight(0xe8f2ff, intensity, distance, 1.8);
+    const intensity = module === "Drone" ? 1.2 : isTopFixture ? 3.5 : 1.8;
+    const light = new THREE.PointLight(module === "Drone" ? 0xc9e9f2 : 0xe8f2ff, intensity, distance, 1.8);
     light.name = `RuntimeLight:${object.name}`;
     light.position.copy(localPosition);
     light.castShadow = false; // Secondary fill lights never cast shadows

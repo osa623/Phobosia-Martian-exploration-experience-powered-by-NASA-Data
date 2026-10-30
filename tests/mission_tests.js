@@ -75,6 +75,22 @@ function completeSol3(mm) {
   const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal_submitted', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
   assert.strictEqual(result.success, true, result.message);
 }
+
+function completeSol4(mm) {
+  const targetId = mm.getSelectedSiteId();
+  assert(targetId && MASTER_TERRAIN_TARGETS.some(target => target.id === targetId), 'Sol 3 selected target must persist into Sol 4');
+  const submit = (taskId, limitations = ['Target-specific coordinates, NASA products, and terrain measurements are unavailable.'], evidenceReferences = []) => {
+    const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'The available target record supports planning, with important evidence limits.', limitations, procedureChecks: taskId === 'SOL04_SUBMIT_PREPARATION_REPORT' ? [] : ['reviewed', 'limitations-recorded'], selectedTargetId: targetId, playerComment: 'Player assessment; not an independently verified finding.' });
+    assert.strictEqual(result.success, true, `${taskId}: ${result.message}`);
+  };
+  submit('SOL04_MISSION_CONTEXT');
+  submit('SOL04_SELECTED_TARGET_INVESTIGATION');
+  submit('SOL04_TERRAIN_DATA_REVIEW');
+  assert.strictEqual(mm.recordPhysicalDroneInspection('Visible presence checked; readings unavailable.'), true);
+  submit('SOL04_DRONE_MISSION_PLAN');
+  const refs = mm.getInvestigationRecords().filter(record => record.sol === 4).map(record => record.id);
+  submit('SOL04_SUBMIT_PREPARATION_REPORT', ['Terrain measurements and drone telemetry are unavailable.'], refs);
+}
 const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
 const { EngineeringScreenRenderer } = require('../dist/core/EngineeringScreenRenderer.js');
@@ -107,14 +123,14 @@ console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');
 test('Mission progress counts unique mission tasks rather than saved steps from prior Sols', () => {
   const sol2 = getMissionTaskProgressFor(2, ['D1_HAB_LIFE_SUPPORT', 'SOL02_HABITAT_STATUS', 'SOL02_HABITAT_STATUS']);
   assert.deepStrictEqual(sol2, { completed: 1, total: 7, remaining: 6 });
-  const sol4 = getMissionTaskProgressFor(4, ['DAY4_REACH_RELEVANT_MODULE']);
-  assert.deepStrictEqual(sol4, { completed: 0, total: 1, remaining: 1 });
+  const sol4 = getMissionTaskProgressFor(4, ['SOL04_MISSION_CONTEXT']);
+  assert.deepStrictEqual(sol4, { completed: 1, total: 6, remaining: 5 });
   const sol4Complete = getMissionTaskProgressFor(4, DAYS_CONFIG[4].steps.map(step => step.stepId));
-  assert.deepStrictEqual(sol4Complete, { completed: 1, total: 1, remaining: 0 });
+  assert.deepStrictEqual(sol4Complete, { completed: 6, total: 6, remaining: 0 });
 });
 
 test('Sol 2 and Sol 3 navigation instructions cover required JSON tasks and keep player names free of implementation IDs', () => {
-  for (const sol of [2, 3]) {
+  for (const sol of [2, 3, 4]) {
     const mission = require(`../src/jsons/Missions/sol-0${sol}.json`);
     const navigation = require(`../src/jsons/Instructions/sol-0${sol}-navigation.json`);
     const requiredIds = mission.missionCompletion.requiredTasks;
@@ -275,8 +291,8 @@ test('Sol 3 requires reviewed context, valid target and dataset references, and 
   assert.strictEqual(mm.getState().currentDay, 4);
 });
 
-// P2-008: Day 4 Life-Support Verification Lifecycle
-test('Day 4 Life-support verification records telemetry and advances to Day 5', () => {
+// Sol 4: Selected target investigation, physical drone inspection, preparation report, progression
+test('Sol 4 requires the Sol 3 target, physical drone inspection, and a valid preparation report before Sol 5', () => {
   mockStorage.clear();
   const mm = new MissionManager();
   mm.completeStep('DAY1_REVIEW_CONTROLS');
@@ -290,12 +306,13 @@ test('Day 4 Life-support verification records telemetry and advances to Day 5', 
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 4);
-  mm.handleContextEvent({ type: 'module_entered', module: 'Engineering' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'Engineering_LifeSupport_Trigger' });
-
+  const selected = mm.getSelectedSiteId();
+  assert.strictEqual(selected, MASTER_TERRAIN_TARGETS[0].id);
+  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
+  completeSol4(mm);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
-  const record = mm.getState().observationRecords.find(r => r.type === 'life_support_verification');
-  assert(record !== undefined);
+  assert(mm.getInvestigationRecords().some(record => record.taskId === 'SOL04_DRONE_PHYSICAL_INSPECTION'));
+  assert(mm.getInvestigationRecords().some(record => record.taskId === 'SOL04_SUBMIT_PREPARATION_REPORT'));
 
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
@@ -316,9 +333,7 @@ test('Day 5 Route planning validates selection and advances to Day 6 in Phase 3'
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 5);
@@ -357,9 +372,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY5_REACH_MISSION_CONTROL');
   mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
@@ -419,9 +432,7 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY5_REACH_MISSION_CONTROL');
   mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
@@ -496,9 +507,7 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
   mm.completeStep('DAY5_REACH_MISSION_CONTROL');
   mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
@@ -582,9 +591,7 @@ test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut contro
   mm.advanceDay(true); // 3
   completeSol3(mm);
   mm.advanceDay(true); // 4
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true); // 5
   mm.completeStep('DAY5_REACH_MISSION_CONTROL');
   mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');

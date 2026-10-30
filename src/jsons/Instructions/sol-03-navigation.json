@@ -15,7 +15,7 @@
       "taskId": "SOL03_OBSERVATION_SITE_REVIEW",
       "title": "Explore Mars Observation Sites",
       "message": "Proceed to the Mission Control navigation station.",
-      "guidance": "Inspect available site profiles and metadata. Compare at least two candidates and record known uncertainties and limitations.",
+      "guidance": "Review Target 01, Target 02, and Target 03. Open each target's grayscale, color, and thermal scientific imagery, then read its location, terrain notes, historical observation record, and PHOBOSIA accessibility assessment. Compare all three candidates and note where evidence is unavailable.",
       "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
       "activity": "Use the existing observation-site view and submit the site comparison."
     },
@@ -31,7 +31,7 @@
       "taskId": "SOL03_SELECT_TARGET",
       "title": "Define the Scientific Observation Target",
       "message": "Return to the observation-site information and define a target.",
-      "guidance": "Select an available site, write a focused scientific question, reference supporting records, and state the known uncertainties.",
+      "guidance": "After reviewing all three targets and their imagery, choose one target. Read its historical observations and accessibility assessment, write a focused scientific question, reference supporting records, and state the known uncertainties. The site names are PHOBOSIA designations; target-specific NASA records are unavailable where no coordinates are supplied.",
       "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
       "activity": "Submit the target definition through the existing navigation interface.",
       "requiresCompletedTasks": ["SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS"]

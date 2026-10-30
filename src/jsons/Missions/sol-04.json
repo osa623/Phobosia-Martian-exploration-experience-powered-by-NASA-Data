@@ -1,0 +1,635 @@
+
+{
+  "missionId": "PHOBOSIA_SOL_04",
+  "sol": 4,
+  "title": "Selected Target Investigation and Drone Mission Preparation",
+  "subtitle": "Investigate the selected Mars target and prepare the drone for the next observation mission.",
+  "missionType": "trigger_scoped_scientific_investigation",
+  "description": "Conduct a detailed scientific investigation of the target selected during Sol 3. Review available scientific records, historical observations, terrain information, operational constraints, and relevant mission logs through Mission Control and Research Lab interfaces. Physically visit the Drone Section to inspect the existing drone and verify its visible preparation state. Submit a preliminary terrain assessment and a preparation report for the Sol 5 aerial reconnaissance mission.",
+  "prerequisites": {
+    "completedMissions": [
+      "PHOBOSIA_SOL_03"
+    ],
+    "requiredPersistentMissionState": [
+      "selectedSiteId"
+    ]
+  },
+  "progression": {
+    "completionUnlocks": "PHOBOSIA_SOL_05",
+    "dayAdvancementTrigger": "HAB_REST_01",
+    "requireMissionCompletionBeforeRestAdvancement": true
+  },
+  "accessPolicy": {
+    "accessMode": "physical_trigger_only",
+    "remoteSectionAccess": false,
+    "allowCrossSectionNavigationFromUI": false,
+    "allowOverviewNotifications": true,
+    "requireExistingTriggerId": true,
+    "requirePhysicalDroneSectionVisit": true,
+    "droneSectionHasDedicatedScreenInterface": false
+  },
+  "dataPolicy": {
+    "useActualAvailableMarsDataWherePresent": true,
+    "requireDatasetProvenance": true,
+    "requireSiteMetadata": true,
+    "allowClearlyLabelledSimulation": true,
+    "neverInventNASAData": true,
+    "neverInventCoordinates": true,
+    "unknownMetadataMustRemainUnknown": true,
+    "hypothesisMustNotBePresentedAsVerifiedFinding": true,
+    "selectedSol03TargetIsAuthoritative": true,
+    "doNotReplaceSelectedTarget": true,
+    "distinguishNASARecordsFromPHOBOSIAAnalysis": true,
+    "doNotAssumeUnavailableTerrainMeasurements": true
+  },
+  "missionContext": {
+    "geographicRegion": "Elysium Planitia",
+    "targetSource": {
+      "missionId": "PHOBOSIA_SOL_03",
+      "field": "selectedSiteId",
+      "resolution": "Read the target selected and validated during Sol 3 from the existing persistent mission state."
+    },
+    "targetSelectionAllowed": false,
+    "targetReplacementAllowed": false,
+    "missionPhase": "scientific_investigation_and_drone_preparation",
+    "nextMissionPhase": "drone_aerial_reconnaissance",
+    "nextMissionId": "PHOBOSIA_SOL_05"
+  },
+  "missionRules": [
+    "The player must investigate only the target selected during Sol 3.",
+    "The selected target must be resolved from the existing persistent mission state.",
+    "Do not provide a second target-selection process during Sol 4.",
+    "Mission Control is the primary location for scientific investigation and mission planning.",
+    "Research Lab is used for scientific dataset review and terrain assessment.",
+    "The player must physically visit the Drone Section and inspect the existing drone.",
+    "The Drone Section has no dedicated computer or screen interface.",
+    "The drone must not be remotely inspected through Mission Control as a substitute for the physical inspection task.",
+    "The drone must not be launched or flown during Sol 4.",
+    "No aerial image capture or drone route execution is part of Sol 4.",
+    "Drone flight, aerial observation, and aerial image capture belong to Sol 5.",
+    "Do not invent scientific records, coordinates, measurements, equipment status, or operational capabilities."
+  ],
+  "interfaces": [
+    {
+      "interfaceId": "MISSION_CONTROL_MAIN",
+      "location": "Mission Control",
+      "triggerId": "MC_MAIN_01",
+      "screens": [
+        "MissionControl_ObjectivesScreen",
+        "MissionControl_OutpostStatusScreen",
+        "MissionControl_OverviewScreen"
+      ],
+      "interfaceMode": "grouped_views_within_one_trigger",
+      "views": [
+        {
+          "viewId": "mission_objectives",
+          "screen": "MissionControl_ObjectivesScreen",
+          "content": [
+            "current_sol",
+            "daily_mission_objective",
+            "required_tasks",
+            "completed_tasks",
+            "mission_constraints"
+          ]
+        },
+        {
+          "viewId": "outpost_status",
+          "screen": "MissionControl_OutpostStatusScreen",
+          "content": [
+            "overall_outpost_status",
+            "validated_sol03_mission_summary",
+            "section_notifications",
+            "outstanding_operational_concerns"
+          ],
+          "restrictions": [
+            "Do not expose detailed Engineering system interfaces.",
+            "Do not expose detailed Habitat system interfaces.",
+            "Do not expose the Drone Section as a remotely accessible interface."
+          ]
+        },
+        {
+          "viewId": "mission_overview",
+          "screen": "MissionControl_OverviewScreen",
+          "content": [
+            "mission_context",
+            "selected_target_summary",
+            "current_scientific_phase",
+            "available_mission_records",
+            "mission_progress"
+          ]
+        }
+      ],
+      "mandatoryTasks": [
+        "SOL04_MISSION_CONTEXT"
+      ]
+    },
+    {
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "location": "Mission Control",
+      "triggerId": "MC_NAVIGATION_01",
+      "screens": [
+        "MissionControl_DroneOperationScreen",
+        "MissionControl_ObservationSitesScreen",
+        "MissionControl_TerrainMapScreen"
+      ],
+      "interfaceMode": "grouped_views_within_one_trigger",
+      "views": [
+        {
+          "viewId": "selected_target_investigation",
+          "screen": "MissionControl_ObservationSitesScreen",
+          "content": [
+            "selected_sol03_target",
+            "target_identity",
+            "target_geographic_context",
+            "available_site_metadata",
+            "available_historical_observations",
+            "site_related_logs",
+            "scientific_record_review",
+            "player_investigation_notes"
+          ],
+          "restrictions": [
+            "Use only the target selected during Sol 3.",
+            "Do not allow target replacement.",
+            "Do not invent unavailable target coordinates or NASA observations.",
+            "Distinguish verified NASA records from PHOBOSIA-generated analysis."
+          ]
+        },
+        {
+          "viewId": "terrain_investigation",
+          "screen": "MissionControl_TerrainMapScreen",
+          "content": [
+            "available_terrain_map",
+            "selected_target_terrain_context",
+            "terrain_metadata",
+            "known_access_constraints",
+            "available_elevation_information",
+            "available_slope_information",
+            "known_uncertainties",
+            "map_observation_markers",
+            "player_terrain_review_notes"
+          ],
+          "restrictions": [
+            "Display only terrain information supported by available data.",
+            "Do not fabricate terrain measurements.",
+            "Do not interpret scene coordinates as Mars geographic coordinates.",
+            "Mark unavailable measurements clearly."
+          ]
+        },
+        {
+          "viewId": "drone_mission_preparation",
+          "screen": "MissionControl_DroneOperationScreen",
+          "content": [
+            "selected_target_summary",
+            "available_drone_information",
+            "drone_preparation_requirements",
+            "drone_operational_constraints",
+            "available_drone_records",
+            "sol05_aerial_observation_objectives",
+            "player_mission_preparation_notes"
+          ],
+          "restrictions": [
+            "This is a planning and information view only.",
+            "Do not remotely launch, control, or operate the physical drone.",
+            "Do not claim physical inspection has been completed from this interface.",
+            "Do not fabricate drone battery, fuel, mechanical, or communication readings.",
+            "Actual drone operation is reserved for Sol 5."
+          ]
+        }
+      ],
+      "mandatoryTasks": [
+        "SOL04_SELECTED_TARGET_INVESTIGATION",
+        "SOL04_TERRAIN_DATA_REVIEW",
+        "SOL04_DRONE_MISSION_PLAN"
+      ]
+    },
+    {
+      "interfaceId": "MISSION_CONTROL_SYSTEMS",
+      "location": "Mission Control",
+      "triggerId": "MC_SYSTEMS_01",
+      "screens": [
+        "MissionControl_CommunicationsScreen",
+        "MissionControl_SystemsScreen"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "available_communications_status",
+        "communications_constraints",
+        "operational_system_status",
+        "observation_planning_constraints",
+        "available_system_logs",
+        "warnings",
+        "player_review_notes"
+      ],
+      "restrictions": [
+        "Show only existing and available system information.",
+        "Do not expose detailed interfaces belonging to other physical sections."
+      ],
+      "mandatoryTasks": []
+    },
+    {
+      "interfaceId": "RESEARCH_ANALYSIS",
+      "location": "Research Lab",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "screens": [
+        "ResearchMonitoring_SystemScreen"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "selected_target_scientific_datasets",
+        "dataset_metadata",
+        "data_provenance",
+        "measurement_types",
+        "spatial_coverage",
+        "temporal_coverage",
+        "dataset_limitations",
+        "terrain_analysis_workspace",
+        "player_analysis_notes"
+      ],
+      "restrictions": [
+        "Use only datasets available in the existing project or verified scientific sources.",
+        "Do not invent LiDAR, DEM, thermal, slope, or elevation measurements.",
+        "Do not present a hypothesis as a verified scientific finding."
+      ],
+      "mandatoryTasks": [
+        "SOL04_TERRAIN_DATA_REVIEW"
+      ]
+    },
+    {
+      "interfaceId": "RESEARCH_MONITORING",
+      "location": "Research Lab",
+      "triggerId": "LAB_RESEARCH_MONITORING_01",
+      "screens": [
+        "ResearchMonitoring_MainScreen"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "research_monitoring_status",
+        "research_procedure",
+        "research_logs",
+        "research_warnings",
+        "player_research_comments"
+      ],
+      "mandatoryTasks": []
+    }
+  ],
+  "physicalSections": [
+    {
+      "sectionName": "Drone Section",
+      "sectionType": "physical_inspection_area",
+      "accessMode": "physical_trigger_only",
+      "triggerId": "Drone_Section_Entrance_Trigger",
+      "sceneAsset": "drone_Zone",
+      "dedicatedScreenInterface": false,
+      "interaction": {
+        "input": "E",
+        "action": "enter_drone_section",
+        "spawnExistingDrone": false,
+        "revealExistingDrone": true,
+        "spawnReference": "existing_drone_section_entrance_trigger_transform",
+        "spawnRule": "The drone already exists in the Drone Section GLB and remains in its authored position. Use the entrance transform only as the player's section-entry reference; do not instantiate or move a second drone.",
+        "useExistingDroneObject": true,
+        "droneObjectName": "Drone",
+        "droneAssetLocation": "drone_Zone",
+        "allowDuplicateDroneSpawn": false,
+        "allowDroneFlightDuringSol04": false
+      },
+      "sceneSetup": {
+        "lights": {
+          "objectNames": [
+            "Light_01",
+            "Light_02",
+            "Light_03"
+          ],
+          "requiredBehavior": "Create or configure an appropriate light for each matching light object using the existing project lighting conventions.",
+          "preferredLightType": "point_or_area_based_on_actual_object_and_scene",
+          "rules": [
+            "Inspect each object in the GLB before configuring lighting.",
+            "Do not create duplicate lights if the existing objects already represent configured lights.",
+            "Use appropriate intensity, range, color, and shadow settings for the actual scene scale.",
+            "Avoid excessive real-time shadow cost.",
+            "Do not assume the names represent existing Three.js Light objects; inspect their actual GLB node types."
+          ]
+        },
+        "colliders": [
+          {
+            "objectName": "Collider_Section02",
+            "purpose": "Drone Section collision boundary",
+            "behavior": "Apply collision using the same established collider implementation used by the existing Habitat and other physical sections.",
+            "rules": [
+              "Use the existing collider system.",
+              "Do not introduce a second collider architecture.",
+              "Do not create arbitrary collider dimensions.",
+              "Use the actual GLB object transform and geometry."
+            ]
+          }
+        ],
+        "entrance": {
+          "triggerObjectName": "Drone_Section_Entrance_Trigger",
+          "interiorExitObjectName": "DroneZone_Entrance_Trigger",
+          "interactionInput": "E",
+          "behavior": "On valid physical interaction, enter the Drone Section and spawn or reveal the existing drone at the trigger-defined spawn location.",
+          "rules": [
+            "Use the existing physical interaction and E-key trigger flow.",
+            "Do not open a screen interface.",
+            "Do not bypass the trigger.",
+            "Prevent duplicate drone instances.",
+            "Preserve the existing drone object and scene hierarchy."
+          ]
+        }
+      },
+      "inspectionRequirements": [
+        "The player must physically enter the Drone Section.",
+        "The existing drone must be visible for inspection.",
+        "The player must interact with the existing drone inspection interaction if one exists.",
+        "Do not invent a new drone trigger or interaction point.",
+        "If no drone-specific inspection interaction exists, inspect the existing project interaction mappings and report the missing mapping instead of inventing one."
+      ],
+      "mandatoryTasks": [
+        "SOL04_DRONE_PHYSICAL_INSPECTION"
+      ]
+    }
+  ],
+  "logSchema": {
+    "requiredFields": [
+      "logId",
+      "title",
+      "eventTime",
+      "displayLocation",
+      "systemName",
+      "category",
+      "severity",
+      "detailedDescription",
+      "observations",
+      "dataSourceType"
+    ],
+    "locationRules": {
+      "showHumanReadableLocation": true,
+      "showInternalFilePaths": false,
+      "showJsonFilenames": false,
+      "example": "Mission Control — Target Investigation Console"
+    },
+    "dataSourceTypes": [
+      "NASA_ARCHIVAL_RECORD",
+      "NASA_DATASET",
+      "EXISTING_OUTPOST_RECORD",
+      "PHOBOSIA_ANALYSIS",
+      "SIMULATED_RECORD"
+    ],
+    "rules": [
+      "Never label a simulated record as a NASA record.",
+      "Preserve source provenance for scientific records.",
+      "Use actual event times where available.",
+      "Do not fabricate historical observation dates."
+    ]
+  },
+  "tasks": [
+    {
+      "taskId": "SOL04_MISSION_CONTEXT",
+      "title": "Review Sol 4 Mission Objectives",
+      "triggerId": "MC_MAIN_01",
+      "interfaceId": "MISSION_CONTROL_MAIN",
+      "mandatory": true,
+      "objective": "Review the Sol 4 mission objectives, the validated Sol 3 completion summary, and the target selected for the next investigation phase.",
+      "requiredActions": [
+        "review_mission_objectives",
+        "review_sol03_completion_summary",
+        "review_selected_target_reference",
+        "review_mission_constraints",
+        "record_mission_context_notes"
+      ],
+      "submissionFields": [
+        "reviewedMissionRecords",
+        "selectedSiteId",
+        "relevantConstraints",
+        "playerComment"
+      ],
+      "validationRules": [
+        "Sol 3 must be completed.",
+        "A valid selectedSiteId must exist in the persistent mission state.",
+        "The selected target must resolve to an existing Sol 3 target catalogue entry.",
+        "Do not allow the player to replace the selected target."
+      ]
+    },
+    {
+      "taskId": "SOL04_SELECTED_TARGET_INVESTIGATION",
+      "title": "Investigate the Selected Observation Target",
+      "triggerId": "MC_NAVIGATION_01",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "viewId": "selected_target_investigation",
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL04_MISSION_CONTEXT"
+      ],
+      "objective": "Investigate the target selected during Sol 3 by reviewing its available scientific information, historical observation records, geographic context, and relevant mission logs.",
+      "requiredActions": [
+        "open_selected_target_investigation_view",
+        "resolve_selected_sol03_target",
+        "review_target_identity_and_location",
+        "review_available_historical_records",
+        "inspect_target_related_logs",
+        "review_scientific_observation_context",
+        "record_investigation_comments"
+      ],
+      "submissionFields": [
+        "selectedSiteId",
+        "reviewedRecordIds",
+        "scientificObservations",
+        "investigationComments",
+        "knownUncertainties"
+      ],
+      "validationRules": [
+        "The investigated target must match the Sol 3 selectedSiteId.",
+        "The target must exist in the Sol 3 target catalogue.",
+        "Only available and traceable records may be submitted as supporting evidence.",
+        "Unknown metadata must remain unknown.",
+        "Player comments must be distinguishable from verified NASA findings."
+      ]
+    },
+    {
+      "taskId": "SOL04_TERRAIN_DATA_REVIEW",
+      "title": "Review Terrain and Scientific Dataset Evidence",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "interfaceId": "RESEARCH_ANALYSIS",
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL04_SELECTED_TARGET_INVESTIGATION"
+      ],
+      "objective": "Review available datasets and assess what they can and cannot establish about the selected target's terrain and scientific suitability.",
+      "requiredActions": [
+        "open_selected_target_dataset_catalogue",
+        "inspect_available_dataset_metadata",
+        "review_data_provenance",
+        "review_spatial_coverage_if_available",
+        "review_temporal_coverage_if_available",
+        "inspect_available_terrain_information",
+        "evaluate_slope_and_surface_information_if_available",
+        "identify_obstacles_and_uncertainties_if_supported",
+        "record_terrain_assessment_comments"
+      ],
+      "submissionFields": [
+        "selectedSiteId",
+        "reviewedDatasetIds",
+        "terrainEvidenceSummary",
+        "terrainSuitabilityAssessment",
+        "knownDataLimitations",
+        "playerAnalysisNotes"
+      ],
+      "validationRules": [
+        "The assessment must refer to the Sol 3 selected target.",
+        "Dataset references must resolve to actual available records.",
+        "Do not invent slope, elevation, obstacle, or surface measurements.",
+        "Unavailable terrain measurements must be identified as unavailable.",
+        "A scientific hypothesis must not be submitted as an established result."
+      ]
+    },
+    {
+      "taskId": "SOL04_DRONE_PHYSICAL_INSPECTION",
+      "title": "Visit and Inspect the Drone",
+      "triggerId": "DroneZone_Entrance_Trigger",
+      "sectionName": "Drone Section",
+      "sectionType": "physical_inspection_area",
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL04_MISSION_CONTEXT"
+      ],
+      "objective": "Physically visit the Drone Section, enter through its existing entrance interaction, and inspect the existing drone before the Sol 5 aerial reconnaissance mission.",
+      "requiredActions": [
+        "physically_reach_drone_section_entrance",
+        "activate_existing_drone_section_entrance",
+        "enter_drone_section",
+        "inspect_existing_drone",
+        "review_visible_drone_condition",
+        "record_drone_inspection_notes"
+      ],
+      "submissionFields": [
+        "droneInspectionCompleted",
+        "visibleDroneCondition",
+        "observedPreparationIssues",
+        "playerInspectionNotes"
+      ],
+      "validationRules": [
+        "The player must physically activate the existing Drone Section entrance trigger.",
+        "The existing drone must be present and available for inspection.",
+        "The inspection must be recorded from the physical Drone Section interaction.",
+        "Opening Mission Control must not complete this task.",
+        "Do not fabricate battery, fuel, mechanical, camera, or communication readings.",
+        "If a measurement is not actually available in the game, record it as unavailable or not inspected.",
+        "This task does not authorize drone launch or flight."
+      ]
+    },
+    {
+      "taskId": "SOL04_DRONE_MISSION_PLAN",
+      "title": "Prepare the Sol 5 Drone Observation Plan",
+      "triggerId": "MC_NAVIGATION_01",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "viewId": "drone_mission_preparation",
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL04_SELECTED_TARGET_INVESTIGATION",
+        "SOL04_TERRAIN_DATA_REVIEW",
+        "SOL04_DRONE_PHYSICAL_INSPECTION"
+      ],
+      "objective": "Use the selected target investigation, terrain assessment, and physical drone inspection to prepare the objectives and operational constraints for the Sol 5 aerial reconnaissance mission.",
+      "requiredActions": [
+        "review_selected_target_summary",
+        "review_terrain_assessment",
+        "review_drone_inspection_notes",
+        "review_drone_operational_constraints",
+        "define_aerial_observation_objectives",
+        "identify_unresolved_preparation_issues",
+        "submit_sol05_observation_plan"
+      ],
+      "submissionFields": [
+        "selectedSiteId",
+        "terrainAssessmentReference",
+        "droneInspectionReference",
+        "aerialObservationObjectives",
+        "operationalConstraints",
+        "unresolvedPreparationIssues",
+        "playerMissionPlanNotes"
+      ],
+      "validationRules": [
+        "The plan must use the target selected during Sol 3.",
+        "The plan must reference the Sol 4 terrain assessment.",
+        "The plan must reference the physical drone inspection.",
+        "The plan must identify data limitations and unresolved issues.",
+        "Do not claim the drone has completed an aerial observation.",
+        "Do not submit invented drone telemetry or measurements."
+      ]
+    },
+    {
+      "taskId": "SOL04_SUBMIT_PREPARATION_REPORT",
+      "title": "Submit the Preliminary Terrain Assessment and Mission Preparation Report",
+      "triggerId": "MC_MAIN_01",
+      "interfaceId": "MISSION_CONTROL_MAIN",
+      "mandatory": true,
+      "requiresCompletedTasks": [
+        "SOL04_MISSION_CONTEXT",
+        "SOL04_SELECTED_TARGET_INVESTIGATION",
+        "SOL04_TERRAIN_DATA_REVIEW",
+        "SOL04_DRONE_PHYSICAL_INSPECTION",
+        "SOL04_DRONE_MISSION_PLAN"
+      ],
+      "objective": "Compile and submit the Sol 4 investigation results, terrain assessment, physical drone inspection, and Sol 5 aerial observation preparation plan.",
+      "submissionFields": [
+        "selectedSiteId",
+        "scientificInvestigationSummary",
+        "supportingRecordIds",
+        "terrainSuitabilityAssessment",
+        "knownDataLimitations",
+        "droneInspectionSummary",
+        "aerialObservationObjectives",
+        "operationalConstraints",
+        "unresolvedPreparationIssues",
+        "playerFinalComments"
+      ],
+      "validationRules": [
+        "The selected target must match the Sol 3 persistent selection.",
+        "All mandatory Sol 4 tasks must be completed.",
+        "Scientific claims must have traceable supporting records where available.",
+        "Terrain limitations must be included.",
+        "Physical drone inspection must be completed.",
+        "The Sol 5 observation plan must exist.",
+        "The report must distinguish verified data, PHOBOSIA analysis, and player hypotheses.",
+        "The report must not claim that Sol 5 drone flight or aerial observation has already occurred."
+      ]
+    }
+  ],
+  "missionCompletion": {
+    "requiredTasks": [
+      "SOL04_MISSION_CONTEXT",
+      "SOL04_SELECTED_TARGET_INVESTIGATION",
+      "SOL04_TERRAIN_DATA_REVIEW",
+      "SOL04_DRONE_PHYSICAL_INSPECTION",
+      "SOL04_DRONE_MISSION_PLAN",
+      "SOL04_SUBMIT_PREPARATION_REPORT"
+    ],
+    "requireValidSubmittedRecords": true,
+    "requireEvidenceReferences": true,
+    "requireKnownLimitations": true,
+    "unlockNextSol": "PHOBOSIA_SOL_05"
+  },
+  "deliverables": {
+    "reportName": "Preliminary Terrain Assessment and Drone Mission Preparation Report",
+    "requiredSections": [
+      "Selected Target Information",
+      "Scientific Investigation Summary",
+      "NASA Historical Observation Review",
+      "Scientific Dataset Review",
+      "Preliminary Terrain Assessment",
+      "Known Data Limitations and Uncertainties",
+      "Physical Drone Inspection Summary",
+      "Sol 5 Aerial Observation Objectives",
+      "Operational Constraints",
+      "Unresolved Preparation Issues"
+    ],
+    "sourceClassification": [
+      "Verified NASA Data",
+      "Existing PHOBOSIA Project Data",
+      "PHOBOSIA Analysis",
+      "Player Observation",
+      "Player Hypothesis",
+      "Simulated Information"
+    ]
+  }
+}

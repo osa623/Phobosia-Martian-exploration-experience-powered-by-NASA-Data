@@ -30,6 +30,68 @@
     "unknownMetadataMustRemainUnknown": true,
     "hypothesisMustNotBePresentedAsVerifiedFinding": true
   },
+  "targetCatalogue": [
+    {
+      "targetId": "TARGET_ALPHA_CRATER_RIM",
+      "targetNumber": "01",
+      "name": "Elysium Planitia Investigation Site 01",
+      "geographicName": "Elysium Planitia (official regional feature); site designation is PHOBOSIA-specific",
+      "marsCoordinates": null,
+      "sceneCoordinates": { "x": 420.5, "y": 14.2, "z": -180.0 },
+      "outpostDistance": null,
+      "scientificDescription": "PHOBOSIA planning candidate represented by a scene profile. Its crater-rim and bedrock description is fictional planning text and is not independently verified Mars terrain evidence.",
+      "interest": "A crater-margin investigation could compare rim materials and impact-related layering if future georeferenced data confirms those features.",
+      "terrainEvidence": "Mars terrain measurements unavailable. Scene coordinates and hazard label are game metadata; no verified LiDAR/DEM product is associated with this target.",
+      "historicalObservations": [],
+      "observationStatus": "No target-specific NASA observation can be matched without geographic coordinates. Record unavailable.",
+      "images": {
+        "grayscale": "/assets/images/target_01/bandw.png",
+        "color": "/assets/images/target_01/wide_aerial_top_down_satellite_style_image_of_a.png",
+        "thermal": "/assets/images/target_01/a_wide_top_down_high_resolution_false_color_ther.png"
+      },
+      "accessibility": { "score": 50.00, "classification": "Challenging", "explanation": "Provisional neutral planning score: terrain, obstacles, slopes, rover/foot routes, and drone visibility are unmeasured. This is not a NASA measurement and should not be interpreted as evidence of actual difficulty.", "confidence": "Very low; target geolocation and terrain data unavailable." }
+    },
+    {
+      "targetId": "TARGET_BETA_DUNE_BASIN",
+      "targetNumber": "02",
+      "name": "Elysium Planitia Investigation Site 02",
+      "geographicName": "Elysium Planitia (official regional feature); site designation is PHOBOSIA-specific",
+      "marsCoordinates": null,
+      "sceneCoordinates": { "x": 485.0, "y": 2.1, "z": -95.5 },
+      "outpostDistance": null,
+      "scientificDescription": "PHOBOSIA planning candidate represented by a scene profile. Its dune-basin description is fictional planning text and is not independently verified Mars terrain evidence.",
+      "interest": "If orbital or surface data confirms aeolian bedforms, the site could support a study of wind-shaped sediment; that condition is currently unverified.",
+      "terrainEvidence": "Mars terrain measurements unavailable. Scene coordinates and hazard label are game metadata; no verified LiDAR/DEM product is associated with this target.",
+      "historicalObservations": [],
+      "observationStatus": "No target-specific NASA observation can be matched without geographic coordinates. Record unavailable.",
+      "images": {
+        "grayscale": "/assets/images/target_02/bandw.png",
+        "color": "/assets/images/target_02/Cratered Martian Rust Plain-1.png",
+        "thermal": "/assets/images/target_02/a_wide_top_down_abstract_false_color_thermal_hea.png"
+      },
+      "accessibility": { "score": 50.00, "classification": "Challenging", "explanation": "Provisional neutral planning score: terrain, obstacles, slopes, rover/foot routes, and drone visibility are unmeasured. This is not a NASA measurement and should not be interpreted as evidence of actual difficulty.", "confidence": "Very low; target geolocation and terrain data unavailable." }
+    },
+    {
+      "targetId": "TARGET_GAMMA_SOUTH_ESCARPMENT",
+      "targetNumber": "03",
+      "name": "Elysium Planitia Investigation Site 03",
+      "geographicName": "Elysium Planitia (official regional feature); site designation is PHOBOSIA-specific",
+      "marsCoordinates": null,
+      "sceneCoordinates": { "x": 60.7, "y": -0.02, "z": -265.1 },
+      "outpostDistance": null,
+      "scientificDescription": "PHOBOSIA planning candidate represented by a scene profile. Its escarpment description is fictional planning text and is not independently verified Mars terrain evidence.",
+      "interest": "A confirmed slope or scarp could expose geological relationships, but the current project data does not verify that such a feature exists at this candidate.",
+      "terrainEvidence": "Mars terrain measurements unavailable. Scene coordinates and hazard label are game metadata; no verified LiDAR/DEM product is associated with this target.",
+      "historicalObservations": [],
+      "observationStatus": "No target-specific NASA observation can be matched without geographic coordinates. Record unavailable.",
+      "images": {
+        "grayscale": "/assets/images/target_03/bandw.png",
+        "color": "/assets/images/target_03/Cratered Rust Plains of Elysium-2.png",
+        "thermal": "/assets/images/target_03/a_wide_high_resolution_false_color_thermal_infrar.png"
+      },
+      "accessibility": { "score": 50.00, "classification": "Challenging", "explanation": "Provisional neutral planning score: terrain, obstacles, slopes, rover/foot routes, and drone visibility are unmeasured. This is not a NASA measurement and should not be interpreted as evidence of actual difficulty.", "confidence": "Very low; target geolocation and terrain data unavailable." }
+    }
+  ],
   "logSchema": {
     "requiredFields": [
       "logId",

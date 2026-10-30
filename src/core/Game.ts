@@ -49,12 +49,14 @@ const transitions: Record<ModuleName, Record<string, Transition>> = {
   },
   Airlock: {
     Terrain_Entrance_Trigger: { module: "Terrain", spawn: "Spwaning_Position" },
+    Drone_Section_Entrance_Trigger: { module: "Drone", spawn: "DroneZone_Entrance_Trigger" },
     Central_Hub_Entrance_Trigger: { module: "Hub", spawn: "Main_Entrance_Trigger" }
   },
   Engineering: { Engineering_Entrance: { module: "Hub", spawn: "Engineering_Entrance_Trigger" } },
   Science: { LAB_EXIT_TRIGGER: { module: "Hub", spawn: "ScienceLab_Entrance_Trigger" } },
   MissionControl: { MissionControl_Entrance_Trigger: { module: "Hub", spawn: "MissionControl_Entrance_Trigger" } },
-  Terrain: { Spwaning_Position: { module: "Airlock", spawn: "Terrain_Entrance_Trigger" } }
+  Terrain: { Spwaning_Position: { module: "Airlock", spawn: "Terrain_Entrance_Trigger" } },
+  Drone: { DroneZone_Entrance_Trigger: { module: "Airlock", spawn: "Drone_Section_Entrance_Trigger" } }
 };
 
 const labels: Record<ModuleName, string> = {
@@ -64,7 +66,8 @@ const labels: Record<ModuleName, string> = {
   Engineering: "Engineering Unit",
   Science: "Research Lab",
   MissionControl: "Mission Control",
-  Terrain: "Mars Terrain"
+  Terrain: "Mars Terrain",
+  Drone: "Drone Section"
 };
 
 const videos: Partial<Record<ModuleName, string>> = {
@@ -177,7 +180,7 @@ export class Game {
       totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
-      briefingText: mission.briefing,
+      briefingText: this.missionManager.getCurrentMissionBriefing(),
       primaryObjective: mission.primaryObjective,
       controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock",
       isOutdoorTerrain: false,
@@ -253,7 +256,7 @@ export class Game {
       totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
-      briefingText: mission.briefing,
+      briefingText: this.missionManager.getCurrentMissionBriefing(),
       primaryObjective: mission.primaryObjective,
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
       notification: mState.notification,
@@ -977,6 +980,10 @@ export class Game {
       if (/collider/i.test(o.name)) {
         o.visible = false;
       }
+      if (module === "Drone" && o.name === "Drone") {
+        const target = this.makeTarget(o, "Drone");
+        this.interactive.push(target);
+      }
 
       if (o.name === "PHOBOSIA_MarsTerrain_2km") {
         this.terrain = o;
@@ -989,12 +996,28 @@ export class Game {
     // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
     configureModuleLighting(model, additions, module);
 
+    if (module === "Drone") {
+      // The three authored GLB light nodes are meshes, not glTF light objects.
+      // Use their authored transforms as fixed, low-cost point-light anchors.
+      for (const [index, name] of ["Light_01", "Light_02", "Light_03"].entries()) {
+        const anchor = model.getObjectByName(name);
+        if (!anchor) continue;
+        const position = anchor.getWorldPosition(new THREE.Vector3());
+        const light = new THREE.PointLight(0xc9e9f2, 1.2, 12, 2);
+        light.name = `Runtime_${name}`;
+        light.position.copy(position);
+        additions.add(light);
+      }
+    }
+
     if (module === "Habitat") {
       this.colliders = buildHabitatColliderSection(model);
     } else if (module === "Hub") {
       this.colliders = buildCentralHubColliders(model);
     } else if (module === "Science") {
       this.colliders = buildScienceLabColliders(model);
+    } else if (module === "Drone") {
+      this.colliders = buildCustomColliderSections(model, ["Collider_Section02"]);
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     } else if (module !== "Terrain") {
@@ -1339,6 +1362,12 @@ export class Game {
     }
 
     if (!this.nearby) return;
+
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 4) {
+      const saved = this.missionManager.recordPhysicalDroneInspection("Physical inspection completed in the Drone Section. Only visible presence was verified; battery, fuel, mechanical, camera, and communications readings are unavailable.");
+      this.set({ prompt: "", notification: saved ? "Physical drone inspection recorded. The drone remains grounded for Sol 5." : "Drone inspection is already recorded." });
+      return;
+    }
 
     // 1. Entrance / Module Transition
     const route = transitions[this.active][this.nearby.identifier];

@@ -9,6 +9,7 @@ import { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP } from "./Day1Config";
 import { SOL2_INVESTIGATION_RULES } from "../missions/sol-02/taskDefinitions";
 import { SOL3_DATASET_IDS } from "../missions/sol-03/taskDefinitions";
 import { resolveNextMissionNavigation } from "../systems/navigation/missionNavigation";
+import sol03Mission from "../jsons/Missions/sol-03.json";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -21,6 +22,7 @@ export interface MissionStep {
   targetModule?: string;
   targetTrigger?: string;
   completed: boolean;
+  requiresCompletedTasks?: string[];
 }
 
 export interface MissionTaskCard {
@@ -224,6 +226,7 @@ export interface MissionProgressState {
   scienceAnalysis: ScienceAnalysisRecord | null;
   droneSurvey: DroneSurveyRecord | null;
   investigationRecords: InvestigationRecord[];
+  selectedSiteId: string | null;
 }
 
 export interface InvestigationRecord {
@@ -322,16 +325,19 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     day: 4,
     id: "DAY_04_LIFE_SUPPORT_VERIFICATION",
     title: "Life-Support Verification",
-    storyContext: "Pre-EVA verification. Atmospheric scrubbers and pressurization balance must be validated.",
-    briefing: "Perform a comprehensive life-support verification across Engineering and Habitat subsystems before tomorrow's outdoor route planning.",
-    primaryObjective: "Inspect life-support diagnostics console and save verification record.",
+    storyContext: "The target selected during Sol 3 is now the focus of a careful scientific review. Mission Control and the Research Lab support the investigation; the Drone Section must be visited physically for inspection. The drone remains grounded until Sol 5.",
+    briefing: "Continue with the target you selected during Sol 3; do not choose another. Review its available records in Mission Control, assess datasets and terrain evidence in the Research Lab, then physically visit and inspect the drone. Prepare the Sol 5 aerial observation plan and submit the preliminary assessment. No drone flight takes place today.",
+    primaryObjective: "Investigate the selected target, assess evidence and terrain limitations, inspect the drone in person, and submit the Sol 5 preparation report.",
     steps: [
-      { stepId: "DAY4_REACH_RELEVANT_MODULE", label: "Access Life Support", description: "Locate Life Support diagnostics console in Engineering Unit.", targetModule: "Engineering", completed: false },
-      { stepId: "DAY4_INSPECT_LIFE_SUPPORT", label: "Inspect Life Support Diagnostics", description: "Verify atmospheric scrubber and thermal regulation loops.", targetTrigger: "Engineering_LifeSupport_Trigger", completed: false },
-      { stepId: "DAY4_RECORD_VERIFICATION", label: "Record Verification", description: "Save Life Support Verification report.", targetTrigger: "Engineering_LifeSupport_Trigger", completed: false }
+      { stepId: "SOL04_MISSION_CONTEXT", label: "Review Sol 4 Mission Objectives", description: "Review the selected target and Sol 4 constraints.", targetTrigger: "MC_MAIN_01", completed: false },
+      { stepId: "SOL04_SELECTED_TARGET_INVESTIGATION", label: "Investigate Selected Observation Target", description: "Review available records for the Sol 3 target and record uncertainties.", targetTrigger: "MC_NAVIGATION_01", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT"] },
+      { stepId: "SOL04_TERRAIN_DATA_REVIEW", label: "Review Terrain and Scientific Dataset Evidence", description: "Assess available datasets and terrain evidence in the Research Lab.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false, requiresCompletedTasks: ["SOL04_SELECTED_TARGET_INVESTIGATION"] },
+      { stepId: "SOL04_DRONE_PHYSICAL_INSPECTION", label: "Visit and Inspect the Drone", description: "Physically enter the Drone Section and interact with the existing drone.", targetModule: "Drone Section", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT"] },
+      { stepId: "SOL04_DRONE_MISSION_PLAN", label: "Prepare the Sol 5 Drone Observation Plan", description: "Prepare observation objectives and constraints for Sol 5.", targetTrigger: "MC_NAVIGATION_01", completed: false, requiresCompletedTasks: ["SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION"] },
+      { stepId: "SOL04_SUBMIT_PREPARATION_REPORT", label: "Submit the Preliminary Terrain Assessment and Preparation Report", description: "Submit the evidence-linked Sol 4 assessment and preparation report.", targetTrigger: "MC_MAIN_01", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT", "SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION", "SOL04_DRONE_MISSION_PLAN"] }
     ],
-    allowedModules: ["Engineering", "Habitat", "Hub"],
-    completionFeedback: "Life-support verification logged. CO2 scrubbers nominal (0.04% vol). Return to Habitat to rest."
+    allowedModules: ["MissionControl", "Science", "Drone", "Hub", "Habitat"],
+    completionFeedback: "Sol 4 preparation report validated. Return to Habitat Rest Area to begin Sol 5."
   },
   5: {
     day: 5,
@@ -426,8 +432,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–3 define each validated investigation record as one mission task.
   // Sols 4–9 define one primary objective, with their listed steps as sub-actions.
-  const total = day === 2 || day === 3 ? steps.length : steps.length ? 1 : 0;
-  const completed = day === 2 || day === 3
+  const total = day === 2 || day === 3 || day === 4 ? steps.length : steps.length ? 1 : 0;
+  const completed = day === 2 || day === 3 || day === 4
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -452,7 +458,7 @@ export class MissionManager {
         }
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
-          if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 9) {
+      if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 9) {
             return {
               currentDay: parsed.currentDay as MissionDayNumber,
               objectiveState: parsed.objectiveState ?? "not_started",
@@ -467,7 +473,8 @@ export class MissionManager {
               surfaceObservation: (parsed.surfaceObservation as SurfaceObservationRecord) ?? null,
               scienceAnalysis: (parsed.scienceAnalysis as ScienceAnalysisRecord) ?? null,
               droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null,
-              investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : []
+              investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : [],
+              selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : [])
             };
           }
         }
@@ -490,7 +497,8 @@ export class MissionManager {
       surfaceObservation: null,
       scienceAnalysis: null,
       droneSurvey: null,
-      investigationRecords: []
+      investigationRecords: [],
+      selectedSiteId: null
     };
   }
 
@@ -526,6 +534,13 @@ export class MissionManager {
 
   public getCurrentMission(): DayMissionDefinition {
     return DAYS_CONFIG[this.state.currentDay];
+  }
+
+  public getCurrentMissionBriefing(): string {
+    const mission = this.getCurrentMission();
+    if (this.state.currentDay !== 4) return mission.briefing;
+    const profile = sol03Mission.targetCatalogue.find(item => item.targetId === this.getSelectedSiteId());
+    return `${mission.briefing}${profile ? `\n\nSelected target: Target ${profile.targetNumber} · ${profile.name}.` : "\n\nSelected target: unavailable in the saved Sol 3 record."}`;
   }
 
   public markBriefingSeen(): void {
@@ -565,6 +580,13 @@ export class MissionManager {
 
   public getInvestigationRecords(): InvestigationRecord[] { return [...this.state.investigationRecords]; }
 
+  private targetIdFromRecords(records: InvestigationRecord[]): string | null {
+    const selected = records.find(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD") ?? records.find(record => record.taskId === "SOL03_SELECT_TARGET");
+    return selected?.evidenceReferences.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
+  }
+
+  public getSelectedSiteId(): string | null { return this.state.selectedSiteId ?? this.targetIdFromRecords(this.state.investigationRecords); }
+
   /** Mission-level progress. Sols 4–9 have one primary objective with several implementation steps. */
   public getMissionTaskCards(): MissionTaskCard[] {
     const mission = this.getCurrentMission();
@@ -579,7 +601,7 @@ export class MissionManager {
         const group = DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.interactionGroups.find(item => item.id === task.interactionGroupId);
         return [{ ...step, targetTrigger: group?.triggerObjectName ?? undefined, targetModule: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.moduleName }];
       }).filter(group => group.length > 0);
-    } else if (currentDay === 2 || currentDay === 3) {
+    } else if (currentDay === 2 || currentDay === 3 || currentDay === 4) {
       groups = mission.steps.map(step => [step]);
     } else {
       // The Sol 4–9 definitions describe one primary mission outcome; their
@@ -599,7 +621,7 @@ export class MissionManager {
       const triggerId = first?.targetTrigger;
       const mapped = triggerId ? TRIGGER_GUIDANCE[triggerId] : undefined;
       const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule ?? "Location not mapped");
-      const prereqs = prerequisiteMap[first?.stepId ?? ""] ?? [];
+      const prereqs = first?.requiresCompletedTasks ?? prerequisiteMap[first?.stepId ?? ""] ?? [];
       const lockedOn = prereqs.filter(id => !this.state.completedStepIds.includes(id));
       const completed = steps.length > 0 && steps.every(step => this.state.completedStepIds.includes(step.stepId));
       const started = steps.some(step => this.state.completedStepIds.includes(step.stepId));
@@ -629,16 +651,33 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay !== 2 && this.state.currentDay !== 3) return null;
+    if (this.state.currentDay !== 2 && this.state.currentDay !== 3 && this.state.currentDay !== 4) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
   public submitInvestigation(input: { taskId: string; evidenceReferences: string[]; classification: string; rationale: string; playerComment?: string; recommendedFollowUp?: string; limitations?: string[]; procedureChecks: string[]; selectedTargetId?: string; datasetId?: string; scientificQuestion?: string }): { success: boolean; message: string } {
     const day = this.state.currentDay;
-    if (day !== 2 && day !== 3) return { success: false, message: "Investigations are not available on the active Sol." };
+    if (day !== 2 && day !== 3 && day !== 4) return { success: false, message: "Investigations are not available on the active Sol." };
     const task = DAYS_CONFIG[day].steps.find(step => step.stepId === input.taskId);
     if (!task) return { success: false, message: "This task is not part of the active Sol." };
     if (input.rationale.trim().length < 12) return { success: false, message: "Enter a rationale of at least 12 characters." };
+    if (day === 4) {
+      const selected = this.getSelectedSiteId();
+      if (!selected || !MASTER_TERRAIN_TARGETS.some(target => target.id === selected)) return { success: false, message: "A valid Sol 3 selected target is required before continuing." };
+      if (input.selectedTargetId !== selected) return { success: false, message: "Sol 4 must use the target already selected during Sol 3." };
+      if (input.taskId === "SOL04_TERRAIN_DATA_REVIEW" && !input.limitations?.some(item => item.trim())) return { success: false, message: "Record unavailable terrain measurements and dataset limitations." };
+      if (input.taskId !== "SOL04_SUBMIT_PREPARATION_REPORT" && input.procedureChecks.length < 2) return { success: false, message: "Complete both review steps before submitting this Sol 4 activity." };
+      if (input.taskId === "SOL04_DRONE_MISSION_PLAN" && !input.limitations?.some(item => item.trim())) return { success: false, message: "Record planning constraints and unresolved issues." };
+      if (input.taskId === "SOL04_SUBMIT_PREPARATION_REPORT") {
+        const required = ["SOL04_MISSION_CONTEXT", "SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION", "SOL04_DRONE_MISSION_PLAN"];
+        if (!required.every(id => this.state.investigationRecords.some(record => record.taskId === id))) return { success: false, message: "Complete and save the investigation, terrain review, physical drone inspection, and mission plan first." };
+        if (!input.limitations?.some(item => item.trim()) || !input.evidenceReferences.length) return { success: false, message: "Reference prior Sol 4 records and include known limitations in the report." };
+      }
+      const dependency = task.requiresCompletedTasks ?? [];
+      if (dependency.some(id => !this.isStepComplete(id))) return { success: false, message: "Complete the prerequisite Sol 4 activities first." };
+      if (input.taskId !== "SOL04_SUBMIT_PREPARATION_REPORT" && input.taskId !== "SOL04_MISSION_CONTEXT" && !input.limitations?.some(item => item.trim())) return { success: false, message: "State what remains unknown or unsupported in the available evidence." };
+      if (input.taskId === "SOL04_SUBMIT_PREPARATION_REPORT" && input.evidenceReferences.some(id => !this.state.investigationRecords.some(record => record.id === id))) return { success: false, message: "Every report reference must point to a saved mission record." };
+    }
     if (day === 2 && input.taskId !== "SOL02_READINESS_ASSESSMENT" && !["anomaly_detected", "no_anomaly_detected", "insufficient_evidence"].includes(input.classification)) return { success: false, message: "Choose a supported system investigation classification." };
     if (input.taskId === "SOL02_READINESS_ASSESSMENT" && !["undetermined", "ready_with_cautions", "not_ready"].includes(input.classification)) return { success: false, message: "Choose a supported readiness assessment." };
     if (day === 3 && input.taskId !== "SOL03_SUBMIT_TARGET_RECORD" && !["anomaly_detected", "no_anomaly_detected", "insufficient_evidence"].includes(input.classification)) return { success: false, message: "Choose a supported investigation classification." };
@@ -679,26 +718,50 @@ export class MissionManager {
     }
     const record: InvestigationRecord = {
       id: prior.find(r => r.taskId === input.taskId)?.id ?? `INV_${day}_${input.taskId}`,
-      missionId: day === 2 ? "PHOBOSIA_SOL_02" : "PHOBOSIA_SOL_03", sol: day, taskId: input.taskId,
+      missionId: day === 2 ? "PHOBOSIA_SOL_02" : day === 3 ? "PHOBOSIA_SOL_03" : "PHOBOSIA_SOL_04", sol: day, taskId: input.taskId,
       triggerId: task.targetTrigger ?? "MISSION_RECORD_SUBMISSION",
       systemId: definition?.systemId ?? input.taskId,
       evidenceReferences: [...new Set(input.evidenceReferences)], classification: input.classification,
       rationale: input.rationale.trim(), limitations: input.limitations ?? [],
       recommendedFollowUp: input.recommendedFollowUp?.trim(),
-      sourceType: day === 2 ? "SIMULATED_GAME_DATA" : "PHOBOSIA_SIMULATED_TRAINING_AND_PLAYER_RECORDS",
+      sourceType: day === 2 ? "SIMULATED_GAME_DATA" : day === 3 ? "PHOBOSIA_SIMULATED_TRAINING_AND_PLAYER_RECORDS" : "PHOBOSIA_ANALYSIS_AND_PLAYER_RECORDS",
       submittedAt: prior.find(r => r.taskId === input.taskId)?.submittedAt ?? new Date().toISOString(),
       playerConclusion: input.classification,
       playerComment: input.playerComment?.trim() ?? "",
       systemValidation: "Record structure and references validated. The player's conclusion is not an independently verified technical or scientific finding.",
-      dataProvenance: [day === 2 ? "Sol 2 simulated outpost display configuration" : "PHOBOSIA in-game mission and target profile records", ...new Set(input.evidenceReferences.map(ref => ref.startsWith("TARGET:") ? "PHOBOSIA simulated terrain target profile" : ref.startsWith("DATASET:") ? "PHOBOSIA simulated training metadata" : ref.startsWith("INV_") ? "Player-submitted mission record" : "Existing display record"))],
+      dataProvenance: [day === 2 ? "Sol 2 simulated outpost display configuration" : day === 3 ? "PHOBOSIA in-game mission and target profile records" : "Sol 4 player-authored investigation; no target-specific NASA measurements inferred", ...new Set(input.evidenceReferences.map(ref => ref.startsWith("TARGET:") ? "PHOBOSIA selected target reference" : ref.startsWith("DATASET:") ? "PHOBOSIA training metadata" : ref.startsWith("INV_") ? "Player-submitted mission record" : "Existing display record"))],
       scientificQuestion: input.scientificQuestion?.trim()
     };
     if (input.selectedTargetId) record.evidenceReferences.push(`TARGET:${input.selectedTargetId}`);
     if (input.datasetId) record.evidenceReferences.push(`DATASET:${input.datasetId}`);
+    if (day === 4) record.evidenceReferences.push(`TARGET:${this.getSelectedSiteId()}`);
     this.state.investigationRecords = [...prior.filter(r => r.taskId !== input.taskId), record];
+    if (day === 3 && (input.taskId === "SOL03_SELECT_TARGET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && input.selectedTargetId) this.state.selectedSiteId = input.selectedTargetId;
     this.completeStep(input.taskId);
     this.emit();
     return { success: true, message: "Mission record saved with its evidence and provenance." };
+  }
+
+  public recordPhysicalDroneInspection(notes: string): boolean {
+    if (this.state.currentDay !== 4 || !this.getSelectedSiteId() || !this.isStepComplete("SOL04_MISSION_CONTEXT")) return false;
+    const taskId = "SOL04_DRONE_PHYSICAL_INSPECTION";
+    if (this.isStepComplete(taskId)) return false;
+    const timestamp = new Date().toISOString();
+    const selectedSiteId = this.getSelectedSiteId()!;
+    const record: InvestigationRecord = {
+      id: `INV_4_${taskId}`, missionId: "PHOBOSIA_SOL_04", sol: 4, taskId,
+      triggerId: "Drone_Section_Entrance_Trigger", systemId: "PHYSICAL_DRONE_INSPECTION",
+      evidenceReferences: [`TARGET:${selectedSiteId}`], classification: "physical_visual_inspection",
+      rationale: notes.trim() || "Physically viewed and inspected the existing drone in the Drone Section.",
+      limitations: ["Battery, fuel, mechanical condition, camera, and communications readings are unavailable."],
+      sourceType: "PLAYER_PHYSICAL_INSPECTION", submittedAt: timestamp,
+      playerConclusion: "physical_visual_inspection", playerComment: notes.trim(),
+      systemValidation: "Physical inspection was recorded only after the player interacted with the existing drone object in the Drone Section. No telemetry was asserted.",
+      dataProvenance: ["Player physical observation in the Drone Section"], scientificQuestion: undefined
+    };
+    this.state.investigationRecords = [...this.state.investigationRecords.filter(item => item.taskId !== taskId), record];
+    this.completeStep(taskId);
+    return true;
   }
 
   /**
@@ -767,7 +830,7 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
-      if (this.state.currentDay === 2 || this.state.currentDay === 3) {
+      if (this.state.currentDay === 2 || this.state.currentDay === 3 || this.state.currentDay === 4) {
         this.state.notification = this.getCurrentNavigationNotification();
       }
       this.emit();
@@ -1121,6 +1184,13 @@ export class MissionManager {
         return { canAdvance: false, reason: "Sol 3 requires all preparation records and a validated target proposal before resting." };
       }
     }
+    if (this.state.currentDay === 4) {
+      const required = DAYS_CONFIG[4].steps.map(step => step.stepId);
+      if (!required.every(id => this.state.investigationRecords.some(record => record.taskId === id)) || !this.isStepComplete("SOL04_DRONE_PHYSICAL_INSPECTION")) {
+        return { canAdvance: false, reason: "Sol 4 requires all five valid preparation records and the physical drone inspection before resting." };
+      }
+      if (this.getSelectedSiteId() !== this.state.selectedSiteId) return { canAdvance: false, reason: "The Sol 4 report must retain the target selected during Sol 3." };
+    }
 
     if (remaining.length > 0) {
       if (this.state.currentDay === 1) {
@@ -1256,7 +1326,8 @@ export class MissionManager {
       surfaceObservation: null,
       scienceAnalysis: null,
       droneSurvey: null,
-      investigationRecords: []
+      investigationRecords: [],
+      selectedSiteId: null
     };
     this.emit();
   }

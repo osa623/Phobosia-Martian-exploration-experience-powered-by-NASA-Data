@@ -1,4 +1,4 @@
-export const assetPaths={Habitat:"/assets/models/Habitat_Zone.glb",Airlock:"/assets/models/AirLock.glb",Hub:"/assets/models/Central_Connector.glb",Engineering:"/assets/models/Engineering.glb",Science:"/assets/models/Science_Zone.glb",MissionControl:"/assets/models/Mission_Control.glb",Terrain:"/assets/models/mars_Terrain.glb"} as const;
+export const assetPaths={Habitat:"/assets/models/Habitat_Zone.glb",Airlock:"/assets/models/AirLock.glb",Hub:"/assets/models/Central_Connector.glb",Engineering:"/assets/models/Engineering.glb",Science:"/assets/models/Science_Zone.glb",MissionControl:"/assets/models/Mission_Control.glb",Terrain:"/assets/models/mars_Terrain.glb",Drone:"/assets/models/drone_Zone.glb"} as const;
 export type ModuleName = keyof typeof assetPaths;
 export const screenActions: Record<string, string> = {
   HAB_MONITOR_01: "Habitat Status and Life Support",
