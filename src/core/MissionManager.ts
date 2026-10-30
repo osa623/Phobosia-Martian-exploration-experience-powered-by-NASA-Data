@@ -6,7 +6,8 @@
  */
 
 import { DAY1_TASKS, TRIGGER_TO_TASK_MAP } from "./Day1Config";
-import { SOL2_INVESTIGATION_RULES, SOL3_DATASET_IDS } from "./MissionInvestigationRules";
+import { SOL2_INVESTIGATION_RULES } from "../missions/sol-02/taskDefinitions";
+import { SOL3_DATASET_IDS } from "../missions/sol-03/taskDefinitions";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -178,10 +179,10 @@ export interface MissionProgressState {
 }
 
 export interface InvestigationRecord {
-  id: string; missionId: string; taskId: string; systemId: string;
+  id: string; missionId: string; sol: number; taskId: string; triggerId: string; systemId: string;
   evidenceReferences: string[]; classification: string; rationale: string;
-  limitations: string[]; sourceType: string; submittedAt: string;
-  playerConclusion: string; systemValidation: string; scientificQuestion?: string;
+  limitations: string[]; sourceType: string; submittedAt: string; recommendedFollowUp?: string;
+  playerConclusion: string; playerComment: string; systemValidation: string; dataProvenance: string[]; scientificQuestion?: string;
 }
 
 const STORAGE_KEY = "phobosia_mission_progress_v4";
@@ -240,14 +241,14 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     briefing: "Inspect Habitat and Engineering records, submit evidence-linked investigations, then submit a readiness assessment.",
     primaryObjective: "Submit six system investigations and a readiness record based on those records.",
     steps: [
-      ["SOL02_HABITAT_STATUS", "Habitat status inspection", "Inspect Habitat status records."],
-      ["SOL02_WATER_NUTRITION", "Water and nutrition inspection", "Inspect supply status and logs."],
-      ["SOL02_ENGINEERING_MONITORING", "Engineering monitoring inspection", "Review monitoring records."],
-      ["SOL02_POWER_REVIEW", "Power unit investigation", "Investigate power records and their limits."],
-      ["SOL02_ENGINEERING_LIFESUPPORT", "Engineering life-support inspection", "Review environmental and recycling records."],
-      ["SOL02_DIAGNOSTICS", "Diagnostics inspection", "Review diagnostic records and follow-up needs."],
-      ["SOL02_READINESS_ASSESSMENT", "Outpost readiness assessment", "Submit an assessment referencing the six investigations."]
-    ].map(([stepId, label, description]) => ({ stepId, label, description, completed: false })),
+      ["SOL02_HABITAT_STATUS", "Habitat status inspection", "Inspect Habitat status records.", "HAB_MONITOR_01"],
+      ["SOL02_WATER_NUTRITION", "Water and nutrition inspection", "Inspect supply status and logs.", "HAB_WATER_NUTRITION_01"],
+      ["SOL02_ENGINEERING_MONITORING", "Engineering monitoring inspection", "Review monitoring records.", "Engineering_Monitoring_Trigger"],
+      ["SOL02_POWER_REVIEW", "Power unit investigation", "Investigate power records and their limits.", "Engineering_PowerUnit_Trigger"],
+      ["SOL02_ENGINEERING_LIFESUPPORT", "Engineering life-support inspection", "Review environmental and recycling records.", "Engineering_LifeSupport_Trigger"],
+      ["SOL02_DIAGNOSTICS", "Diagnostics inspection", "Review diagnostic records and follow-up needs.", "Engineering_Diagnostics_Trigger"],
+      ["SOL02_READINESS_ASSESSMENT", "Outpost readiness assessment", "Submit an assessment referencing the six investigations.", "HAB_MONITOR_01"]
+    ].map(([stepId, label, description, targetTrigger]) => ({ stepId, label, description, targetTrigger, completed: false })),
     allowedModules: ["Habitat", "Engineering", "Hub"],
     completionFeedback: "Readiness record submitted. Return to Habitat to conclude Sol 2."
   },
@@ -259,13 +260,13 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     briefing: "Review mission context, compare the in-game target profiles and constraints, then submit a target and dataset proposal with limitations.",
     primaryObjective: "Submit an evidence-referenced target proposal using the available simulated training metadata.",
     steps: [
-      ["SOL03_MISSION_CONTEXT", "Mission context review", "Review the Sol 2 readiness record and mission context."],
-      ["SOL03_OBSERVATION_SITE_REVIEW", "Observation site investigation", "Compare available in-game target profiles."],
-      ["SOL03_SYSTEM_CONSTRAINTS", "Systems and communications constraints", "Review simulated operational constraints."],
-      ["SOL03_SELECT_TARGET", "Select a scientific target", "Choose a target and focused scientific question."],
-      ["SOL03_SELECT_DATASET", "Select and evaluate a dataset", "Evaluate the available training metadata."],
-      ["SOL03_SUBMIT_TARGET_RECORD", "Submit target proposal", "Review and submit the complete proposal."]
-    ].map(([stepId, label, description]) => ({ stepId, label, description, completed: false })),
+      ["SOL03_MISSION_CONTEXT", "Mission context review", "Review the Sol 2 readiness record and mission context.", "MC_MAIN_01"],
+      ["SOL03_OBSERVATION_SITE_REVIEW", "Observation site investigation", "Compare available in-game target profiles.", "MC_NAVIGATION_01"],
+      ["SOL03_SYSTEM_CONSTRAINTS", "Systems and communications constraints", "Review simulated operational constraints.", "MC_SYSTEMS_01"],
+      ["SOL03_SELECT_TARGET", "Select a scientific target", "Choose a target and focused scientific question.", "MC_NAVIGATION_01"],
+      ["SOL03_SELECT_DATASET", "Select and evaluate a dataset", "Evaluate the available training metadata.", "LAB_RESEARCH_ANALYSIS_01"],
+      ["SOL03_SUBMIT_TARGET_RECORD", "Submit target proposal", "Review and submit the complete proposal.", "MC_MAIN_01"]
+    ].map(([stepId, label, description, targetTrigger]) => ({ stepId, label, description, targetTrigger, completed: false })),
     allowedModules: ["MissionControl", "Science", "Hub", "Habitat"],
     completionFeedback: "Target proposal submitted. Return to Habitat to conclude Sol 3."
   },
@@ -499,12 +500,18 @@ export class MissionManager {
 
   public getInvestigationRecords(): InvestigationRecord[] { return [...this.state.investigationRecords]; }
 
-  public submitInvestigation(input: { taskId: string; evidenceReferences: string[]; classification: string; rationale: string; limitations?: string[]; procedureChecks: string[]; selectedTargetId?: string; datasetId?: string; scientificQuestion?: string }): { success: boolean; message: string } {
+  public submitInvestigation(input: { taskId: string; evidenceReferences: string[]; classification: string; rationale: string; playerComment?: string; recommendedFollowUp?: string; limitations?: string[]; procedureChecks: string[]; selectedTargetId?: string; datasetId?: string; scientificQuestion?: string }): { success: boolean; message: string } {
     const day = this.state.currentDay;
     if (day !== 2 && day !== 3) return { success: false, message: "Investigations are not available on the active Sol." };
     const task = DAYS_CONFIG[day].steps.find(step => step.stepId === input.taskId);
     if (!task) return { success: false, message: "This task is not part of the active Sol." };
     if (input.rationale.trim().length < 12) return { success: false, message: "Enter a rationale of at least 12 characters." };
+    if (day === 2 && input.taskId !== "SOL02_READINESS_ASSESSMENT" && !["anomaly_detected", "no_anomaly_detected", "insufficient_evidence"].includes(input.classification)) return { success: false, message: "Choose a supported system investigation classification." };
+    if (input.taskId === "SOL02_READINESS_ASSESSMENT" && !["undetermined", "ready_with_cautions", "not_ready"].includes(input.classification)) return { success: false, message: "Choose a supported readiness assessment." };
+    if (day === 3 && input.taskId !== "SOL03_SUBMIT_TARGET_RECORD" && !["anomaly_detected", "no_anomaly_detected", "insufficient_evidence"].includes(input.classification)) return { success: false, message: "Choose a supported investigation classification." };
+    if (input.taskId === "SOL03_SUBMIT_TARGET_RECORD" && !["proposal_submitted", "proposal_with_limits"].includes(input.classification)) return { success: false, message: "Set the proposal to a supported submission state." };
+    if (input.classification === "insufficient_evidence" && !input.limitations?.some(item => item.trim())) return { success: false, message: "Describe the missing or inadequate evidence behind an insufficient-evidence conclusion." };
+    if ((input.taskId === "SOL03_SELECT_DATASET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && !input.limitations?.some(item => item.trim())) return { success: false, message: "Record the dataset or proposal limitations before submission." };
     const definition = SOL2_INVESTIGATION_RULES[input.taskId];
     if (day === 2 && input.taskId !== "SOL02_READINESS_ASSESSMENT") {
       const expectedChecks = Array.from({ length: definition?.procedureCount ?? 0 }, (_, i) => `${input.taskId}:${i}`);
@@ -518,7 +525,7 @@ export class MissionManager {
     if (input.taskId === "SOL03_MISSION_CONTEXT" && !input.evidenceReferences.includes("SOL03-MISSION-CONTEXT")) return { success: false, message: "Reference the active mission context record." };
     if (input.taskId === "SOL03_MISSION_CONTEXT" && !this.state.investigationRecords.some(record => record.taskId === "SOL02_READINESS_ASSESSMENT")) return { success: false, message: "A saved Sol 2 readiness assessment is required for this context review." };
     if (input.taskId === "SOL03_SYSTEM_CONSTRAINTS" && !input.evidenceReferences.includes("SOL03-COMMS-SYSTEMS")) return { success: false, message: "Reference the available communications and systems record." };
-    if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && !MASTER_TERRAIN_TARGETS.some(t => input.evidenceReferences.includes(`TARGET:${t.id}`))) return { success: false, message: "Reference at least one available target profile." };
+    if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && MASTER_TERRAIN_TARGETS.filter(t => input.evidenceReferences.includes(`TARGET:${t.id}`)).length < 2) return { success: false, message: "Compare and reference at least two available target profiles." };
     if (input.taskId === "SOL03_SELECT_TARGET" && !input.evidenceReferences.includes(`TARGET:${input.selectedTargetId}`)) return { success: false, message: "Reference the selected target profile as supporting evidence." };
     if ((input.taskId === "SOL03_SELECT_TARGET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && !input.scientificQuestion?.trim()) return { success: false, message: "Enter a focused scientific question for this target proposal." };
     if (input.taskId === "SOL03_SELECT_DATASET" && !input.evidenceReferences.includes(`DATASET:${input.datasetId}`)) return { success: false, message: "Reference the selected dataset metadata record." };
@@ -537,14 +544,18 @@ export class MissionManager {
     }
     const record: InvestigationRecord = {
       id: prior.find(r => r.taskId === input.taskId)?.id ?? `INV_${day}_${input.taskId}`,
-      missionId: DAYS_CONFIG[day].id, taskId: input.taskId,
+      missionId: day === 2 ? "PHOBOSIA_SOL_02" : "PHOBOSIA_SOL_03", sol: day, taskId: input.taskId,
+      triggerId: task.targetTrigger ?? "MISSION_RECORD_SUBMISSION",
       systemId: definition?.systemId ?? input.taskId,
       evidenceReferences: [...new Set(input.evidenceReferences)], classification: input.classification,
       rationale: input.rationale.trim(), limitations: input.limitations ?? [],
+      recommendedFollowUp: input.recommendedFollowUp?.trim(),
       sourceType: day === 2 ? "SIMULATED_GAME_DATA" : "PHOBOSIA_SIMULATED_TRAINING_AND_PLAYER_RECORDS",
       submittedAt: prior.find(r => r.taskId === input.taskId)?.submittedAt ?? new Date().toISOString(),
       playerConclusion: input.classification,
+      playerComment: input.playerComment?.trim() ?? "",
       systemValidation: "Record structure and references validated. The player's conclusion is not an independently verified technical or scientific finding.",
+      dataProvenance: [day === 2 ? "Sol 2 simulated outpost display configuration" : "PHOBOSIA in-game mission and target profile records", ...new Set(input.evidenceReferences.map(ref => ref.startsWith("TARGET:") ? "PHOBOSIA simulated terrain target profile" : ref.startsWith("DATASET:") ? "PHOBOSIA simulated training metadata" : ref.startsWith("INV_") ? "Player-submitted mission record" : "Existing display record"))],
       scientificQuestion: input.scientificQuestion?.trim()
     };
     if (input.selectedTargetId) record.evidenceReferences.push(`TARGET:${input.selectedTargetId}`);

@@ -394,13 +394,13 @@ export class ScreenRenderer {
   private drawHabitatWorkstation(ctx: CanvasRenderingContext2D, w: number, h: number, state: Readonly<MissionProgressState>): void {
     ctx.fillStyle = "#55cde8";
     ctx.font = "bold 24px sans-serif";
-    ctx.fillText("HABITAT SCIENTIFIC WORKSTATION", 28, 92);
+    ctx.fillText("HABITAT CREW WORKSPACE", 28, 92);
 
     ctx.fillStyle = "#8ba8b5";
     ctx.font = "15px monospace";
     ctx.fillText("USER: MISSION SPECIALIST · TERMINAL ID: HAB-WS01", 28, 130);
-    ctx.fillText("NETWORK LINK: UPLINK TO MISSION CONTROL SYNCHRONIZED", 28, 160);
-    ctx.fillText("ARCHIVE STORAGE: 4.2 TB NVMe LOCAL DISK READY", 28, 190);
+    ctx.fillText("PERSONAL MISSION WORKSPACE", 28, 160);
+    ctx.fillText("NO REMOTE SYSTEM CONTROLS ON THIS TERMINAL", 28, 190);
 
     ctx.fillStyle = "#122a3a";
     ctx.fillRect(28, 230, w - 56, 140);
@@ -409,11 +409,12 @@ export class ScreenRenderer {
 
     ctx.fillStyle = "#e88747";
     ctx.font = "bold 15px monospace";
-    ctx.fillText("PRESS [E] TO ACCESS DEDICATED PHOBOSIA OS", 44, 270);
+    ctx.fillText("CURRENT MISSION", 44, 270);
     ctx.fillStyle = "#d0e2e8";
     ctx.font = "14px sans-serif";
-    ctx.fillText("Launch the full mission operating system to review archives, telemetry, and diagnostics.", 44, 305);
-    ctx.fillText("All station applications accessible from any terminal.", 44, 335);
+    const mission = DAYS_CONFIG[state.currentDay as MissionDayNumber] ?? DAYS_CONFIG[1];
+    ctx.fillText(mission.title, 44, 305);
+    ctx.fillText(mission.primaryObjective.slice(0, 92), 44, 335);
   }
 
   private drawHabitatLifeSupport(ctx: CanvasRenderingContext2D, w: number, h: number, state: Readonly<MissionProgressState>): void {

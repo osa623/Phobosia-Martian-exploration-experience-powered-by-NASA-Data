@@ -39,10 +39,10 @@ global.localStorage = {
   clear: () => mockStorage.clear()
 };
 
-const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = require('../dist/MissionManager.js');
-const { MissionManager } = require('../dist/MissionManager.js');
+const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = require('../dist/core/MissionManager.js');
+const { MissionManager } = require('../dist/core/MissionManager.js');
 const THREE = require('three');
-const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
+const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/core/Collision.js');
 
 function completeSol2(mm) {
   const tasks = [
@@ -66,24 +66,24 @@ function completeSol3(mm) {
     assert.strictEqual(result.success, true, result.message);
   };
   prepare('SOL03_MISSION_CONTEXT', ['SOL03-MISSION-CONTEXT']);
-  prepare('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${targetId}`]);
+  prepare('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${targetId}`, `TARGET:${MASTER_TERRAIN_TARGETS[1].id}`]);
   prepare('SOL03_SYSTEM_CONSTRAINTS', ['SOL03-COMMS-SYSTEMS']);
   prepare('SOL03_SELECT_TARGET', [`TARGET:${targetId}`], { selectedTargetId: targetId, scientificQuestion: 'Which site profile merits a future observation?' });
   prepare('SOL03_SELECT_DATASET', ['DATASET:PHOBOSIA_TARGET_PROFILE_TRAINING'], { datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING' });
   const refs = mm.getInvestigationRecords().filter(r => r.taskId.startsWith('SOL03_')).map(r => r.id);
-  const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
+  const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal_submitted', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
   assert.strictEqual(result.success, true, result.message);
 }
-const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
-const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
-const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer.js');
-const { ResearchScreenRenderer } = require('../dist/ResearchScreenRenderer.js');
-const { MissionControlScreenRenderer } = require('../dist/MissionControlScreenRenderer.js');
-const { CentralHubScreenRenderer } = require('../dist/CentralHubScreenRenderer.js');
-const { AirlockScreenRenderer } = require('../dist/AirlockScreenRenderer.js');
-const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/ModuleLighting.js');
-const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/Day1Config.js');
-const { CameraPresentationManager } = require('../dist/CameraPresentation.js');
+const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
+const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
+const { EngineeringScreenRenderer } = require('../dist/core/EngineeringScreenRenderer.js');
+const { ResearchScreenRenderer } = require('../dist/core/ResearchScreenRenderer.js');
+const { MissionControlScreenRenderer } = require('../dist/core/MissionControlScreenRenderer.js');
+const { CentralHubScreenRenderer } = require('../dist/core/CentralHubScreenRenderer.js');
+const { AirlockScreenRenderer } = require('../dist/core/AirlockScreenRenderer.js');
+const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/core/ModuleLighting.js');
+const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/core/Day1Config.js');
+const { CameraPresentationManager } = require('../dist/core/CameraPresentation.js');
 
 let passedTests = 0;
 let totalTests = 0;

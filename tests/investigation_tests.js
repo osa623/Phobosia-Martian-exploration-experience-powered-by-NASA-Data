@@ -1,6 +1,6 @@
 const assert = require('assert');
-const { MissionManager, DAYS_CONFIG, MASTER_TERRAIN_TARGETS } = require('../dist/MissionManager.js');
-const { SOL2_INVESTIGATION_RULES } = require('../dist/MissionInvestigationRules.js');
+const { MissionManager, DAYS_CONFIG, MASTER_TERRAIN_TARGETS } = require('../dist/core/MissionManager.js');
+const { SOL2_INVESTIGATION_RULES } = require('../dist/missions/sol-02/taskDefinitions.js');
 
 global.localStorage = global.localStorage || { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 const manager = new MissionManager();
@@ -28,13 +28,13 @@ assert.strictEqual(manager.advanceDay(true).success, true);
 
 const submit3 = (taskId, evidenceReferences, extra = {}) => manager.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'Use only the limited simulated mission metadata.', limitations: ['No external scientific measurements.'], procedureChecks: [`${taskId}:0`, `${taskId}:1`], ...extra });
 assert.strictEqual(submit3('SOL03_MISSION_CONTEXT', ['SOL03-MISSION-CONTEXT']).success, true);
-assert.strictEqual(submit3('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${MASTER_TERRAIN_TARGETS[0].id}`]).success, true);
+assert.strictEqual(submit3('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${MASTER_TERRAIN_TARGETS[0].id}`, `TARGET:${MASTER_TERRAIN_TARGETS[1].id}`]).success, true);
 assert.strictEqual(submit3('SOL03_SYSTEM_CONSTRAINTS', ['SOL03-COMMS-SYSTEMS']).success, true);
 assert.strictEqual(submit3('SOL03_SELECT_TARGET', [`TARGET:${MASTER_TERRAIN_TARGETS[0].id}`], { selectedTargetId: MASTER_TERRAIN_TARGETS[0].id, scientificQuestion: 'Which profile merits a future observation?' }).success, true);
 assert.strictEqual(submit3('SOL03_SELECT_DATASET', ['DATASET:PHOBOSIA_TARGET_PROFILE_TRAINING'], { datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING' }).success, true);
 assert.strictEqual(manager.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: [], classification: 'proposal', rationale: 'Proposal rationale is supported by the selected training record.', procedureChecks: [], selectedTargetId: 'NONEXISTENT', datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should be observed?' }).success, false);
 const proposalRefs = manager.getInvestigationRecords().filter(record => record.taskId.startsWith('SOL03_')).map(record => record.id);
-assert.strictEqual(manager.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: proposalRefs, classification: 'proposal', rationale: 'The profile prioritizes a future observation while data limitations remain.', limitations: ['Training metadata only; no measurements.'], procedureChecks: [], selectedTargetId: MASTER_TERRAIN_TARGETS[0].id, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What surface context should a future observation examine?' }).success, true);
+assert.strictEqual(manager.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: proposalRefs, classification: 'proposal_submitted', rationale: 'The profile prioritizes a future observation while data limitations remain.', limitations: ['Training metadata only; no measurements.'], procedureChecks: [], selectedTargetId: MASTER_TERRAIN_TARGETS[0].id, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What surface context should a future observation examine?' }).success, true);
 assert.strictEqual(manager.canRestAndAdvance().canAdvance, true);
 manager.resetProgress();
 console.log('Sol 2 and Sol 3 investigation validation checks passed.');

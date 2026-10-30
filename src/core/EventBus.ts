@@ -49,6 +49,7 @@ export interface GameState {
     message: string;
     missingTasks?: { title: string; zone: string }[];
   } | null;
+  restTransition: "out" | "in" | null;
 
   // Phase 3 dedicated UI states & records
   geologicalSurvey: GeologicalSurveyRecord | null;

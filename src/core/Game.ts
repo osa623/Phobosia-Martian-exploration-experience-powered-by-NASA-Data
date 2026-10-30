@@ -187,6 +187,7 @@ export class Game {
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
       notification: mState.notification,
       restFeedback: null,
+      restTransition: null,
 
       geologicalSurvey: mState.geologicalSurvey,
       surfaceObservation: mState.surfaceObservation,
@@ -1356,13 +1357,12 @@ export class Game {
       }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
-        const remaining = this.state.missionDay === 1
-          ? DAY1_TASKS.filter(task => task.required && !this.missionManager.isStepComplete(task.taskId))
-          : [];
-        const missingTasks = remaining.map(task => ({
-          title: task.title,
-          zone: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.friendlyName ?? ""
-        }));
+        const remaining = this.missionManager.getRemainingSteps();
+        const missingTasks = remaining.map(task => {
+          const dayOneTask = DAY1_TASKS.find(item => item.taskId === task.stepId);
+          const inferredZone = task.targetTrigger?.startsWith("HAB_") ? "Habitat" : task.targetTrigger?.startsWith("Engineering_") ? "Engineering Unit" : task.targetTrigger?.startsWith("MC_") ? "Mission Control" : task.targetTrigger?.startsWith("LAB_") ? "Research Lab" : "";
+          return { title: task.label, zone: task.targetModule ?? (inferredZone || (dayOneTask ? DAY1_ZONES.find(zone => zone.zoneId === dayOneTask.zoneId)?.friendlyName ?? "" : "")) };
+        });
         this.set({
           restFeedback: {
             type: "blocked",
@@ -1374,14 +1374,19 @@ export class Game {
           prompt: ""
         });
       } else {
-        const adv = this.missionManager.advanceDay();
-        if (adv.success) {
-          this.set({
-            restFeedback: { type: "success", message: adv.message },
-            prompt: "",
-            showBriefingModal: true
-          });
-        }
+        this.missionManager.saveState();
+        this.set({ restTransition: "out", restFeedback: { type: "success", message: "Rest cycle in progress…" }, prompt: "" });
+        window.setTimeout(() => {
+          if (this.disposed) return;
+          const adv = this.missionManager.advanceDay();
+          if (adv.success) {
+            this.set({ restTransition: "in", restFeedback: { type: "success", message: adv.message }, showBriefingModal: true });
+            window.setTimeout(() => { if (!this.disposed) this.set({ restTransition: null }); }, 950);
+          } else {
+            this.set({ restTransition: "in", restFeedback: { type: "blocked", message: adv.message } });
+            window.setTimeout(() => { if (!this.disposed) this.set({ restTransition: null }); }, 950);
+          }
+        }, 1100);
       }
       return;
     }
@@ -1390,6 +1395,7 @@ export class Game {
     if (this.state.missionDay === 1) {
       const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
       if (group) {
+        const triggerId = this.nearby.identifier;
         if (group.taskId) this.missionManager.completeStep(group.taskId);
         let targetMesh: THREE.Object3D | null = null;
         if (this.current) {
@@ -1414,6 +1420,9 @@ export class Game {
           },
           () => {
             this.set({ cameraPresentation: null });
+            if (!this.disposed && screenActions[triggerId]) {
+              this.openScreenOS(`trigger:${triggerId}`);
+            }
           }
         );
 
@@ -1512,25 +1521,7 @@ export class Game {
       document.exitPointerLock();
 
       const id = this.nearby.identifier;
-      let targetApp = "overview";
-      const sol2InvestigationApps: Record<string, string> = {
-        HAB_MONITOR_01: "SOL02_HABITAT_STATUS", HAB_WATER_NUTRITION_01: "SOL02_WATER_NUTRITION",
-        Engineering_Monitoring_Trigger: "SOL02_ENGINEERING_MONITORING", Engineering_PowerUnit_Trigger: "SOL02_POWER_REVIEW",
-        Engineering_LifeSupport_Trigger: "SOL02_ENGINEERING_LIFESUPPORT", Engineering_Diagnostics_Trigger: "SOL02_DIAGNOSTICS"
-      };
-      const sol3InvestigationApps: Record<string, string> = {
-        MC_MAIN_01: "SOL03_MISSION_CONTEXT", MC_NAVIGATION_01: "SOL03_OBSERVATION_SITE_REVIEW",
-        MC_SYSTEMS_01: "SOL03_SYSTEM_CONSTRAINTS", LAB_RESEARCH_ANALYSIS_01: "SOL03_SELECT_DATASET"
-      };
-      if (this.state.missionDay === 2 && sol2InvestigationApps[id]) targetApp = `investigation:${sol2InvestigationApps[id]}`;
-      if (this.state.missionDay === 3 && sol3InvestigationApps[id]) targetApp = `investigation:${sol3InvestigationApps[id]}`;
-      if (/Habitat/i.test(id)) targetApp = "habitat";
-      else if (/Power|LifeSupportUnit|Monitoring|Diagnostics/i.test(id)) targetApp = "engineering";
-      else if (/Science|Research|Lab|Seed|Water/i.test(id)) targetApp = "science";
-      else if (/Navigation|TerrainMap|Sites/i.test(id)) targetApp = "navigation";
-      else if (/Drone/i.test(id)) targetApp = "drone";
-      else if (/Comms|Communications/i.test(id)) targetApp = "comms";
-      else if (/Timeline|Log|Objectives/i.test(id)) targetApp = "timeline";
+      const targetApp = `trigger:${id}`;
 
       this.astronautPreTerminalState = {
         position: this.camera.position.clone(),

@@ -29,6 +29,7 @@ const mockState: GameState = {
   selectedRouteTargetId: "TARGET_ALPHA_CRATER_RIM",
   notification: null,
   restFeedback: null,
+  restTransition: null,
   geologicalSurvey: null,
   surfaceObservation: null,
   scienceAnalysis: null,

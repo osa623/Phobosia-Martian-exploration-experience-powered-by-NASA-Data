@@ -6,4 +6,3 @@ export const SOL2_INVESTIGATION_RULES: Record<string, { systemId: string; logIds
   SOL02_ENGINEERING_LIFESUPPORT: { systemId: "engineering_life_support", logIds: ["ENG-LS-ENVIRONMENT", "ENG-LS-WATER", "ENG-LS-AIRFLOW"], procedureCount: 4 },
   SOL02_DIAGNOSTICS: { systemId: "engineering_diagnostics", logIds: ["ENG-DIAG-WORKBENCH"], procedureCount: 4 }
 };
-export const SOL3_DATASET_IDS = ["PHOBOSIA_TARGET_PROFILE_TRAINING"];

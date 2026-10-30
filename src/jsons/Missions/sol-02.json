@@ -2,388 +2,514 @@
   "missionId": "PHOBOSIA_SOL_02",
   "sol": 2,
   "title": "Outpost Readiness",
-  "subtitle": "Inspect the outpost before beginning scientific operations.",
-  "description": "Investigate the current status of the Habitat and Engineering systems. Review their procedures and inspection logs, identify evidence-supported anomalies or data gaps, and submit an overall readiness assessment.",
-  "missionType": "scientific_system_investigation",
-  "status": "locked_until_prerequisites_met",
+  "subtitle": "A systematic inspection of the Mars outpost.",
+  "missionType": "trigger_scoped_system_investigation",
+  "description": "Inspect the Habitat and Engineering systems through their designated physical consoles. Review operational procedures, investigate detailed system logs, identify warnings, and submit an evidence-supported readiness report.",
   "prerequisites": {
-    "completedMissions": [
-      "PHOBOSIA_SOL_01"
-    ]
+    "completedMissions": ["PHOBOSIA_SOL_01"]
   },
-  "completionPolicy": {
-    "requireAllMandatoryTasks": true,
-    "requireValidSubmittedRecords": true,
-    "requireFinalAssessment": true,
-    "allowInsufficientEvidenceConclusion": true,
-    "allowOptionalTasksToRemainIncomplete": true,
-    "unlockNextSolOnValidatedCompletion": true
+  "progression": {
+    "completionUnlocks": "PHOBOSIA_SOL_03",
+    "dayAdvancementTrigger": "HAB_REST_01",
+    "requireMissionCompletionBeforeRestAdvancement": true,
+    "restScene": {
+      "triggerId": "HAB_REST_01",
+      "sceneType": "rest_and_sleep",
+      "sequence": [
+        "validate_sol_completion",
+        "disable_player_movement",
+        "play_rest_interaction",
+        "fade_to_black",
+        "save_mission_progress",
+        "advance_to_next_sol",
+        "restore_player_at_rest_location",
+        "fade_in"
+      ],
+      "mustUseExistingBedTrigger": true,
+      "doNotCreateAnotherBedTrigger": true
+    }
   },
-  "dataIntegrity": {
-    "requireDataProvenance": true,
-    "allowSimulatedData": true,
-    "simulatedDataMustBeLabelled": true,
+  "accessPolicy": {
+    "accessMode": "physical_trigger_only",
+    "remoteSectionAccess": false,
+    "allowCrossSectionNavigationFromUI": false,
+    "allowOverviewNotifications": true,
+    "allowOverviewToShowRemoteWarnings": true,
+    "allowOverviewToOpenRemoteLogs": false,
+    "allowUnrelatedSectionsInSameInterface": false,
+    "requireExistingTriggerId": true
+  },
+  "dataPolicy": {
+    "dataSources": [
+      "verified_project_data",
+      "verified_external_data",
+      "labelled_simulated_game_data",
+      "player_submitted_observations"
+    ],
+    "neverInventNASAData": true,
+    "neverPresentSimulationAsRealTelemetry": true,
+    "missingValuesMustBeExplicit": true,
     "missingDataMustNotBeAssumedNormal": true,
-    "playerReportMustBeDistinguishedFromValidatedFinding": true,
-    "neverInventExternalMeasurements": true
+    "playerReportMustBeSeparateFromValidatedFinding": true
   },
-  "investigationOptions": {
+  "logSchema": {
+    "requiredFields": [
+      "logId",
+      "title",
+      "eventTime",
+      "displayLocation",
+      "systemName",
+      "category",
+      "severity",
+      "status",
+      "detailedDescription",
+      "observations",
+      "dataSourceType"
+    ],
+    "optionalFields": [
+      "recordedMeasurements",
+      "referenceLimits",
+      "relatedLogIds",
+      "recommendedInspection",
+      "technicalNotes",
+      "playerComment"
+    ],
+    "locationRules": {
+      "showHumanReadableLocation": true,
+      "showAbsoluteFilePath": false,
+      "showJsonFilename": false,
+      "showInternalDirectory": false,
+      "example": "Engineering Unit — Power Distribution Console"
+    },
+    "descriptionRules": {
+      "requireDetailedNarrative": true,
+      "descriptionMustExplainContext": true,
+      "descriptionMustExplainObservedCondition": true,
+      "descriptionMustExplainWhyItMatters": true,
+      "descriptionMustNotInventUnsupportedCauses": true
+    }
+  },
+  "investigationModel": {
     "classifications": [
-      {
-        "id": "anomaly_detected",
-        "label": "Anomaly detected",
-        "description": "Available evidence indicates a possible or confirmed deviation."
-      },
-      {
-        "id": "no_anomaly_detected",
-        "label": "No anomaly detected in the available evidence",
-        "description": "The reviewed evidence does not show a deviation within the available checks and limits."
-      },
-      {
-        "id": "insufficient_evidence",
-        "label": "Insufficient evidence",
-        "description": "The available records, measurements, or reference limits do not support a reliable conclusion."
-      }
+      "anomaly_detected",
+      "no_anomaly_detected",
+      "insufficient_evidence"
     ],
-    "requiredPlayerInputs": [
+    "requiredPlayerFields": [
       "classification",
-      "supportingLogEntryIds",
-      "rationale"
+      "supportingLogIds",
+      "playerComment"
     ],
-    "optionalPlayerInputs": [
+    "optionalPlayerFields": [
       "recommendedFollowUp",
       "confidence"
     ],
-    "validationRules": [
-      "Every selected log entry must exist in the relevant system record.",
-      "A reported anomaly must reference supporting evidence.",
-      "A normal assessment must not be accepted as verified when required readings or reference limits are unavailable.",
-      "An insufficient-evidence conclusion must identify the missing or inadequate information.",
-      "The player's classification must be stored separately from the validated system finding."
+    "validation": [
+      "All referenced logs must exist.",
+      "Anomaly reports must cite relevant supporting records.",
+      "A normal classification requires sufficient available evidence.",
+      "Insufficient evidence must explain what is missing.",
+      "The player's report must not be stored as a verified system diagnosis automatically."
     ]
   },
-  "locations": [
-    "Habitat",
-    "Engineering Unit"
+  "interfaces": [
+    {
+      "interfaceId": "HABITAT_MAIN_MONITOR",
+      "location": "Habitat",
+      "triggerId": "HAB_MONITOR_01",
+      "screens": [
+        "Habitat_Main_Status_Display",
+        "Habitat_LifeSupport_Display",
+        "Habitat_Emergency_Status_Display"
+      ],
+      "interfaceMode": "grouped_views_within_one_trigger",
+      "views": [
+        {
+          "viewId": "habitat_main_status",
+          "screen": "Habitat_Main_Status_Display",
+          "purpose": "Outpost environmental and Habitat overview.",
+          "content": [
+            "current_sol_and_daily_task",
+            "mars_atmosphere_records",
+            "mars_weather_records",
+            "environmental_abnormalities",
+            "general_habitat_status",
+            "cross_section_warning_notifications",
+            "habitat_main_status_logs"
+          ],
+          "restrictions": [
+            "Do not expose detailed Engineering controls.",
+            "Do not expose Water and Nutrition controls.",
+            "Do not open remote system logs.",
+            "Remote warnings are notifications only."
+          ]
+        },
+        {
+          "viewId": "habitat_life_support",
+          "screen": "Habitat_LifeSupport_Display",
+          "purpose": "Life-support condition and human safety monitoring.",
+          "content": [
+            "oxygen_status",
+            "water_level_if_available",
+            "atmospheric_pressure_if_available",
+            "life_support_readings",
+            "life_threatening_warnings",
+            "life_support_procedures",
+            "life_support_inspection_logs"
+          ],
+          "restrictions": [
+            "Only Habitat life-support records are accessible.",
+            "Do not expose the separate Water and Nutrition interface."
+          ]
+        },
+        {
+          "viewId": "habitat_emergency_status",
+          "screen": "Habitat_Emergency_Status_Display",
+          "purpose": "Emergency monitoring and incident history.",
+          "content": [
+            "active_emergencies",
+            "emergency_severity",
+            "emergency_notifications",
+            "emergency_response_instructions",
+            "emergency_history",
+            "emergency_logs"
+          ],
+          "restrictions": [
+            "Show only emergency-related records.",
+            "Do not expose unrelated system controls."
+          ]
+        }
+      ],
+      "mandatoryTasks": [
+        "SOL02_HABITAT_MAIN_STATUS",
+        "SOL02_HABITAT_LIFE_SUPPORT",
+        "SOL02_HABITAT_EMERGENCY"
+      ]
+    },
+    {
+      "interfaceId": "HABITAT_WATER_NUTRITION",
+      "location": "Habitat",
+      "triggerId": "HAB_WATER_NUTRITION_01",
+      "screens": ["Habitat_WaterNutrition_Display"],
+      "interfaceMode": "single_section",
+      "content": [
+        "water_system_status",
+        "nutrition_system_status",
+        "water_quality_if_available",
+        "supply_and_consumption_records_if_available",
+        "operating_procedure",
+        "inspection_logs",
+        "warnings",
+        "player_investigation_record"
+      ],
+      "mandatoryTasks": ["SOL02_WATER_NUTRITION"]
+    },
+    {
+      "interfaceId": "ENGINEERING_MONITORING",
+      "location": "Engineering Unit",
+      "triggerId": "Engineering_Monitoring_Trigger",
+      "screens": [
+        "MonitoringSection_Indicator_Screen",
+        "MonitoringSection_Operational_Screen",
+        "MonitoringSection_Screen"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "engineering_monitoring_overview",
+        "system_indicators",
+        "operational_records",
+        "monitoring_procedure",
+        "monitoring_logs",
+        "monitoring_warnings",
+        "player_investigation_record"
+      ],
+      "mandatoryTasks": ["SOL02_ENGINEERING_MONITORING"]
+    },
+    {
+      "interfaceId": "ENGINEERING_POWER_UNIT",
+      "location": "Engineering Unit",
+      "triggerId": "Engineering_PowerUnit_Trigger",
+      "screens": [
+        "PowerUnitScreenMain",
+        "PowerUnitScreenMain02",
+        "PowerUnitScreen000",
+        "PowerUnitScreen000.001"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "power_generation_status_if_available",
+        "voltage_readings_if_available",
+        "current_readings_if_available",
+        "distribution_status_if_available",
+        "power_load_if_available",
+        "operating_procedure",
+        "power_inspection_logs",
+        "power_warnings",
+        "player_investigation_record"
+      ],
+      "mandatoryTasks": ["SOL02_POWER_INVESTIGATION"]
+    },
+    {
+      "interfaceId": "ENGINEERING_LIFE_SUPPORT",
+      "location": "Engineering Unit",
+      "triggerId": "Engineering_LifeSupport_Trigger",
+      "screens": [
+        "LifeSupportUnitScreenMain04",
+        "LifeSupportUnitScreenMain02.001",
+        "LifeSupportUnitScreenMain03"
+      ],
+      "interfaceMode": "single_section",
+      "content": [
+        "engineering_life_support_status",
+        "available_operational_readings",
+        "life_support_procedure",
+        "inspection_logs",
+        "warnings",
+        "player_investigation_record"
+      ],
+      "mandatoryTasks": ["SOL02_ENGINEERING_LIFESUPPORT"]
+    },
+    {
+      "interfaceId": "ENGINEERING_DIAGNOSTICS",
+      "location": "Engineering Unit",
+      "triggerId": "Engineering_Diagnostics_Trigger",
+      "screens": ["DiagnosticsWorkbenchScreen_01"],
+      "interfaceMode": "single_section",
+      "content": [
+        "diagnostic_overview",
+        "available_test_results",
+        "diagnostic_messages",
+        "unresolved_fault_reports",
+        "diagnostic_procedure",
+        "diagnostic_logs",
+        "player_investigation_record"
+      ],
+      "mandatoryTasks": ["SOL02_DIAGNOSTICS"]
+    },
+    {
+      "interfaceId": "ENGINEERING_STORAGE",
+      "location": "Engineering Unit",
+      "triggerId": "Engineering_InfoDisplay_Trigger",
+      "screens": ["Storage_Screen"],
+      "interfaceMode": "single_section",
+      "content": [
+        "storage_inventory_if_available",
+        "supply_records_if_available",
+        "storage_status_logs"
+      ],
+      "mandatoryTasks": [],
+      "optional": true
+    }
   ],
   "tasks": [
     {
-      "taskId": "SOL02_HABITAT_STATUS",
-      "title": "Investigate Habitat Status",
-      "description": "Inspect Habitat status information, life-support status, emergency status, procedures, and available inspection logs.",
-      "location": "Habitat",
-      "interaction": {
-        "triggerId": "HAB_MONITOR_01",
-        "mode": "existing_frontend_ui"
-      },
+      "taskId": "SOL02_HABITAT_MAIN_STATUS",
+      "title": "Review Habitat Environmental Status",
+      "triggerId": "HAB_MONITOR_01",
+      "interfaceId": "HABITAT_MAIN_MONITOR",
+      "viewId": "habitat_main_status",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_current_procedure",
-        "open_inspection_log",
-        "inspect_relevant_log_entries",
-        "record_investigation",
-        "submit_inspection"
+      "objective": "Review the Mars environmental overview and identify any recorded abnormalities relevant to outpost operations.",
+      "requiredActions": [
+        "open_main_status_view",
+        "review_environmental_records",
+        "open_relevant_logs",
+        "record_observations"
       ],
-      "systemAreas": [
-        {
-          "id": "habitat_general_status",
-          "displayObject": "Habitat_Main_Status_Display",
-          "required": true
-        },
-        {
-          "id": "habitat_life_support",
-          "displayObject": "Habitat_LifeSupport_Display",
-          "required": true
-        },
-        {
-          "id": "habitat_emergency_status",
-          "displayObject": "Habitat_Emergency_Status_Display",
-          "required": true
-        }
+      "submissionFields": [
+        "reviewedLogIds",
+        "environmentalObservations",
+        "playerComment"
+      ]
+    },
+    {
+      "taskId": "SOL02_HABITAT_LIFE_SUPPORT",
+      "title": "Inspect Habitat Life Support",
+      "triggerId": "HAB_MONITOR_01",
+      "interfaceId": "HABITAT_MAIN_MONITOR",
+      "viewId": "habitat_life_support",
+      "mandatory": true,
+      "objective": "Inspect available oxygen, pressure, water-level and life-support records. Identify warnings that may affect crew safety.",
+      "requiredActions": [
+        "open_life_support_view",
+        "review_current_status",
+        "read_operating_procedure",
+        "inspect_life_support_logs",
+        "record_investigation"
       ],
-      "requiredEvidence": [
-        "habitat_status_log_reviewed",
-        "life_support_log_reviewed",
-        "emergency_status_log_reviewed"
+      "submissionFields": [
+        "reviewedLogIds",
+        "classification",
+        "playerComment"
+      ]
+    },
+    {
+      "taskId": "SOL02_HABITAT_EMERGENCY",
+      "title": "Review Emergency Status",
+      "triggerId": "HAB_MONITOR_01",
+      "interfaceId": "HABITAT_MAIN_MONITOR",
+      "viewId": "habitat_emergency_status",
+      "mandatory": true,
+      "objective": "Review active emergency information, severity, response instructions and historical emergency records.",
+      "requiredActions": [
+        "open_emergency_view",
+        "review_emergency_status",
+        "read_emergency_instructions",
+        "inspect_emergency_logs",
+        "record_review"
       ],
-      "submission": {
-        "recordType": "system_inspection",
-        "requiredFields": [
-          "inspectedLogEntryIds",
-          "classification",
-          "rationale"
-        ],
-        "requiredLogCoverage": [
-          "habitat_general_status",
-          "habitat_life_support",
-          "habitat_emergency_status"
-        ]
-      },
-      "completionCondition": "All required Habitat areas have been investigated and a valid inspection record has been submitted."
+      "submissionFields": [
+        "reviewedLogIds",
+        "emergencyAssessment",
+        "playerComment"
+      ]
     },
     {
       "taskId": "SOL02_WATER_NUTRITION",
-      "title": "Investigate Water and Nutrition Systems",
-      "description": "Review available water and nutrition status records, operating procedures, quality information, and relevant inspection logs.",
-      "location": "Habitat",
-      "interaction": {
-        "triggerId": "HAB_WATER_NUTRITION_01",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Inspect Water and Nutrition Systems",
+      "triggerId": "HAB_WATER_NUTRITION_01",
+      "interfaceId": "HABITAT_WATER_NUTRITION",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_current_procedure",
-        "open_inspection_log",
-        "inspect_quality_or_supply_records",
-        "record_investigation",
-        "submit_inspection"
+      "objective": "Inspect the water and nutrition subsystem, read its operating procedure and investigate its available records.",
+      "requiredActions": [
+        "open_water_nutrition_interface",
+        "review_status",
+        "read_procedure",
+        "inspect_logs",
+        "record_investigation"
       ],
-      "requiredEvidence": [
-        "water_nutrition_status_reviewed",
-        "water_nutrition_log_reviewed"
-      ],
-      "submission": {
-        "recordType": "system_inspection",
-        "requiredFields": [
-          "inspectedLogEntryIds",
-          "classification",
-          "rationale"
-        ]
-      },
-      "completionCondition": "A valid investigation record references the available water and nutrition evidence."
+      "submissionFields": [
+        "reviewedLogIds",
+        "classification",
+        "playerComment"
+      ]
     },
     {
       "taskId": "SOL02_ENGINEERING_MONITORING",
-      "title": "Inspect Engineering Monitoring Records",
-      "description": "Review the available engineering monitoring status, procedure, and logs. Identify which records are relevant to overall outpost readiness.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_Monitoring_Trigger",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Inspect Engineering Monitoring",
+      "triggerId": "Engineering_Monitoring_Trigger",
+      "interfaceId": "ENGINEERING_MONITORING",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_current_procedure",
-        "open_inspection_log",
-        "select_relevant_records",
-        "submit_inspection"
+      "objective": "Review monitoring indicators and operational records. Identify entries that require further investigation.",
+      "requiredActions": [
+        "review_indicators",
+        "review_operational_status",
+        "inspect_logs",
+        "record_observations"
       ],
-      "requiredEvidence": [
-        "engineering_monitoring_log_reviewed"
-      ],
-      "submission": {
-        "recordType": "monitoring_inspection",
-        "requiredFields": [
-          "inspectedLogEntryIds",
-          "relevanceNotes"
-        ]
-      },
-      "completionCondition": "The player submits a monitoring review that references valid records and explains their relevance."
+      "submissionFields": [
+        "reviewedLogIds",
+        "relevantObservations",
+        "playerComment"
+      ]
     },
     {
-      "taskId": "SOL02_POWER_REVIEW",
+      "taskId": "SOL02_POWER_INVESTIGATION",
       "title": "Investigate the Power Unit",
-      "description": "Examine available power status, operating procedure, readings, diagnostic messages, and inspection history. Determine whether the evidence supports an anomaly, no detected anomaly, or an inconclusive result.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_PowerUnit_Trigger",
-        "mode": "existing_frontend_ui"
-      },
+      "triggerId": "Engineering_PowerUnit_Trigger",
+      "interfaceId": "ENGINEERING_POWER_UNIT",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_current_procedure",
-        "open_inspection_log",
-        "inspect_power_readings",
-        "compare_with_available_reference_limits",
-        "select_relevant_log_entries",
-        "classify_findings",
-        "explain_reasoning",
+      "objective": "Inspect available electrical measurements and power distribution records. Determine whether the evidence indicates an anomaly, no detected anomaly, or insufficient evidence.",
+      "requiredActions": [
+        "review_power_status",
+        "read_power_procedure",
+        "inspect_power_logs",
+        "compare_measurements_with_available_limits",
+        "select_supporting_logs",
         "submit_investigation"
       ],
-      "requiredEvidence": [
-        "power_status_reviewed",
-        "power_procedure_reviewed",
-        "power_log_entries_inspected",
-        "power_investigation_submitted"
-      ],
-      "investigation": {
-        "classificationSource": "player_input",
-        "validationSource": "available_system_data_and_reference_limits",
-        "requiredFields": [
-          "classification",
-          "supportingLogEntryIds",
-          "rationale"
-        ],
-        "optionalFields": [
-          "recommendedFollowUp",
-          "confidence"
-        ],
-        "requireReferenceLimitsWhenAvailable": true,
-        "doNotInventReferenceLimits": true,
-        "allowInsufficientEvidence": true
-      },
-      "submission": {
-        "recordType": "engineering_investigation",
-        "requiredFields": [
-          "systemId",
-          "inspectedLogEntryIds",
-          "classification",
-          "rationale"
-        ]
-      },
-      "completionCondition": "The player submits a valid power investigation supported by available logs. The player is not required to report an anomaly if the evidence does not support one."
+      "submissionFields": [
+        "reviewedLogIds",
+        "classification",
+        "playerComment",
+        "recommendedFollowUp"
+      ]
     },
     {
       "taskId": "SOL02_ENGINEERING_LIFESUPPORT",
-      "title": "Inspect Engineering Life-Support Records",
-      "description": "Inspect the Engineering Unit's life-support status, procedure, and available records. Compare related records only where the available data supports a meaningful comparison.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_LifeSupport_Trigger",
-        "mode": "existing_frontend_ui"
-      },
+      "title": "Inspect Engineering Life Support",
+      "triggerId": "Engineering_LifeSupport_Trigger",
+      "interfaceId": "ENGINEERING_LIFE_SUPPORT",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_current_procedure",
-        "open_inspection_log",
-        "inspect_relevant_records",
-        "record_investigation",
-        "submit_inspection"
+      "objective": "Review the Engineering life-support system records and document any supported concerns.",
+      "requiredActions": [
+        "review_status",
+        "read_procedure",
+        "inspect_logs",
+        "record_investigation"
       ],
-      "requiredEvidence": [
-        "engineering_lifesupport_log_reviewed"
-      ],
-      "submission": {
-        "recordType": "engineering_inspection",
-        "requiredFields": [
-          "inspectedLogEntryIds",
-          "classification",
-          "rationale"
-        ]
-      },
-      "completionCondition": "A valid Engineering life-support inspection is submitted with references to available records."
+      "submissionFields": [
+        "reviewedLogIds",
+        "classification",
+        "playerComment"
+      ]
     },
     {
       "taskId": "SOL02_DIAGNOSTICS",
       "title": "Review Engineering Diagnostics",
-      "description": "Investigate available diagnostic logs, identify unresolved diagnostic messages, and decide whether additional checks are justified.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_Diagnostics_Trigger",
-        "mode": "existing_frontend_ui"
-      },
+      "triggerId": "Engineering_Diagnostics_Trigger",
+      "interfaceId": "ENGINEERING_DIAGNOSTICS",
       "mandatory": true,
-      "workflow": [
-        "open_current_status",
-        "review_diagnostic_procedure",
-        "open_inspection_log",
-        "inspect_diagnostic_entries",
-        "identify_unresolved_items",
-        "record_investigation",
-        "submit_inspection"
+      "objective": "Read available diagnostic reports, identify unresolved issues and document whether further checks are required.",
+      "requiredActions": [
+        "review_diagnostic_status",
+        "read_diagnostic_procedure",
+        "inspect_diagnostic_logs",
+        "record_assessment"
       ],
-      "requiredEvidence": [
-        "diagnostic_log_reviewed",
-        "diagnostic_assessment_submitted"
-      ],
-      "submission": {
-        "recordType": "diagnostic_investigation",
-        "requiredFields": [
-          "inspectedLogEntryIds",
-          "classification",
-          "rationale"
-        ],
-        "optionalFields": [
-          "recommendedFollowUp"
-        ]
-      },
-      "completionCondition": "The player submits a supported diagnostic assessment, including an insufficient-evidence outcome when applicable."
+      "submissionFields": [
+        "reviewedLogIds",
+        "classification",
+        "playerComment",
+        "recommendedFollowUp"
+      ]
     },
     {
       "taskId": "SOL02_READINESS_ASSESSMENT",
       "title": "Submit Outpost Readiness Assessment",
-      "description": "Review the submitted Habitat and Engineering inspection records. Assess overall readiness, identify unresolved concerns, and submit a justified recommendation.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_Monitoring_Trigger",
-        "mode": "existing_frontend_ui"
-      },
+      "triggerId": "Engineering_Monitoring_Trigger",
+      "interfaceId": "ENGINEERING_MONITORING",
       "mandatory": true,
       "requiresCompletedTasks": [
-        "SOL02_HABITAT_STATUS",
+        "SOL02_HABITAT_MAIN_STATUS",
+        "SOL02_HABITAT_LIFE_SUPPORT",
+        "SOL02_HABITAT_EMERGENCY",
         "SOL02_WATER_NUTRITION",
         "SOL02_ENGINEERING_MONITORING",
-        "SOL02_POWER_REVIEW",
+        "SOL02_POWER_INVESTIGATION",
         "SOL02_ENGINEERING_LIFESUPPORT",
         "SOL02_DIAGNOSTICS"
       ],
+      "objective": "Review the submitted inspection records and provide an evidence-supported readiness decision.",
       "assessmentOptions": [
-        {
-          "id": "ready",
-          "label": "Ready",
-          "description": "The submitted evidence supports proceeding with the planned operations."
-        },
-        {
-          "id": "ready_with_cautions",
-          "label": "Ready with cautions",
-          "description": "Operations may proceed within the stated constraints while identified concerns are monitored."
-        },
-        {
-          "id": "not_ready",
-          "label": "Not ready",
-          "description": "The evidence identifies a concern that should be resolved before proceeding."
-        },
-        {
-          "id": "undetermined",
-          "label": "Readiness undetermined",
-          "description": "The available evidence is insufficient to justify a readiness decision."
-        }
+        "ready",
+        "ready_with_cautions",
+        "not_ready",
+        "undetermined"
       ],
-      "submission": {
-        "recordType": "outpost_readiness_assessment",
-        "requiredFields": [
-          "assessment",
-          "supportingInspectionRecordIds",
-          "unresolvedConcerns",
-          "rationale"
-        ],
-        "validationRules": [
-          "All required inspection tasks must have valid submitted records.",
-          "Every supporting record reference must exist.",
-          "The rationale must address relevant findings and unresolved concerns.",
-          "The assessment must not contradict the submitted evidence without an explanation.",
-          "An undetermined outcome is valid when the available evidence is insufficient."
-        ]
-      },
-      "completionCondition": "The final readiness assessment passes validation against all mandatory inspection records."
+      "submissionFields": [
+        "assessment",
+        "supportingInspectionRecordIds",
+        "unresolvedConcerns",
+        "rationale"
+      ]
     }
   ],
-  "optionalTasks": [
-    {
-      "taskId": "SOL02_STORAGE_REVIEW",
-      "title": "Review Engineering Storage Information",
-      "description": "Inspect available storage inventory information if useful for the readiness assessment.",
-      "location": "Engineering Unit",
-      "interaction": {
-        "triggerId": "Engineering_InfoDisplay_Trigger",
-        "mode": "existing_frontend_ui"
-      },
-      "mandatory": false
-    }
-  ],
-  "missionOutputs": [
-    "habitat_inspection_records",
-    "water_nutrition_inspection_record",
-    "engineering_monitoring_record",
-    "power_investigation_record",
-    "engineering_lifesupport_record",
-    "diagnostic_investigation_record",
-    "outpost_readiness_assessment"
-  ],
-  "nextMission": "PHOBOSIA_SOL_03"
+  "missionCompletion": {
+    "requiredTasks": [
+      "SOL02_HABITAT_MAIN_STATUS",
+      "SOL02_HABITAT_LIFE_SUPPORT",
+      "SOL02_HABITAT_EMERGENCY",
+      "SOL02_WATER_NUTRITION",
+      "SOL02_ENGINEERING_MONITORING",
+      "SOL02_POWER_INVESTIGATION",
+      "SOL02_ENGINEERING_LIFESUPPORT",
+      "SOL02_DIAGNOSTICS",
+      "SOL02_READINESS_ASSESSMENT"
+    ],
+    "requireValidRecords": true,
+    "requireEvidenceReferences": true,
+    "requirePlayerComments": true,
+    "allowInsufficientEvidence": true
+  }
 }

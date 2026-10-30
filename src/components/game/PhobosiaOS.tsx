@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
-import { MissionInvestigationPanel } from "./MissionInvestigationPanel";
+import { MissionInvestigationPanel } from "@/systems/investigation/InvestigationForm";
+import { TriggerOperatingSystem } from "@/systems/operating-system/TriggerOperatingSystem";
 import {
   DAYS_CONFIG,
   MASTER_TERRAIN_TARGETS,
@@ -73,6 +74,10 @@ export function PhobosiaOS({ game, state, onClose, initialApp }: PhobosiaOSProps
   };
 
   const currentMission = DAYS_CONFIG[state.missionDay as MissionDayNumber] || DAYS_CONFIG[1];
+
+  if (initialApp?.startsWith("trigger:")) {
+    return <TriggerOperatingSystem game={game} state={state} triggerId={initialApp.slice("trigger:".length)} onClose={onClose} />;
+  }
 
   return (
     <div className={`[position:fixed] [inset:0] [z-index:60] [background:rgba(14,_18,_24,_0.96)] [backdrop-filter:blur(14px)] [display:flex] [align-items:center] [justify-content:center] [pointer-events:auto] [user-select:none] [animation:osFrameFadeIn_0.35s_cubic-bezier(0.16,_1,_0.3,_1)] [font-family:-apple-system,_BlinkMacSystemFont,_"Segoe_UI",_Roboto,_"Helvetica_Neue",_Arial,_sans-serif] [color:#dce7ec] ${isMinimized ? "minimized" : ""}`}>

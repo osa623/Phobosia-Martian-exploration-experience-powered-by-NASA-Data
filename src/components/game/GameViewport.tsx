@@ -39,6 +39,7 @@ const initialState: GameState = {
   selectedRouteTargetId: null,
   notification: null,
   restFeedback: null,
+  restTransition: null,
 
   geologicalSurvey: null,
   surfaceObservation: null,
@@ -849,6 +850,12 @@ export function GameViewport() {
                 </button>
               </div>
             </section>
+          </div>
+        )}
+
+        {state.restTransition && (
+          <div aria-hidden="true" className="[position:fixed] [inset:0] [z-index:80] [pointer-events:all] [display:grid] [place-items:center] [background:#000] [transition:opacity_900ms_ease-in-out]" style={{ opacity: state.restTransition === "out" ? 1 : 0 }}>
+            <span className="font-kdam-thmor-pro [color:#a6bdc8] [font-size:12px] [letter-spacing:0.22em]">CREW REST CYCLE · HABITAT</span>
           </div>
         )}
 
