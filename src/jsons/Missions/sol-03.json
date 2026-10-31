@@ -298,6 +298,7 @@
         "open_observation_sites_view",
         "inspect_site_records",
         "review_available_site_metadata",
+        "reference_target_a_target_b_and_target_c",
         "compare_candidate_sites",
         "record_site_comparison"
       ],
@@ -309,6 +310,8 @@
         "metadata_completeness",
         "known_uncertainties"
       ],
+      "minimumComparedTargets": 3,
+      "requiredTargetReferences": "Every target catalogue entry must be referenced in the comparison record.",
       "submissionFields": [
         "candidateSiteIds",
         "selectedSiteId",
@@ -339,7 +342,7 @@
     },
     {
       "taskId": "SOL03_SELECT_TARGET",
-      "title": "Define the Scientific Observation Target",
+      "title": "Select a Proposed Scientific Target",
       "triggerId": "MC_NAVIGATION_01",
       "interfaceId": "MISSION_CONTROL_NAVIGATION",
       "viewId": "observation_sites",
@@ -348,13 +351,13 @@
         "SOL03_OBSERVATION_SITE_REVIEW",
         "SOL03_SYSTEM_CONSTRAINTS"
       ],
-      "objective": "Choose a supported observation target and write a focused scientific question.",
+      "objective": "Choose or revise one proposed observation target and write a focused scientific question. The choice remains provisional until the final proposal is submitted and validated.",
       "requiredActions": [
-        "select_available_site",
+        "select_or_revise_proposed_site",
         "write_scientific_question",
         "select_supporting_site_records",
         "identify_uncertainties",
-        "submit_target_definition"
+        "save_provisional_target_definition"
       ],
       "submissionFields": [
         "targetId",
@@ -364,7 +367,8 @@
         "knownLimitations"
       ],
       "validationRules": [
-        "The target must exist in the available site catalogue.",
+        "The proposed target must exist in the available site catalogue.",
+        "Saving this task must not establish the official mission target.",
         "The scientific question must be relevant to the selected target.",
         "Supporting references must resolve to actual records.",
         "Unknown site properties must not be invented."
@@ -430,7 +434,7 @@
         "SOL03_SELECT_TARGET",
         "SOL03_DATASET_ANALYSIS"
       ],
-      "objective": "Review and submit the final scientific target proposal with its supporting site records, selected dataset, rationale and known limitations.",
+      "objective": "Review and submit the final scientific target proposal with its supporting site records, selected dataset, rationale and known limitations. A successful validated submission commits and locks its target as the official mission target for Sol 4.",
       "submissionFields": [
         "targetId",
         "scientificQuestion",
@@ -442,6 +446,9 @@
       ],
       "validationRules": [
         "The selected target and dataset must exist.",
+        "The submitted target must match the saved provisional target selection.",
+        "Only this validated proposal submission establishes the official mission target.",
+        "After submission, the official target cannot be changed through the normal Sol 3 selection flow.",
         "The question must be nonempty and relevant.",
         "Supporting records must exist.",
         "Known limitations must be included.",

@@ -67,7 +67,7 @@ function completeSol3(mm) {
     assert.strictEqual(result.success, true, result.message);
   };
   prepare('SOL03_MISSION_CONTEXT', ['SOL03-MISSION-CONTEXT']);
-  prepare('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${targetId}`, `TARGET:${MASTER_TERRAIN_TARGETS[1].id}`]);
+  prepare('SOL03_OBSERVATION_SITE_REVIEW', MASTER_TERRAIN_TARGETS.map(target => `TARGET:${target.id}`));
   prepare('SOL03_SYSTEM_CONSTRAINTS', ['SOL03-COMMS-SYSTEMS']);
   prepare('SOL03_SELECT_TARGET', [`TARGET:${targetId}`], { selectedTargetId: targetId, scientificQuestion: 'Which site profile merits a future observation?' });
   prepare('SOL03_SELECT_DATASET', ['DATASET:PHOBOSIA_TARGET_PROFILE_TRAINING'], { datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING' });
@@ -180,6 +180,9 @@ console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');
 test('Mission progress counts unique mission tasks rather than saved steps from prior Sols', () => {
   const sol2 = getMissionTaskProgressFor(2, ['D1_HAB_LIFE_SUPPORT', 'SOL02_HABITAT_STATUS', 'SOL02_HABITAT_STATUS']);
   assert.deepStrictEqual(sol2, { completed: 1, total: 7, remaining: 6 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(3, []), { completed: 0, total: 6, remaining: 6 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']), { completed: 2, total: 6, remaining: 4 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(4, []), { completed: 0, total: 6, remaining: 6 });
   const sol4 = getMissionTaskProgressFor(4, ['SOL04_MISSION_CONTEXT']);
   assert.deepStrictEqual(sol4, { completed: 1, total: 6, remaining: 5 });
   const sol4Complete = getMissionTaskProgressFor(4, DAYS_CONFIG[4].steps.map(step => step.stepId));
@@ -216,10 +219,23 @@ test('Navigation selects the next available task, respects dependencies, and map
   assert.strictEqual(resolveNextMissionNavigation(1, allSol1Tasks).isCompletion, true);
 
   assert.strictEqual(resolveNextMissionNavigation(2, []).taskId, 'SOL02_HABITAT_MAIN_STATUS');
-  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(3, []).taskId, 'SOL03_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT']).taskId, 'SOL03_OBSERVATION_SITE_REVIEW');
   assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_SYSTEM_CONSTRAINTS');
   assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS']).taskId, 'SOL03_SELECT_TARGET');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET']).taskId, 'SOL03_DATASET_ANALYSIS');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET', 'SOL03_SELECT_DATASET']).taskId, 'SOL03_SUBMIT_TARGET_PROPOSAL');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET', 'SOL03_SELECT_DATASET', 'SOL03_SUBMIT_TARGET_RECORD']).isCompletion, true);
+  assert.strictEqual(resolveNextMissionNavigation(4, []).taskId, 'SOL04_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT']).taskId, 'SOL04_SELECTED_TARGET_INVESTIGATION');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION']).taskId, 'SOL04_TERRAIN_DATA_REVIEW');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW']).taskId, 'SOL04_DRONE_PHYSICAL_INSPECTION');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION']).taskId, 'SOL04_DRONE_MISSION_PLAN');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION', 'SOL04_DRONE_MISSION_PLAN']).taskId, 'SOL04_SUBMIT_PREPARATION_REPORT');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION', 'SOL04_DRONE_MISSION_PLAN', 'SOL04_SUBMIT_PREPARATION_REPORT']).isCompletion, true);
   assert(normalizeValidatedTaskIds(3, ['SOL03_SELECT_DATASET']).includes('SOL03_DATASET_ANALYSIS'));
+  assert(normalizeValidatedTaskIds(4, ['SOL04_MISSION_CONTEXT']).includes('SOL04_MISSION_CONTEXT'), 'Sol 4 completion IDs must match their mission JSON IDs');
+  assert(!normalizeValidatedTaskIds(4, ['SOL04_MISSION_CONTEXT']).includes('MC_MAIN_01'), 'Physical trigger IDs must not replace Sol 4 task IDs');
   assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS']).taskId, 'SOL02_WATER_NUTRITION', 'The combined Habitat review must advance directly to the next real Sol 2 task');
   assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION']).taskId, 'SOL02_ENGINEERING_MONITORING');
   const runtimeSol2Complete = ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION', 'SOL02_ENGINEERING_MONITORING', 'SOL02_POWER_REVIEW', 'SOL02_ENGINEERING_LIFESUPPORT', 'SOL02_DIAGNOSTICS', 'SOL02_READINESS_ASSESSMENT'];

@@ -7,9 +7,9 @@
       "taskId": "SOL04_MISSION_CONTEXT",
       "title": "Review Sol 4 Mission Objectives",
       "message": "Begin at the Mission Control operations station.",
-      "guidance": "Review the target chosen during Sol 3, the current mission objective, and the limits on today's investigation. This task does not allow a different target to be selected.",
+      "guidance": "Review the target successfully submitted and validated during Sol 3, the current mission objective, and the limits on today's investigation. If the saved target is missing or invalid, report the unresolved mission state; do not substitute a target or continue target-dependent work.",
       "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Operations Station" },
-      "activity": "Submit the mission context review through the existing Mission Control interface."
+      "activity": "Submit the mission context review through the existing Mission Control interface after confirming the official Sol 3 target."
     },
     {
       "taskId": "SOL04_SELECTED_TARGET_INVESTIGATION",

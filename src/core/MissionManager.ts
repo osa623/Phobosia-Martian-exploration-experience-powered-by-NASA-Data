@@ -314,9 +314,9 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     primaryObjective: "Submit an evidence-referenced target proposal using the available simulated training metadata.",
     steps: [
       ["SOL03_MISSION_CONTEXT", "Mission context review", "Review the Sol 2 readiness record and mission context.", "MC_MAIN_01"],
-      ["SOL03_OBSERVATION_SITE_REVIEW", "Observation site investigation", "Compare available in-game target profiles.", "MC_NAVIGATION_01"],
+      ["SOL03_OBSERVATION_SITE_REVIEW", "Compare Target A, Target B, and Target C", "Review and reference all three in-game target profiles and their available imagery.", "MC_NAVIGATION_01"],
       ["SOL03_SYSTEM_CONSTRAINTS", "Systems and communications constraints", "Review simulated operational constraints.", "MC_SYSTEMS_01"],
-      ["SOL03_SELECT_TARGET", "Select a scientific target", "Choose a target and focused scientific question.", "MC_NAVIGATION_01"],
+      ["SOL03_SELECT_TARGET", "Select a proposed scientific target", "Choose or revise one proposed target and focused scientific question. It becomes official only after the final proposal is validated.", "MC_NAVIGATION_01"],
       ["SOL03_SELECT_DATASET", "Select and evaluate a dataset", "Evaluate the available training metadata.", "LAB_RESEARCH_ANALYSIS_01"],
       ["SOL03_SUBMIT_TARGET_RECORD", "Submit target proposal", "Review and submit the complete proposal.", "MC_MAIN_01"]
     ].map(([stepId, label, description, targetTrigger]) => ({ stepId, label, description, targetTrigger, completed: false })),
@@ -326,8 +326,8 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   4: {
     day: 4,
     id: "DAY_04_LIFE_SUPPORT_VERIFICATION",
-    title: "Life-Support Verification",
-    storyContext: "The target selected during Sol 3 is now the focus of a careful scientific review. Mission Control and the Research Lab support the investigation; the Drone Section must be visited physically for inspection. The drone remains grounded until Sol 5.",
+    title: "Selected Target Investigation and Drone Mission Preparation",
+    storyContext: "The target submitted and validated during Sol 3 is now the focus of a careful scientific review. Mission Control and the Research Lab support the investigation; the Drone Section must be visited physically for inspection. The drone remains grounded until Sol 5.",
     briefing: "Continue with the target you selected during Sol 3; do not choose another. Review its available records in Mission Control, assess datasets and terrain evidence in the Research Lab, then physically visit and inspect the drone. Prepare the Sol 5 aerial observation plan and submit the preliminary assessment. No drone flight takes place today.",
     primaryObjective: "Investigate the selected target, assess evidence and terrain limitations, inspect the drone in person, and submit the Sol 5 preparation report.",
     steps: [
@@ -583,11 +583,23 @@ export class MissionManager {
   public getInvestigationRecords(): InvestigationRecord[] { return [...this.state.investigationRecords]; }
 
   private targetIdFromRecords(records: InvestigationRecord[]): string | null {
-    const selected = records.find(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD") ?? records.find(record => record.taskId === "SOL03_SELECT_TARGET");
-    return selected?.evidenceReferences.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
+    const submitted = records.find(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD");
+    return submitted?.evidenceReferences.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
   }
 
-  public getSelectedSiteId(): string | null { return this.state.selectedSiteId ?? this.targetIdFromRecords(this.state.investigationRecords); }
+  /** Temporary Sol 3 choice, used for proposal review only. */
+  public getProposedSiteId(): string | null {
+    const proposed = this.state.investigationRecords.find(record => record.taskId === "SOL03_SELECT_TARGET");
+    return proposed?.evidenceReferences.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
+  }
+
+  /** Official target exists only after a validated proposal record is saved. */
+  public getSelectedSiteId(): string | null {
+    const submittedTargetId = this.targetIdFromRecords(this.state.investigationRecords);
+    return submittedTargetId && submittedTargetId === this.state.selectedSiteId && MASTER_TERRAIN_TARGETS.some(target => target.id === submittedTargetId)
+      ? submittedTargetId
+      : null;
+  }
 
   /** Mission-level progress. Sols 4–9 have one primary objective with several implementation steps. */
   public getMissionTaskCards(): MissionTaskCard[] {
@@ -662,6 +674,9 @@ export class MissionManager {
     if (day !== 2 && day !== 3 && day !== 4) return { success: false, message: "Investigations are not available on the active Sol." };
     const task = DAYS_CONFIG[day].steps.find(step => step.stepId === input.taskId);
     if (!task) return { success: false, message: "This task is not part of the active Sol." };
+    if (day === 3 && this.getSelectedSiteId() && ["SOL03_SELECT_TARGET", "SOL03_SUBMIT_TARGET_RECORD"].includes(input.taskId)) {
+      return { success: false, message: "The Sol 3 target proposal has been validated and is locked for this mission." };
+    }
     if (input.rationale.trim().length < 12) return { success: false, message: "Enter a rationale of at least 12 characters." };
     if (day === 4) {
       const selected = this.getSelectedSiteId();
@@ -699,7 +714,7 @@ export class MissionManager {
     if (input.taskId === "SOL03_MISSION_CONTEXT" && !input.evidenceReferences.includes("SOL03-MISSION-CONTEXT")) return { success: false, message: "Reference the active mission context record." };
     if (input.taskId === "SOL03_MISSION_CONTEXT" && !this.state.investigationRecords.some(record => record.taskId === "SOL02_READINESS_ASSESSMENT")) return { success: false, message: "A saved Sol 2 readiness assessment is required for this context review." };
     if (input.taskId === "SOL03_SYSTEM_CONSTRAINTS" && !input.evidenceReferences.includes("SOL03-COMMS-SYSTEMS")) return { success: false, message: "Reference the available communications and systems record." };
-    if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && MASTER_TERRAIN_TARGETS.filter(t => input.evidenceReferences.includes(`TARGET:${t.id}`)).length < 2) return { success: false, message: "Compare and reference at least two available target profiles." };
+    if (input.taskId === "SOL03_OBSERVATION_SITE_REVIEW" && MASTER_TERRAIN_TARGETS.some(target => !input.evidenceReferences.includes(`TARGET:${target.id}`))) return { success: false, message: "Review and reference Target A, Target B, and Target C before submitting the comparison." };
     // Selecting a target is itself an explicit reference to that catalogue profile.
     // The canonical target reference is appended to the saved record below, so do
     // not require the player to make a second, hidden checkbox selection.
@@ -738,7 +753,7 @@ export class MissionManager {
     if (input.datasetId) record.evidenceReferences.push(`DATASET:${input.datasetId}`);
     if (day === 4) record.evidenceReferences.push(`TARGET:${this.getSelectedSiteId()}`);
     this.state.investigationRecords = [...prior.filter(r => r.taskId !== input.taskId), record];
-    if (day === 3 && (input.taskId === "SOL03_SELECT_TARGET" || input.taskId === "SOL03_SUBMIT_TARGET_RECORD") && input.selectedTargetId) this.state.selectedSiteId = input.selectedTargetId;
+    if (day === 3 && input.taskId === "SOL03_SUBMIT_TARGET_RECORD" && input.selectedTargetId) this.state.selectedSiteId = input.selectedTargetId;
     this.completeStep(input.taskId);
     this.emit();
     return { success: true, message: "Mission record saved with its evidence and provenance." };

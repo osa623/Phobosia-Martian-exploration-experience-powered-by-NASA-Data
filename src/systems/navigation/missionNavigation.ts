@@ -27,13 +27,8 @@ const RUNTIME_TASK_TO_MISSION_TASK: Record<number, Record<string, string>> = {
     SOL03_SELECT_DATASET: "SOL03_DATASET_ANALYSIS",
     SOL03_SUBMIT_TARGET_RECORD: "SOL03_SUBMIT_TARGET_PROPOSAL"
   },
-  4: {
-    SOL04_MISSION_CONTEXT: "MC_MAIN_01",
-    SOL04_SELECTED_TARGET_INVESTIGATION: "MC_NAVIGATION_01",
-    SOL04_TERRAIN_DATA_REVIEW: "LAB_RESEARCH_ANALYSIS_01",
-    SOL04_DRONE_MISSION_PLAN: "MC_NAVIGATION_01",
-    SOL04_SUBMIT_PREPARATION_REPORT: "MC_MAIN_01"
-  }
+  // Sol 4 runtime task IDs already match the mission JSON. Keep them intact;
+  // physical trigger resolution lives in TASK_TO_EXISTING_TRIGGER below.
 };
 
 // Private physical interaction resolver. These identifiers are never included in
