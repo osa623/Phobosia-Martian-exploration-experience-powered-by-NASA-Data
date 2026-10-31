@@ -69,3 +69,38 @@ Run timestamp: 2026-10-30 21:03:53 Asia/Colombo (2026-10-30 15:33:53 UTC)
 - Nearby Drone interactions no longer override the exit prompt while standing at the portal.
 - npm.cmd test: PASS (83/83); npm.cmd run typecheck: PASS.
 - Manual in-game transition check: not run; no browser surface is available in this session.
+
+Sol 1 Drone Section mandatory main task
+Run timestamp: 2026-10-31 06:19:49 Asia/Colombo (2026-10-31 00:49:49 UTC)
+- Original Sol 1 main task count: 19. Updated count: 20, derived from the required DAY1_TASKS definitions.
+- Added D1_DRONE_SECTION as the final required Day 1 task; task cards identify Drone Section and its existing Drone inspection point.
+- Navigation instruction directs the player to the Drone Section, to enter through the existing Airlock route, and to inspect the drone.
+- The existing DroneZone_Entrance_Trigger remains a travel-only interaction. Task completion is validated only by E on the existing Drone object while in the Drone module; module entry and invalid-module inspection do not complete it.
+- Updated Day 1 plan JSON zone/task configuration; it now has 20 required tasks, including the new physical-inspection task.
+- npm.cmd test: PASS (84/84 tests; includes Day 1 count, task card, navigation, invalid-entry/invalid-module, inspection validation, progress update, and Sol 4 regression coverage).
+- npm.cmd run typecheck: PASS.
+- Manual in-game flow: NOT RUN because no browser surface is available in this session.
+
+Sol 1 separate demonstration/navigation instructions
+Run timestamp: 2026-10-31 06:34:25 Asia/Colombo (2026-10-31 01:04:25 UTC)
+- Added src/jsons/Instructions/sol-01-navigation.json following the Sol 2-4 instruction schema. It contains the Drone Section objective, physical-entry guidance, inspection action, and destination.
+- Integrated Sol 1 instruction loading through resolveNextMissionNavigation; MissionManager no longer hardcodes Sol 1 instruction content.
+- The instruction disappears after D1_DRONE_SECTION is validated; task progress remains controlled by the existing physical drone interaction.
+- npm.cmd test: PASS (84/84 tests, including Sol 1 JSON loading and navigation resolution).
+- npm.cmd run typecheck: PASS.
+
+Sol 1 complete required demonstration instruction sequence
+Run timestamp: 2026-10-31 06:37:22 Asia/Colombo (2026-10-31 01:07:22 UTC)
+- Expanded sol-01-navigation.json from the Drone Section entry to all 20 required Sol 1 demonstrations across Habitat, Engineering, Research Laboratory, Mission Control, Airlock, and Drone Section.
+- The mission navigation resolver now selects the first incomplete required task in the existing Day1Config order and returns its matching JSON instruction; after all 20 are complete it uses the file's existing completion instruction.
+- Existing optional Central Hub displays remain optional and do not create tasks or alter the Sol 1 task total.
+- npm.cmd test: PASS (84/84 tests; includes exact instruction coverage/order and Drone Section navigation sequence).
+- npm.cmd run typecheck: PASS. sol-01-navigation.json parse: PASS (20 instruction entries).
+
+Sol 2 instruction progression correction
+Run timestamp: 2026-10-31 06:51:14 Asia/Colombo (2026-10-31 01:21:14 UTC)
+- Root cause: runtime Sol 2 validates 7 tasks, while mission/navigation data listed 9. The standalone Habitat Life Support and Emergency tasks were never separately completable; both belong to the existing combined Habitat status investigation.
+- Consolidated the Habitat views into one task in sol-02.json and sol-02-navigation.json. Removed the two phantom task IDs and corrected readiness prerequisites to the six actual investigation records.
+- After each completed runtime task, the instruction resolver now advances to the next matching task; after Habitat status it proceeds to Water and Nutrition, then Engineering Monitoring. Readiness appears after the six investigations.
+- npm.cmd test: PASS (84/84; regression verifies Sol 2 advancement after completed tasks and notification refresh).
+- npm.cmd run typecheck: PASS.

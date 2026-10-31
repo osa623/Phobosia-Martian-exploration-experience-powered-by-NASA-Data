@@ -198,13 +198,32 @@ test('Sol 2 and Sol 3 navigation instructions cover required JSON tasks and keep
 });
 
 test('Navigation selects the next available task, respects dependencies, and maps only validated runtime aliases', () => {
+  const sol1Navigation = require('../src/jsons/Instructions/sol-01-navigation.json');
+  assert.deepStrictEqual(
+    sol1Navigation.instructions.map(item => item.taskId),
+    DAY1_TASKS.filter(task => task.required).map(task => task.taskId),
+    'Sol 1 demonstrations must have one instruction for every required task, in configured order'
+  );
+  const sol1Instruction = resolveNextMissionNavigation(1, []);
+  assert.strictEqual(sol1Instruction.taskId, 'D1_HAB_LIFE_SUPPORT');
+  assert.strictEqual(sol1Instruction.destinationName, 'Habitat Main Monitor');
+  const droneInstruction = resolveNextMissionNavigation(1, DAY1_TASKS.filter(task => task.taskId !== 'D1_DRONE_SECTION').map(task => task.taskId));
+  assert.strictEqual(droneInstruction.taskId, 'D1_DRONE_SECTION');
+  assert.strictEqual(droneInstruction.destinationName, 'Drone Section');
+  assert(droneInstruction.guidance.includes('physical entrance'));
+  assert(droneInstruction.activity.includes('Press E'));
+  const allSol1Tasks = DAY1_TASKS.filter(task => task.required).map(task => task.taskId);
+  assert.strictEqual(resolveNextMissionNavigation(1, allSol1Tasks).isCompletion, true);
+
   assert.strictEqual(resolveNextMissionNavigation(2, []).taskId, 'SOL02_HABITAT_MAIN_STATUS');
   assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_MISSION_CONTEXT');
   assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_SYSTEM_CONSTRAINTS');
   assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS']).taskId, 'SOL03_SELECT_TARGET');
   assert(normalizeValidatedTaskIds(3, ['SOL03_SELECT_DATASET']).includes('SOL03_DATASET_ANALYSIS'));
+  assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS']).taskId, 'SOL02_WATER_NUTRITION', 'The combined Habitat review must advance directly to the next real Sol 2 task');
+  assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION']).taskId, 'SOL02_ENGINEERING_MONITORING');
   const runtimeSol2Complete = ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION', 'SOL02_ENGINEERING_MONITORING', 'SOL02_POWER_REVIEW', 'SOL02_ENGINEERING_LIFESUPPORT', 'SOL02_DIAGNOSTICS', 'SOL02_READINESS_ASSESSMENT'];
-  assert.strictEqual(resolveNextMissionNavigation(2, runtimeSol2Complete).taskId, 'SOL02_HABITAT_LIFE_SUPPORT');
+  assert.strictEqual(resolveNextMissionNavigation(2, runtimeSol2Complete).isCompletion, true);
 });
 
 test('A newly validated Sol 2 task refreshes the existing mission notification once; duplicates do not repeat it', () => {
@@ -213,7 +232,8 @@ test('A newly validated Sol 2 task refreshes the existing mission notification o
   const mm = new MissionManager();
   assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), true);
   const next = mm.getState().notification;
-  assert(next && next.includes('Habitat Life Support Section'));
+  assert(next && next.includes('Habitat Water and Nutrition Station'));
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL02_WATER_NUTRITION');
   assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), false);
   assert.strictEqual(mm.getState().notification, next);
 });
@@ -2387,7 +2407,7 @@ test('AT_D1_008: Removed Central Hub inspections remain interactive but do not c
   const res1 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
   assert.strictEqual(res1, false);
   assert.strictEqual(mm.isStepComplete('D1_HUB_ENVIRONMENT_STATUS'), false);
-  assert.strictEqual(mm.getCurrentMission().steps.length, 19);
+  assert.strictEqual(mm.getCurrentMission().steps.length, 20);
   assert(TRIGGER_TO_GROUP_MAP['Env_Status_Display'], 'Environment status trigger must remain configured');
   assert.strictEqual(TRIGGER_TO_TASK_MAP['Env_Status_Display'], undefined, 'Removed inspections must not map to a Sol 1 task');
 
@@ -2400,13 +2420,13 @@ test('AT_D1_009: Rest trigger is blocked while required Day 1 tasks remain incom
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Only complete 1 of 19 required tasks
+  // Only complete 1 of 20 required tasks
   mm.completeStep('D1_HAB_LIFE_SUPPORT');
 
   const check = mm.canRestAndAdvance();
   assert.strictEqual(check.canAdvance, false);
   assert.strictEqual(check.reason.includes('Complete the remaining outpost orientation tasks before resting'), true);
-  assert.strictEqual(check.reason.includes('18 of 19 tasks remaining'), true);
+  assert.strictEqual(check.reason.includes('19 of 20 tasks remaining'), true);
 
   const adv = mm.advanceDay();
   assert.strictEqual(adv.success, false);
@@ -2417,12 +2437,12 @@ test('AT_D1_010: Player rests after completing every required task, advancing to
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Complete all 19 required tasks
+  // Complete all 20 required tasks
   for (const t of DAY1_TASKS.filter(task => task.required)) {
     mm.completeStep(t.taskId);
   }
 
-  assert.strictEqual(mm.getState().completedStepIds.length, 19);
+  assert.strictEqual(mm.getState().completedStepIds.length, 20);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
 
   const check = mm.canRestAndAdvance();
@@ -2463,24 +2483,58 @@ test('AT_D1_011: Unresolved target fallback runs presentation without camera mot
   assert.strictEqual(manager.isPresentationActive(), false);
 });
 
-test('AT_D1_012: 19 required tasks are uniquely configured, mapped, and validated', () => {
-  assert.strictEqual(DAY1_TASKS.length, 19, 'Only required Sol 1 tasks should be defined');
+test('AT_D1_012: 20 required tasks are uniquely configured, mapped, and validated', () => {
+  assert.strictEqual(DAY1_TASKS.length, 20, 'Only required Sol 1 tasks should be defined');
   const taskSet = new Set(DAY1_TASKS.map(t => t.taskId));
-  assert.strictEqual(taskSet.size, 19, 'All task IDs must be unique');
+  assert.strictEqual(taskSet.size, 20, 'All task IDs must be unique');
 
   const day1Steps = DAYS_CONFIG[1].steps;
-  assert.strictEqual(day1Steps.length, 19, 'DAYS_CONFIG[1].steps must contain only required tasks');
+  assert.strictEqual(day1Steps.length, 20, 'DAYS_CONFIG[1].steps must contain only required tasks');
 
   // Verify all zones are accounted for
-  assert.strictEqual(DAY1_ZONES.length, 6, 'Must define all 6 outpost zones');
+  assert.strictEqual(DAY1_ZONES.length, 7, 'Must include the existing Drone Section alongside the 6 outpost zones');
   const zoneSet = new Set(DAY1_ZONES.map(z => z.zoneId));
-  assert.strictEqual(zoneSet.size, 6);
+  assert.strictEqual(zoneSet.size, 7);
   assert(zoneSet.has('HABITAT'));
   assert(zoneSet.has('CENTRAL_HUB'));
   assert(zoneSet.has('ENGINEERING_UNIT'));
   assert(zoneSet.has('RESEARCH_LAB'));
   assert(zoneSet.has('MISSION_CONTROL'));
   assert(zoneSet.has('AIRLOCK'));
+  assert(zoneSet.has('DRONE_SECTION'));
+});
+
+test('AT_D1_013: Drone Section task requires E on the existing drone inside the Drone module', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+  const progressBefore = mm.getMissionTaskProgress();
+  assert.strictEqual(progressBefore.total, 20);
+  assert.strictEqual(progressBefore.completed, 0);
+  assert.strictEqual(TRIGGER_TO_TASK_MAP['DroneZone_Entrance_Trigger'], undefined, 'Entering cannot validate the inspection task');
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false);
+  assert.strictEqual(mm.getCurrentNavigationInstruction().destinationName, 'Habitat Main Monitor');
+  const taskCard = mm.getMissionTaskCards().find(task => task.id === 'D1_DRONE_SECTION');
+  assert(taskCard, 'Drone Section must appear as a normal Sol 1 task card');
+  assert.strictEqual(taskCard.title, 'Drone Section');
+  assert.strictEqual(taskCard.status, 'available');
+  assert.strictEqual(taskCard.moduleName, 'Drone Section');
+  assert.strictEqual(taskCard.targetTrigger, 'Drone');
+
+  const wrongModule = mm.handleContextEvent({ type: 'trigger_interacted', module: 'Airlock', identifier: 'Drone' });
+  assert.strictEqual(wrongModule.handled, true);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false, 'An invalid module interaction must not complete the task');
+
+  const entered = mm.handleContextEvent({ type: 'module_entered', module: 'Drone' });
+  assert.strictEqual(entered.handled, false);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false, 'Entering the module must not complete the task');
+
+  const inspected = mm.handleContextEvent({ type: 'trigger_interacted', module: 'Drone', identifier: 'Drone' });
+  assert.strictEqual(inspected.handled, true);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), true);
+  assert.strictEqual(mm.getMissionTaskProgress().completed, 1);
+  assert.strictEqual(mm.getMissionTaskProgress().remaining, 19);
+  assert.notStrictEqual(mm.getCurrentNavigationInstruction().taskId, 'D1_DRONE_SECTION');
+  assert.strictEqual(TRIGGER_TO_GROUP_MAP['Drone'].taskId, 'D1_DRONE_SECTION');
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

@@ -4,6 +4,8 @@ import sol04Mission from "../../jsons/Missions/sol-04.json";
 import sol02Navigation from "../../jsons/Instructions/sol-02-navigation.json";
 import sol03Navigation from "../../jsons/Instructions/sol-03-navigation.json";
 import sol04Navigation from "../../jsons/Instructions/sol-04-navigation.json";
+import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
+import { DAY1_TASKS } from "../../core/Day1Config";
 
 type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
@@ -79,6 +81,34 @@ export function normalizeValidatedTaskIds(sol: number, runtimeTaskIds: readonly 
 }
 
 export function resolveNextMissionNavigation(sol: number, validatedRuntimeTaskIds: readonly string[]): ResolvedMissionNavigation | null {
+  if (sol === 1) {
+    const completed = new Set(validatedRuntimeTaskIds);
+    const nextTask = DAY1_TASKS.find(task => task.required && !completed.has(task.taskId));
+    if (!nextTask) {
+      return {
+        title: sol01Navigation.completion.title,
+        notification: sol01Navigation.completion.message,
+        isCompletion: true,
+        hasInstruction: true
+      };
+    }
+    const instruction = sol01Navigation.instructions.find(item => item.taskId === nextTask.taskId);
+    if (!instruction) return null;
+    return {
+      taskId: instruction.taskId,
+      title: instruction.title,
+      notification: `${instruction.title} · ${instruction.destination.name}. ${instruction.message} ${instruction.guidance} ${instruction.activity}`,
+      message: instruction.message,
+      destinationName: instruction.destination.name,
+      destinationModule: instruction.destination.module,
+      destinationSection: instruction.destination.section,
+      guidance: instruction.guidance,
+      activity: instruction.activity,
+      isCompletion: false,
+      hasInstruction: true
+    };
+  }
+
   const source = FILES[sol];
   if (!source) return null;
 

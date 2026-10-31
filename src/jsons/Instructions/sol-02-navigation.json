@@ -5,29 +5,11 @@
   "instructions": [
     {
       "taskId": "SOL02_HABITAT_MAIN_STATUS",
-      "title": "Review Habitat Environmental Status",
-      "message": "Begin with the Habitat environmental overview.",
-      "guidance": "Review the available environmental records and related logs. Record what the evidence supports and note any uncertainty.",
-      "destination": { "name": "Habitat Main Monitoring Area", "module": "Habitat", "section": "Main Monitoring Area" },
-      "activity": "Use the Habitat main monitoring interface and submit the required status review."
-    },
-    {
-      "taskId": "SOL02_HABITAT_LIFE_SUPPORT",
-      "title": "Inspect Habitat Life Support",
-      "message": "Continue to the Habitat life support section.",
-      "guidance": "Review available oxygen, pressure, water-level, procedure, and life-support records. Do not infer a normal condition from missing data.",
-      "destination": { "name": "Habitat Life Support Section", "module": "Habitat", "section": "Life Support Section" },
-      "activity": "Use the life-support view at the Habitat monitor and submit the required investigation.",
-      "requiresCompletedTasks": ["SOL02_HABITAT_MAIN_STATUS"]
-    },
-    {
-      "taskId": "SOL02_HABITAT_EMERGENCY",
-      "title": "Review Emergency Status",
-      "message": "Review the Habitat emergency status information.",
-      "guidance": "Check the available emergency status, response instructions, and incident records, then document the review.",
-      "destination": { "name": "Habitat Emergency Status Area", "module": "Habitat", "section": "Emergency Status Area" },
-      "activity": "Use the emergency status view at the Habitat monitor and submit the required review.",
-      "requiresCompletedTasks": ["SOL02_HABITAT_LIFE_SUPPORT"]
+      "title": "Review Habitat Status, Life Support, and Emergency Information",
+      "message": "Begin with the Habitat status displays.",
+      "guidance": "Review the available overview, life-support, and emergency information together. Inspect their related records and logs, then record what the evidence supports and note uncertainty or unavailable data.",
+      "destination": { "name": "Habitat Main Monitoring Area", "module": "Habitat", "section": "Status, Life Support, and Emergency Views" },
+      "activity": "Use the existing Habitat monitor and submit one combined status investigation."
     },
     {
       "taskId": "SOL02_WATER_NUTRITION",
@@ -76,7 +58,7 @@
       "guidance": "Reference the submitted inspection evidence, identify unresolved concerns, and choose a readiness conclusion supported by the records.",
       "destination": { "name": "Engineering Monitoring Section", "module": "Engineering Unit", "section": "Readiness Assessment" },
       "activity": "Submit the final readiness assessment with its supporting record references.",
-      "requiresCompletedTasks": ["SOL02_HABITAT_MAIN_STATUS", "SOL02_HABITAT_LIFE_SUPPORT", "SOL02_HABITAT_EMERGENCY", "SOL02_WATER_NUTRITION", "SOL02_ENGINEERING_MONITORING", "SOL02_POWER_INVESTIGATION", "SOL02_ENGINEERING_LIFESUPPORT", "SOL02_DIAGNOSTICS"]
+      "requiresCompletedTasks": ["SOL02_HABITAT_MAIN_STATUS", "SOL02_WATER_NUTRITION", "SOL02_ENGINEERING_MONITORING", "SOL02_POWER_INVESTIGATION", "SOL02_ENGINEERING_LIFESUPPORT", "SOL02_DIAGNOSTICS"]
     }
   ],
   "completion": {

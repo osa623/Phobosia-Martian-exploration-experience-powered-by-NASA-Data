@@ -181,9 +181,7 @@
         }
       ],
       "mandatoryTasks": [
-        "SOL02_HABITAT_MAIN_STATUS",
-        "SOL02_HABITAT_LIFE_SUPPORT",
-        "SOL02_HABITAT_EMERGENCY"
+        "SOL02_HABITAT_MAIN_STATUS"
       ]
     },
     {
@@ -304,63 +302,24 @@
   "tasks": [
     {
       "taskId": "SOL02_HABITAT_MAIN_STATUS",
-      "title": "Review Habitat Environmental Status",
+      "title": "Review Habitat Status, Life Support, and Emergency Information",
       "triggerId": "HAB_MONITOR_01",
       "interfaceId": "HABITAT_MAIN_MONITOR",
       "viewId": "habitat_main_status",
       "mandatory": true,
-      "objective": "Review the Mars environmental overview and identify any recorded abnormalities relevant to outpost operations.",
+      "objective": "Review the existing Habitat overview, life-support, and emergency information together. Record observations and uncertainties supported by the available displays and logs.",
       "requiredActions": [
         "open_main_status_view",
+        "open_life_support_view",
+        "open_emergency_view",
         "review_environmental_records",
+        "review_current_status",
         "open_relevant_logs",
         "record_observations"
       ],
       "submissionFields": [
         "reviewedLogIds",
-        "environmentalObservations",
-        "playerComment"
-      ]
-    },
-    {
-      "taskId": "SOL02_HABITAT_LIFE_SUPPORT",
-      "title": "Inspect Habitat Life Support",
-      "triggerId": "HAB_MONITOR_01",
-      "interfaceId": "HABITAT_MAIN_MONITOR",
-      "viewId": "habitat_life_support",
-      "mandatory": true,
-      "objective": "Inspect available oxygen, pressure, water-level and life-support records. Identify warnings that may affect crew safety.",
-      "requiredActions": [
-        "open_life_support_view",
-        "review_current_status",
-        "read_operating_procedure",
-        "inspect_life_support_logs",
-        "record_investigation"
-      ],
-      "submissionFields": [
-        "reviewedLogIds",
         "classification",
-        "playerComment"
-      ]
-    },
-    {
-      "taskId": "SOL02_HABITAT_EMERGENCY",
-      "title": "Review Emergency Status",
-      "triggerId": "HAB_MONITOR_01",
-      "interfaceId": "HABITAT_MAIN_MONITOR",
-      "viewId": "habitat_emergency_status",
-      "mandatory": true,
-      "objective": "Review active emergency information, severity, response instructions and historical emergency records.",
-      "requiredActions": [
-        "open_emergency_view",
-        "review_emergency_status",
-        "read_emergency_instructions",
-        "inspect_emergency_logs",
-        "record_review"
-      ],
-      "submissionFields": [
-        "reviewedLogIds",
-        "emergencyAssessment",
         "playerComment"
       ]
     },
@@ -472,8 +431,6 @@
       "mandatory": true,
       "requiresCompletedTasks": [
         "SOL02_HABITAT_MAIN_STATUS",
-        "SOL02_HABITAT_LIFE_SUPPORT",
-        "SOL02_HABITAT_EMERGENCY",
         "SOL02_WATER_NUTRITION",
         "SOL02_ENGINEERING_MONITORING",
         "SOL02_POWER_INVESTIGATION",
@@ -498,8 +455,6 @@
   "missionCompletion": {
     "requiredTasks": [
       "SOL02_HABITAT_MAIN_STATUS",
-      "SOL02_HABITAT_LIFE_SUPPORT",
-      "SOL02_HABITAT_EMERGENCY",
       "SOL02_WATER_NUTRITION",
       "SOL02_ENGINEERING_MONITORING",
       "SOL02_POWER_INVESTIGATION",

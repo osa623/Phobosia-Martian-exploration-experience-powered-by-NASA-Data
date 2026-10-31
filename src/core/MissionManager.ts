@@ -53,7 +53,8 @@ const TRIGGER_GUIDANCE: Record<string, { moduleName: string; sectionName: string
   LAB_RESEARCH_ANALYSIS_01: { moduleName: "Research Laboratory", sectionName: "Analysis Station", interfaceName: "Research Analysis" },
   LAB_RESEARCH_MONITORING_01: { moduleName: "Research Laboratory", sectionName: "Monitoring Station", interfaceName: "Research Monitoring" },
   Airlock_Control_Console_Trigger: { moduleName: "Airlock", sectionName: "Control Console", interfaceName: "Airlock Control Console" },
-  HAB_REST_01: { moduleName: "Habitat", sectionName: "Rest Area", interfaceName: "Habitat Rest Area" }
+  HAB_REST_01: { moduleName: "Habitat", sectionName: "Rest Area", interfaceName: "Habitat Rest Area" },
+  Drone: { moduleName: "Drone Section", sectionName: "Drone Inspection Area", interfaceName: "Physical Drone Inspection" }
 };
 
 const TASK_VIEW_NAMES: Record<string, string> = {
@@ -69,7 +70,8 @@ const TASK_VIEW_NAMES: Record<string, string> = {
   SOL03_SYSTEM_CONSTRAINTS: "Communications and Systems views",
   SOL03_SELECT_TARGET: "Observation Sites view",
   SOL03_SELECT_DATASET: "Dataset analysis view",
-  SOL03_SUBMIT_TARGET_RECORD: "Target proposal review"
+  SOL03_SUBMIT_TARGET_RECORD: "Target proposal review",
+  D1_DRONE_SECTION: "Physical inspection of the existing drone"
 };
 
 export interface ObservationRecord {
@@ -274,7 +276,7 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     title: "Outpost Orientation",
     storyContext: "Beginning of the 14-day Mars observation expedition. Operational systems are online.",
     briefing: "Welcome to Mars Outpost PHOBOSIA. Before commencing scientific field observations, explore the base, inspect each operational zone and system console, and complete the Day 1 orientation checklist.",
-    primaryObjective: "Explore the outpost, inspect the required systems and consoles across all modules, and complete the 19-task orientation checklist.",
+    primaryObjective: `Explore the outpost, inspect the required systems and consoles across all modules, and complete the ${DAY1_TASKS.filter(task => task.required).length}-task orientation checklist.`,
     steps: DAY1_TASKS.filter(t => t.required).map(t => ({
       stepId: t.taskId,
       label: t.title,
@@ -282,7 +284,7 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
       completed: false
     })),
     allowedModules: ["Habitat", "Hub", "Airlock", "Engineering", "Science", "MissionControl", "Drone"],
-    completionFeedback: "Outpost orientation complete. All 19 required tasks are complete. Return to Habitat Rest Area to finish Day 1."
+    completionFeedback: `Outpost orientation complete. All ${DAY1_TASKS.filter(task => task.required).length} required tasks are complete. Return to Habitat Rest Area to finish Day 1.`
   },
   2: {
     day: 2,
@@ -620,7 +622,7 @@ export class MissionManager {
       const first = steps.find(step => step.targetTrigger) ?? steps.find(step => step.targetModule) ?? steps[0];
       const triggerId = first?.targetTrigger;
       const mapped = triggerId ? TRIGGER_GUIDANCE[triggerId] : undefined;
-      const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule ?? "Location not mapped");
+      const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule === "Drone" ? "Drone Section" : first?.targetModule ?? "Location not mapped");
       const prereqs = first?.requiresCompletedTasks ?? prerequisiteMap[first?.stepId ?? ""] ?? [];
       const lockedOn = prereqs.filter(id => !this.state.completedStepIds.includes(id));
       const completed = steps.length > 0 && steps.every(step => this.state.completedStepIds.includes(step.stepId));
@@ -651,7 +653,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay !== 2 && this.state.currentDay !== 3 && this.state.currentDay !== 4) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 4) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -851,6 +853,9 @@ export class MissionManager {
     // Day 1
     if (day === 1) {
       if (event.type === "trigger_interacted" && event.identifier) {
+        if (event.identifier === "Drone" && event.module !== "Drone") {
+          return { handled: true, feedback: "The drone can only be inspected from the Drone Section." };
+        }
         const taskId = TRIGGER_TO_TASK_MAP[event.identifier];
         if (taskId) {
           const added = this.completeStep(taskId);

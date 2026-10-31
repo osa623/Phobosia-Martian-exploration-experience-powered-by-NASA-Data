@@ -1373,6 +1373,25 @@ export class Game {
 
     if (!this.nearby) return;
 
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 1 && key === "E") {
+      const wasComplete = this.missionManager.isStepComplete("D1_DRONE_SECTION");
+      const result = this.missionManager.handleContextEvent({
+        type: "trigger_interacted",
+        module: this.active,
+        identifier: this.nearby.identifier
+      });
+      const completed = this.missionManager.isStepComplete("D1_DRONE_SECTION");
+      this.set({
+        prompt: "",
+        notification: !wasComplete && completed
+          ? "Task Complete: Drone Section"
+          : result.feedback && completed
+            ? "Drone Section inspection already recorded."
+            : "The drone inspection could not be validated."
+      });
+      return;
+    }
+
     if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 4) {
       const saved = this.missionManager.recordPhysicalDroneInspection("Physical inspection completed in the Drone Section. Only visible presence was verified; battery, fuel, mechanical, camera, and communications readings are unavailable.");
       this.set({ prompt: "", notification: saved ? "Physical drone inspection recorded. The drone remains grounded for Sol 5." : "Drone inspection is already recorded." });
@@ -1695,6 +1714,8 @@ export class Game {
       this.set({ prompt: `[${key}] TRAVEL TO ${labels[route.module].toUpperCase()}` });
     } else if (best.identifier === "HAB_REST_01") {
       this.set({ prompt: `[E] REST · CREW REST AREA` });
+    } else if (this.active === "Drone" && best.identifier === "Drone") {
+      this.set({ prompt: "[E] INSPECT · EXISTING DRONE" });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
       if (this.state.missionDay === 5) {
         this.set({ prompt: "Press E to Access Terrain Survey Planning" });
