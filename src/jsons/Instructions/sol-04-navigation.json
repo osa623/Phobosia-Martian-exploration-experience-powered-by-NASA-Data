@@ -1,0 +1,64 @@
+{
+  "sol": 4,
+  "missionId": "PHOBOSIA_SOL_04",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "SOL04_MISSION_CONTEXT",
+      "title": "Review Sol 4 Mission Objectives",
+      "message": "Begin at the Mission Control operations station.",
+      "guidance": "Review the target successfully submitted and validated during Sol 3, the current mission objective, and the limits on today's investigation. If the saved target is missing or invalid, report the unresolved mission state; do not substitute a target or continue target-dependent work.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Operations Station" },
+      "activity": "Submit the mission context review through the existing Mission Control interface after confirming the official Sol 3 target."
+    },
+    {
+      "taskId": "SOL04_SELECTED_TARGET_INVESTIGATION",
+      "title": "Investigate the Selected Observation Target",
+      "message": "Review the selected target at the Mission Control navigation station.",
+      "guidance": "Inspect the target identity, available location information, historical records, and related mission logs. Keep verified records separate from PHOBOSIA descriptions and your own comments; record unavailable information as unknown.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Selected Target Investigation" },
+      "activity": "Submit your investigation notes and known uncertainties.",
+      "requiresCompletedTasks": ["SOL04_MISSION_CONTEXT"]
+    },
+    {
+      "taskId": "SOL04_TERRAIN_DATA_REVIEW",
+      "title": "Review Terrain and Scientific Dataset Evidence",
+      "message": "Continue to the Research Analysis Station.",
+      "guidance": "Review dataset provenance and coverage where available. Assess what the supplied evidence can establish about terrain, and note missing slope, elevation, or obstacle measurements rather than estimating them.",
+      "destination": { "name": "Research Analysis Station", "module": "Research Lab", "section": "Analysis Station" },
+      "activity": "Submit a preliminary terrain assessment with its limitations.",
+      "requiresCompletedTasks": ["SOL04_SELECTED_TARGET_INVESTIGATION"]
+    },
+    {
+      "taskId": "SOL04_DRONE_PHYSICAL_INSPECTION",
+      "title": "Visit and Inspect the Drone",
+      "message": "Travel to the Drone Section and enter through its physical entrance.",
+      "guidance": "Approach the Drone Section entrance and press E. Locate the existing drone and interact with it to record a physical inspection. Only note what is visible; unimplemented readings remain unavailable. Do not launch or fly the drone today.",
+      "destination": { "name": "Drone Section", "module": "Drone Section", "section": "Drone Inspection Area" },
+      "activity": "Complete the inspection by interacting with the drone in person.",
+      "requiresCompletedTasks": ["SOL04_MISSION_CONTEXT"]
+    },
+    {
+      "taskId": "SOL04_DRONE_MISSION_PLAN",
+      "title": "Prepare the Sol 5 Drone Observation Plan",
+      "message": "Return to the Mission Control navigation station.",
+      "guidance": "Use the selected target, terrain assessment, and physical inspection notes to define Sol 5 aerial observation objectives, constraints, and unresolved preparation issues. This is planning only; no flight or aerial observation takes place on Sol 4.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Drone Mission Preparation" },
+      "activity": "Submit a preparation plan that references the earlier assessment and inspection.",
+      "requiresCompletedTasks": ["SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION"]
+    },
+    {
+      "taskId": "SOL04_SUBMIT_PREPARATION_REPORT",
+      "title": "Submit the Preliminary Terrain Assessment and Preparation Report",
+      "message": "Submit your report at the Mission Control operations station.",
+      "guidance": "Compile the selected target information, scientific and dataset review, terrain assessment, limitations, physical drone inspection, Sol 5 observation objectives, constraints, and unresolved issues. Distinguish evidence from analysis and hypotheses.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Report Review" },
+      "activity": "Submit the complete report. Return to the Habitat Rest Area after it validates.",
+      "requiresCompletedTasks": ["SOL04_MISSION_CONTEXT", "SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION", "SOL04_DRONE_MISSION_PLAN"]
+    }
+  ],
+  "completion": {
+    "title": "Sol 4 Mission Preparation Complete",
+    "message": "The preparation report is validated. Return to the Habitat Rest Area and use the existing rest interaction to begin Sol 5."
+  }
+}

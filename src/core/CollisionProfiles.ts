@@ -1,4 +1,4 @@
-export type CollisionModule = "Habitat" | "Hub" | "Airlock" | "Engineering" | "Science" | "MissionControl";
+export type CollisionModule = "Habitat" | "Hub" | "Airlock" | "Engineering" | "Science" | "MissionControl" | "Drone";
 export type CollisionProfile = { maxRoomFootprint: number; roomShells: readonly string[] };
 
 // Audited independently from each module export. These values only suppress
@@ -9,5 +9,6 @@ export const collisionProfiles: Record<CollisionModule, CollisionProfile> = {
   Airlock: { maxRoomFootprint: 65, roomShells: [] },
   Engineering: { maxRoomFootprint: 80, roomShells: [] },
   Science: { maxRoomFootprint: 80, roomShells: [] },
-  MissionControl: { maxRoomFootprint: 65, roomShells: [] }
+  MissionControl: { maxRoomFootprint: 65, roomShells: [] },
+  Drone: { maxRoomFootprint: 65, roomShells: [] }
 };

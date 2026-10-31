@@ -1,0 +1,139 @@
+﻿PHOBOSIA — Sol 1 to Sol 4 Screen and Mission Validation
+Run timestamp: 2026-10-30 19:43:43 Asia/Colombo (2026-10-30 14:13:43 UTC)
+
+Commands and results
+- npm.cmd test: PASS (TypeScript test compilation; 81/81 mission and screen tests; Sol 2 and Sol 3 investigation validation checks passed).
+- npm.cmd run typecheck: PASS (tsc --noEmit).
+- JSON and asset validation: PASS (4 Sol 3/4 screen JSON files parsed; all 9 referenced target image paths exist under public/assets).
+
+Coverage
+- Sol 1 Day 1 required task mapping, progression, and existing physical trigger/presentation checks: covered by mission suite; passed.
+- Sol 2 investigation requirements and navigation/task configuration: covered; passed.
+- Sol 3 target selection and proposal lifecycle: covered; passed.
+- Sol 4 selected target carryover, physical drone inspection record, preparation report, and Sol 5 progression gate: covered; passed.
+- Sol 1–4 Mission Control physical screen IDs, mesh names, and renderer IDs: checked unchanged for the reused mappings; passed.
+- Sol 3 catalogue imagery: all three target image sets (grayscale, colour, thermal) match existing mission asset references; passed.
+- Sol 4 selected-target screen content: verified using Target 02 as a non-default selected target; Mission Control and Research Lab content follow that saved selection; passed.
+
+Limitations
+These are automated mission/state, JSON, and renderer-content checks. The browser game was not launched for manual 3D traversal, so actual on-screen visual appearance and an in-game E-key interaction were not manually exercised in this run. Existing trigger mappings were not changed.
+
+Scope expansion validation update
+Run timestamp: 2026-10-30 20:14:10 Asia/Colombo (2026-10-30 14:44:10 UTC)
+
+- npm.cmd test: PASS (81/81 tests; expanded routing test checks all six physical-screen sections for Sols 1-4 and preserved screen-to-mesh/renderer associations).
+- npm.cmd run typecheck: PASS.
+- JSON validation: PASS (all 12 Sol 3/4 section JSON files parse; all 9 image references resolve).
+
+Complete physical-screen inventory from the existing Sol 2 section configs (same associations retained in Sol 3/4):
+- Habitat: 4 — Habitat_LifeSupport_Display, Habitat_Main_Status_Display, Habitat_Emergency_Status_Display, Habitat_WaterNutrition_Display.
+- Mission Control: 8 — MC_OBJECTIVES, MC_OUTPOST_STATUS, MC_OVERVIEW, MC_COMMUNICATIONS, MC_SYSTEMS, MC_DRONE_OPERATIONS, MC_OBSERVATION_SITES, MC_TERRAIN_MAP.
+- Research Lab: 6 — research_monitoring_main, research_monitoring_system, seed_storage_inventory, water_nutrition_mixing, water_nutrition_quality, cultivation_environment.
+- Engineering Unit: 12 — MonitoringSection_Indicator_Screen, MonitoringSection_Operational_Screen, MonitoringSection_Screen, PowerUnitScreenMain, PowerUnitScreenMain02, PowerUnitScreen000, PowerUnitScreen000.001, LifeSupportUnitScreenMain04, LifeSupportUnitScreenMain02.001, LifeSupportUnitScreenMain03, DiagnosticsWorkbenchScreen_01, Storage_Screen.
+- Central Hub: 3 — CH_ENV_STATUS, CH_INTERNAL_COMMUNICATION, CH_MODULE_STATUS.
+- Airlock: 1 — AL_CONTROL_CONSOLE.
+Total: 34 existing physical displays across six configured sections. Trigger IDs are defined in the existing interaction/operating-system layer rather than these screen-content JSONs; that layer was not changed.
+
+Sol 3/4 section configs preserve subsystem functions: Habitat status/readiness, Engineering systems, Central Hub environment/comms/module status, and Airlock control remain operational displays; their existing renderers select the current Sol. Mission Control and Research Lab provide the target investigation content. Engineering and other operational values remain marked by the source configs' SIMULATED data mode; no new real telemetry is claimed.
+
+Sol 1 Drone Section access fix
+Run timestamp: 2026-10-30 20:28:34 Asia/Colombo (2026-10-30 14:58:34 UTC)
+- Added Drone to Sol 1's allowed module list.
+- Airlock entrance selection now uses the camera aim ray when multiple existing portal triggers are in proximity, so E can select the aimed Drone entrance beside the Hub/Terrain exits.
+- Existing Drone_Section_Entrance_Trigger route and E-key transition are reused; no trigger, transform, or flight behavior was added.
+- npm.cmd test: PASS (81/81 tests, including Sol 1 Drone module availability).
+- npm.cmd run typecheck: PASS.
+- Manual in-game interaction check: NOT RUN. Computer-use inventory had no browser available, so the local game could not be opened in this session.
+
+Drone Section floor visibility and walkability fix
+Run timestamp: 2026-10-30 20:48:24 Asia/Colombo (2026-10-30 15:18:24 UTC)
+- Added three overhead key spotlights and brighter Drone-specific ambient fill so the authored dark deck texture receives usable illumination.
+- Player ground height now comes from the existing Drone GLB Floor mesh (world-space top), instead of the generic y=0 fallback.
+- Drone collision keeps authored barriers but clears the entrance-to-drone walkway derived from the existing entrance marker and Drone object positions.
+- Removed three duplicate point lights that were all placed at the scene origin instead of at the light fixtures.
+- npm.cmd test: PASS (83/83 tests; includes Drone garage lighting, model floor height, and walkable corridor coverage).
+- npm.cmd run typecheck: PASS.
+- Manual rendering/movement check: NOT RUN because this session has no available browser surface.
+
+Follow-up based on user screenshot
+Run timestamp: 2026-10-30 20:54:12 Asia/Colombo (2026-10-30 15:24:12 UTC)
+- The screenshot showed the Drone module had loaded but the camera faced away from the drone and the deck remained visually near-black. Drone entry now faces the existing Drone object.
+- Added a restrained emissive lift to only the GLB material named Floor, preserving its texture and the separate helipad material.
+- npm.cmd test: PASS (83/83, including floor-material light lift).
+- npm.cmd run typecheck: PASS.
+- The session cannot access the user's live browser to verify a new screenshot.
+
+Drone Section return-to-Airlock fix
+Run timestamp: 2026-10-30 21:03:53 Asia/Colombo (2026-10-30 15:33:53 UTC)
+- E near the existing DroneZone_Entrance_Trigger now explicitly selects the existing return route to Airlock and its authored spawn point.
+- Nearby Drone interactions no longer override the exit prompt while standing at the portal.
+- npm.cmd test: PASS (83/83); npm.cmd run typecheck: PASS.
+- Manual in-game transition check: not run; no browser surface is available in this session.
+
+Sol 1 Drone Section mandatory main task
+Run timestamp: 2026-10-31 06:19:49 Asia/Colombo (2026-10-31 00:49:49 UTC)
+- Original Sol 1 main task count: 19. Updated count: 20, derived from the required DAY1_TASKS definitions.
+- Added D1_DRONE_SECTION as the final required Day 1 task; task cards identify Drone Section and its existing Drone inspection point.
+- Navigation instruction directs the player to the Drone Section, to enter through the existing Airlock route, and to inspect the drone.
+- The existing DroneZone_Entrance_Trigger remains a travel-only interaction. Task completion is validated only by E on the existing Drone object while in the Drone module; module entry and invalid-module inspection do not complete it.
+- Updated Day 1 plan JSON zone/task configuration; it now has 20 required tasks, including the new physical-inspection task.
+- npm.cmd test: PASS (84/84 tests; includes Day 1 count, task card, navigation, invalid-entry/invalid-module, inspection validation, progress update, and Sol 4 regression coverage).
+- npm.cmd run typecheck: PASS.
+- Manual in-game flow: NOT RUN because no browser surface is available in this session.
+
+Sol 1 separate demonstration/navigation instructions
+Run timestamp: 2026-10-31 06:34:25 Asia/Colombo (2026-10-31 01:04:25 UTC)
+- Added src/jsons/Instructions/sol-01-navigation.json following the Sol 2-4 instruction schema. It contains the Drone Section objective, physical-entry guidance, inspection action, and destination.
+- Integrated Sol 1 instruction loading through resolveNextMissionNavigation; MissionManager no longer hardcodes Sol 1 instruction content.
+- The instruction disappears after D1_DRONE_SECTION is validated; task progress remains controlled by the existing physical drone interaction.
+- npm.cmd test: PASS (84/84 tests, including Sol 1 JSON loading and navigation resolution).
+- npm.cmd run typecheck: PASS.
+
+Sol 1 complete required demonstration instruction sequence
+Run timestamp: 2026-10-31 06:37:22 Asia/Colombo (2026-10-31 01:07:22 UTC)
+- Expanded sol-01-navigation.json from the Drone Section entry to all 20 required Sol 1 demonstrations across Habitat, Engineering, Research Laboratory, Mission Control, Airlock, and Drone Section.
+- The mission navigation resolver now selects the first incomplete required task in the existing Day1Config order and returns its matching JSON instruction; after all 20 are complete it uses the file's existing completion instruction.
+- Existing optional Central Hub displays remain optional and do not create tasks or alter the Sol 1 task total.
+- npm.cmd test: PASS (84/84 tests; includes exact instruction coverage/order and Drone Section navigation sequence).
+- npm.cmd run typecheck: PASS. sol-01-navigation.json parse: PASS (20 instruction entries).
+
+Sol 2 instruction progression correction
+Run timestamp: 2026-10-31 06:51:14 Asia/Colombo (2026-10-31 01:21:14 UTC)
+- Root cause: runtime Sol 2 validates 7 tasks, while mission/navigation data listed 9. The standalone Habitat Life Support and Emergency tasks were never separately completable; both belong to the existing combined Habitat status investigation.
+- Consolidated the Habitat views into one task in sol-02.json and sol-02-navigation.json. Removed the two phantom task IDs and corrected readiness prerequisites to the six actual investigation records.
+- After each completed runtime task, the instruction resolver now advances to the next matching task; after Habitat status it proceeds to Water and Nutrition, then Engineering Monitoring. Readiness appears after the six investigations.
+- npm.cmd test: PASS (84/84; regression verifies Sol 2 advancement after completed tasks and notification refresh).
+- npm.cmd run typecheck: PASS.
+
+Sol 3 Mission Control Navigation target imagery in Operating OS
+Run timestamp: 2026-10-31 07:09:00 Asia/Colombo (2026-10-31 01:39:00 UTC)
+- Root cause: TriggerOperatingSystem used a text-only TriggerScreenView. It rendered IMAGE_GALLERY panel titles/descriptions but ignored the panel images array; MissionControlScreenRenderer already rendered the same target image assets on physical screens.
+- Added an OS-only Sol 3 gallery to the existing MC_OBSERVATION_SITES view. It reads the three target definitions and image paths from sol-03.json, shows three separately labeled target cards and grayscale/color/thermal previews, and opens each preview in a larger viewer.
+- Existing selectedSiteId is displayed as a status only; opening images does not select a target. Existing selection controls and physical screen renderer/configuration were not modified.
+- Verified all nine configured image paths exist, have PNG signatures, and returned HTTP 200 from the running Next.js app, including both color-image paths containing spaces.
+- npm.cmd run typecheck: PASS. npm.cmd test: PASS (84/84). Next dev compiled the app route and GET / returned HTTP 200.
+- Manual click-through screenshot check: NOT RUN; Windows computer-use native pipe was unavailable after two attempts.
+
+Sol 3 target comparison and Sol 3/Sol 4 task instruction progression
+Run timestamp: 2026-10-31 07:48:01 Asia/Colombo (2026-10-31 02:18:01 UTC)
+- Root cause (Sol 3 comparison): the validator required target profile evidence references, but the comparison form exposed no selectable target profile records. It now lists the existing Target A, B, and C catalogue entries as evidence records; successful comparison requires all three references.
+- Updated Sol 3 comparison guidance to state the three required profile selections, the two review checks, and the need to submit rationale and limitations.
+- Root cause (Sol 4 stale instruction): the navigation adapter remapped completed Sol 4 mission task IDs to physical trigger IDs, so the resolver could not match them to the Sol 4 mission tasks. Removed this erroneous remapping; physical trigger mappings remain separate.
+- Added progression checks for every Sol 3 and Sol 4 task, including next-instruction selection and completion state. Added comparison validation checks for two references (rejected) and all three references (accepted), plus Sol 3/Sol 4 task counts.
+- npm.cmd test: PASS (84/84). npm.cmd run typecheck: PASS. Sol 3/4 mission and navigation JSON parse: PASS.
+- Manual browser task walkthrough: NOT RUN in this validation session.
+
+Sol 4 target-dependent Mission Control and Research physical screens
+Run timestamp: 2026-10-31 08:09:56 Asia/Colombo (2026-10-31 02:39:56 UTC)
+- Confirmed Mission Control screen mappings: MC_OBJECTIVES -> MissionControl_ObjectivesScreen (existing transform dimensions x=0, y=3.31, z=2.64); MC_OBSERVATION_SITES -> MissionControl_ObservationSitesScreen; MC_TERRAIN_MAP -> MissionControl_TerrainMapScreen (the existing terrain/navigation display); MC_DRONE_OPERATIONS -> MissionControl_DroneOperationScreen (Sol 5 preparation display).
+- Confirmed LAB_RESEARCH_ANALYSIS_01 maps to research_monitoring_system -> ResearchMonitoring_SystemScreen / ResearchMonitoringSystemRenderer.
+- Mission Control and Research renderers now resolve selectedSiteId only when it matches the TARGET reference in the validated SOL03_SUBMIT_TARGET_RECORD. Missing/mismatched proposals show unresolved content and no target imagery.
+- Sol 4 Observation Sites shows the official target identity and only its three existing images. The Terrain/Navigation screen and Objectives screen show that same target; objectives also reflect Sol 4 progress and grounded drone preparation status.
+- Research Analysis now renders the selected target's existing grayscale, colour, and thermal image assets plus available profile/record status. Missing terrain, elevation, coordinates, and NASA observations remain explicitly unavailable. Research content refreshes through the existing mission-state renderer update.
+- Automated target-selection coverage exercises Targets A, B, and C, exact image-path mapping, no cross-target image mixing, saved investigation progress, unresolved-state behavior, and the Objectives screen transform. No physical screen JSON, schema, transform, object, or trigger was changed.
+- npm.cmd run typecheck: PASS. npm.cmd test: PASS (84/84). Manual in-browser inspection: NOT RUN.
+
+Sol 4 physical-screen target content final rerun
+Run timestamp: 2026-10-31 08:10:34 Asia/Colombo (2026-10-31 02:40:34 UTC)
+- Final Mission Control Navigation title assertion added for MC_TERRAIN_MAP.
+- npm.cmd run typecheck: PASS. npm.cmd test: PASS (84/84), including Targets A/B/C and unresolved target checks.

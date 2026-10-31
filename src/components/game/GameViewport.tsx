@@ -38,7 +38,9 @@ const initialState: GameState = {
   showRoutePlanning: false,
   selectedRouteTargetId: null,
   notification: null,
+  navigationInstruction: null,
   restFeedback: null,
+  restTransition: null,
 
   geologicalSurvey: null,
   surfaceObservation: null,
@@ -52,6 +54,11 @@ const initialState: GameState = {
 
   droneModeActive: false,
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
+  sol5DroneActive: false,
+  sol5Telemetry: null,
+  sol5Images: [],
+  sol5Flight: null,
+  sol5Message: null,
 
   showCinematicOverlay: false,
   showOSDesktop: false,
@@ -111,7 +118,7 @@ export function GameViewport() {
     !state.showSurfaceObservationForm &&
     !state.showScienceAnalysisModal &&
     !state.showDroneConsoleModal &&
-    !state.droneModeActive &&
+    !state.droneModeActive && !state.sol5DroneActive &&
     !state.restFeedback &&
     !state.showCinematicOverlay &&
     !state.showOSDesktop &&
@@ -119,13 +126,13 @@ export function GameViewport() {
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
-      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove) */}
+      {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove)
       <SpeedTravelBar
         activeModule={state.module}
         onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
-      />
+      />  */}
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
-      {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
+      {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && !state.sol5DroneActive && (
         <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:5] [box-shadow:inset_0_0_120px_40px_rgba(0,_0,_0,_0.75),_inset_0_0_40px_rgba(10,_25,_35,_0.6)]" aria-hidden="true">
           <div className="[position:absolute] [inset:0] [border-radius:40px] [border:1px_solid_rgba(85,_205,_232,_0.15)] [box-shadow:inset_0_0_60px_rgba(0,_0,_0,_0.85)]" />
           <div className="[position:absolute] [top:0] [left:0] [right:0] [height:25%] [background:linear-gradient(180deg,_rgba(85,_205,_232,_0.04)_0%,_transparent_100%)]" />
@@ -150,11 +157,11 @@ export function GameViewport() {
 
       {/* 2. PERSISTENT IN-GAME HUD */}
       <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:10]">
-        {!state.droneModeActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
-        {!state.droneModeActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
-        {!state.droneModeActive && (
+        {!state.droneModeActive && !state.sol5DroneActive && (
           <div className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
             <div className="[display:flex] [align-items:center] [gap:6px] text-[15px] font-kdam-thmor-pro font-bold [letter-spacing:0.12em] [color:#e88747]">
               <span className="[width:6px] [height:6px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8] [animation:pulse_2s_infinite_ease-in-out]" />
@@ -170,7 +177,7 @@ export function GameViewport() {
               />
             </div>
             <div className="[margin-top:6px] text-[11px] font-mono [color:#87a4af]">
-              {state.completedStepCount} / {state.totalStepCount} {state.missionDay === 1 ? "TASKS COMPLETED" : "STEPS"}
+              {state.completedStepCount} / {state.totalStepCount} {"TASKS COMPLETED"}
               {state.objectiveState === "completed" && (
                 <span className="[color:#44d788] [font-weight:bold]"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
               )}
@@ -178,21 +185,35 @@ export function GameViewport() {
           </div>
         )}
 
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (
+          <section className="[position:absolute] [top:72px] [right:24px] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
+            <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
+              <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
+              {state.navigationInstruction.isCompletion ? "SOL OBJECTIVE COMPLETE" : "NEXT MISSION ACTIVITY"}
+            </div>
+            <div className="[margin-top:6px] font-kdam-thmor-pro font-bold [font-size:20px] [font-weight:600] [line-height:1.3] [color:#f0f6f7]">{state.navigationInstruction.title}</div>
+            {state.navigationInstruction.destinationName && <div className="[margin-top:5px] [font-size:12px] font-bricolage-grotesque [font-weight:600] [color:#e6a36e]">{state.navigationInstruction.destinationName}</div>}
+            {state.navigationInstruction.message && <div className="[margin-top:4px] [font-size:12px] [line-height:1.4] [color:#d7e6eb]">{state.navigationInstruction.message}</div>}
+            {state.navigationInstruction.guidance && <div className="[margin-top:4px] [font-size:11px] [line-height:1.45] [color:#a9c0ca]">{state.navigationInstruction.guidance}</div>}
+            {state.navigationInstruction.activity && <div className="[margin-top:6px] [font-size:11px] [line-height:1.4] [color:#eaf3f5]"><span className="[color:#55cde8]">ACTION</span> · {state.navigationInstruction.activity}</div>}
+          </section>
+        )}
+
         {/* Standard Reticle (only when not in drone mode) */}
-        {!state.droneModeActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
 
         {/* Contextual Interaction Prompt */}
         {state.prompt && <div className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
 
         {/* Event Notification Toast */}
-        {state.notification && (
+        {state.notification && state.notification !== state.navigationInstruction?.notification && (
           <div className="[position:absolute] [top:24px] [left:50%] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
             <div className="text-[10px] font-bold font-mono [color:#44d788] [letter-spacing:0.14em]">MISSION EVENT</div>
             <div className="[font-size:13px] [color:#eaf2f4]">{state.notification}</div>
           </div>
         )}
 
-        {!state.droneModeActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
 
         {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 
@@ -815,6 +836,29 @@ export function GameViewport() {
           </div>
         )}
 
+        {state.sol5DroneActive && state.sol5Telemetry && (
+          <div className="[position:fixed] [inset:0] [z-index:25] [display:flex] [flex-direction:column] [justify-content:space-between] [padding:12px] [pointer-events:none] text-[11px] font-mono text-[#d9eef2] sm:[padding:22px]" aria-label="Sol 5 simulated drone flight HUD">
+            <div className="[display:flex] [flex-wrap:wrap] [justify-content:space-between] [gap:12px] [border:1px_solid_#32596f] [background:rgba(5,_14,_20,_0.88)] [padding:10px_14px] [pointer-events:auto]">
+              <div><div className="[color:#55cde8] [font-weight:bold] [letter-spacing:0.1em]">SOL 05 · MANUAL AERIAL RECONNAISSANCE · SIMULATED</div><div className="[margin-top:4px] [color:#e8f1f4]">{state.sol5Telemetry.targetName} · {state.sol5Telemetry.targetId}</div><div className="[margin-top:4px] [color:#89d9e7]">{state.sol5Telemetry.status}</div></div>
+              <div className="[display:grid] [grid-template-columns:repeat(4,_auto)] [gap:6px_14px] [color:#a9c6d0]">
+                <span>BAT {state.sol5Telemetry.batteryPercent}%</span><span>LINK {state.sol5Telemetry.signalPercent}%*</span><span>AGL {state.sol5Telemetry.altitudeAglM.toFixed(1)} / 10 m</span><span>SPD {state.sol5Telemetry.speedMps.toFixed(1)} m/s</span>
+                <span>TRAVEL {state.sol5Telemetry.distanceTravelledM.toFixed(1)} m</span><span>HOME {state.sol5Telemetry.distanceFromTakeoffM.toFixed(1)} m</span><span>TARGET {state.sol5Telemetry.distanceToTargetM.toFixed(1)} m</span><span>TIME {Math.floor(state.sol5Telemetry.elapsedSeconds / 60)}:{String(Math.floor(state.sol5Telemetry.elapsedSeconds % 60)).padStart(2, "0")}</span>
+              </div>
+            </div>
+            <div className="[align-self:center] [display:grid] [place-items:center] [width:180px] [height:140px] [border:1px_solid_rgba(85,_205,_232,_0.26)] [background:rgba(4,_12,_18,_0.24)] [pointer-events:none]">
+              <div className="[font-size:28px] [color:#61d3e7]" style={{ transform: `rotate(${state.sol5Telemetry.targetBearingDegrees - state.sol5Telemetry.headingDegrees}deg)` }}>↑</div>
+              <div className="[font-size:9px] [color:#c1d8df]">TARGET BEARING {state.sol5Telemetry.targetBearingDegrees.toFixed(0)}°</div>
+            </div>
+            <div className="[display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:12px] [border:1px_solid_#32596f] [background:rgba(5,_14,_20,_0.91)] [padding:10px_14px] [pointer-events:auto]">
+              <div className="[max-width:650px] [line-height:1.65] [color:#9cb8c2]">{state.sol5Telemetry.status === "LANDED" ? "LANDING VALIDATED · Press G to complete the landing sequence and return to Mission Control Navigation." : <>W/S forward/back · A/D lateral · E ascend or context action · Q descend · Shift boost · mouse look · 1 front · 2 rear · 3 left · 4 right · 5 down · Esc abort<br/>VIEW {state.sol5Telemetry.cameraView.toUpperCase()} · PREPARED EVIDENCE {state.sol5Telemetry.evidenceCount} · BOUNDARY {state.sol5Telemetry.boundaryStatus} · *SIMULATED LINK</>}</div>
+              <div className="[display:flex] [flex-wrap:wrap] [gap:6px]">
+                {state.sol5Telemetry.status === "LANDED" ? <span className="rounded border border-[#42624c] px-3 py-1 text-[10px] text-[#9dd1b3]">PRESS G · RETURN TO MISSION CONTROL</span> : <>{(["front", "rear", "left", "right", "down"] as const).map((view, index) => <button key={view} onClick={() => game.current?.setSol5Camera(view)} className="rounded border border-[#355766] px-2 py-1 text-[9px] text-[#bde1e8] hover:bg-[#142a34]">{index + 1} {view.toUpperCase()}</button>)}<button onClick={() => game.current?.abortSol5Flight()} className="rounded border border-[#704337] px-3 py-1 text-[9px] text-[#e6b99c] hover:bg-[#271b16]">ABORT · ESC</button></>}
+              </div>
+              <div className="w-full text-right text-[10px] text-[#e6b27e]">{state.sol5Telemetry.warning ?? state.sol5Message ?? "Mission systems nominal within simulated limits."}</div>
+            </div>
+          </div>
+        )}
+
         {/* 11. REST / DAY ADVANCE FEEDBACK MODAL */}
         {state.restFeedback && (
           <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
@@ -849,6 +893,12 @@ export function GameViewport() {
                 </button>
               </div>
             </section>
+          </div>
+        )}
+
+        {state.restTransition && (
+          <div aria-hidden="true" className="[position:fixed] [inset:0] [z-index:80] [pointer-events:all] [display:grid] [place-items:center] [background:#000] [transition:opacity_900ms_ease-in-out]" style={{ opacity: state.restTransition === "out" ? 1 : 0 }}>
+            <span className="font-kdam-thmor-pro [color:#a6bdc8] [font-size:12px] [letter-spacing:0.22em]">CREW REST CYCLE · HABITAT</span>
           </div>
         )}
 

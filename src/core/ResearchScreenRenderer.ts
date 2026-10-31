@@ -23,6 +23,9 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
+import { type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
+import sol03Mission from "../jsons/Missions/sol-03.json";
 
 export interface ResearchScreenPanel {
   id?: string;
@@ -151,9 +154,11 @@ export class ResearchScreenRenderer {
   private rawConfig: ResearchScreenDataRoot;
   private screensMap = new Map<string, ResearchScreenItem>();
   private activeBindings: ResearchScreenBinding[] = [];
+  private imageCache = new Map<string, HTMLImageElement>();
   private missionDay: number = 1;
   private configSol = 4;
   private customConfig: boolean;
+  private missionState?: ScreenMissionSnapshot;
 
   constructor(customConfig?: ResearchScreenDataRoot) {
     this.customConfig = Boolean(customConfig);
@@ -192,12 +197,13 @@ export class ResearchScreenRenderer {
   /**
    * Alias conforming to outpost convention (attachToHabitat, attachToEngineering, attachToScience).
    */
-  public attachToScience(model: THREE.Group, missionState?: { currentDay?: number }): void {
+  public attachToScience(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState) this.missionState = missionState;
     this.selectSolConfig(this.missionDay);
 
     const targetScreens = this.rawConfig.screens || [];
@@ -322,10 +328,11 @@ export class ResearchScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState) this.missionState = missionState;
     this.selectSolConfig(this.missionDay);
 
     for (const binding of this.activeBindings) {
@@ -342,7 +349,7 @@ export class ResearchScreenRenderer {
     const screenConf = this.screensMap.get(meshName.trim()) || this.screensMap.get(binding.screenId);
     if (!screenConf) return;
 
-    const content = screenConf.content || {};
+    const content = this.getMissionAwareContent(screenConf);
 
     // Background & HUD Grid
     ctx.fillStyle = "#07111F";
@@ -395,6 +402,75 @@ export class ResearchScreenRenderer {
     this.drawBrackets(ctx, width, height, "#36C5E8");
   }
 
+  private getMissionAwareContent(screenConf: ResearchScreenItem): ResearchScreenItem["content"] {
+    const content = JSON.parse(JSON.stringify(screenConf.content || {}));
+    if ((this.missionDay !== 3 && this.missionDay !== 4) || screenConf.screenId !== "research_monitoring_system") return content;
+    const day = this.missionDay as MissionDayNumber;
+    const submitted = this.missionState?.investigationRecords?.find(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD");
+    const submittedTargetId = submitted?.evidenceReferences?.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
+    const selectedId = submittedTargetId && submittedTargetId === this.missionState?.selectedSiteId ? submittedTargetId : null;
+    const selected = sol03Mission.targetCatalogue.find(item => item.targetId === selectedId);
+    const records = this.missionState?.investigationRecords ?? [];
+    const completed = new Set(this.missionState?.completedStepIds ?? []);
+    const targetLabel = selected ? `Target ${String.fromCharCode(64 + Number(selected.targetNumber))} - ${selected.name}` : "Official Sol 3 target unavailable";
+    if (content.header) {
+      content.header.title = day === 3 ? "TARGET DATASET REVIEW" : "SOL 4 SELECTED TARGET ANALYSIS";
+      content.header.subtitle = day === 3 ? "No official target before proposal submission" : targetLabel;
+      content.header.dataMode = "PHOBOSIA PROJECT PROFILES - NO VERIFIED SCIENTIFIC MEASUREMENTS";
+    }
+    const workflow = content.panels?.find((panel: any) => panel.type === "WORKFLOW_GRAPH");
+    if (workflow) {
+      workflow.title = day === 3 ? "SOL 3 ANALYSIS WORKFLOW" : "SOL 4 TARGET INVESTIGATION PROGRESS";
+      workflow.stages = day === 3
+        ? ["TARGET PROFILES", "NASA MATCH", "DATA LIMITS"]
+        : [selected ? `OFFICIAL ${selected.targetId}` : "TARGET UNRESOLVED", `INVESTIGATION ${completed.has("SOL04_SELECTED_TARGET_INVESTIGATION") ? "RECORDED" : "PENDING"}`, `TERRAIN ${completed.has("SOL04_TERRAIN_DATA_REVIEW") ? "RECORDED" : "PENDING"}`];
+    }
+    const health = content.panels?.find((panel: any) => panel.type === "HEALTH_GRID");
+    if (health) {
+      health.title = day === 4 ? "TARGET DATA AVAILABILITY" : "AVAILABLE EVIDENCE";
+      health.subsystems = [
+        { name: "NASA historical observations", status: selected?.historicalObservations?.length ? "AVAILABLE" : "UNAVAILABLE" },
+        { name: "Elevation / slope", status: "UNAVAILABLE" },
+        { name: "LiDAR / DEM", status: "UNAVAILABLE" },
+        { name: "Mars coordinates", status: selected?.marsCoordinates ? "AVAILABLE" : "UNAVAILABLE" },
+        { name: "Target investigation", status: completed.has("SOL04_SELECTED_TARGET_INVESTIGATION") ? "RECORDED" : day === 4 ? "PENDING" : "NOT STARTED" },
+        { name: "Terrain assessment", status: completed.has("SOL04_TERRAIN_DATA_REVIEW") ? "RECORDED" : day === 4 ? "PENDING" : "NOT STARTED" }
+      ];
+    }
+    const data = content.panels?.find((panel: any) => panel.type === "DATA_TABLE");
+    if (data) {
+      data.title = "TARGET DATA AND INVESTIGATION RECORDS";
+      data.columns = ["Record", "Provider", "Coverage", "Status"];
+      const investigation = records.find(record => record.taskId === "SOL04_SELECTED_TARGET_INVESTIGATION");
+      const assessment = records.find(record => record.taskId === "SOL04_TERRAIN_DATA_REVIEW");
+      data.rows = day === 3
+        ? [{ record: "PHOBOSIA target profiles", provider: "PHOBOSIA", coverage: "Scene metadata only", status: "Training metadata" }]
+        : [
+          { record: selected ? `Target ${String.fromCharCode(64 + Number(selected.targetNumber))} - ${selected.targetId}` : "Official target", provider: selected ? "Validated Sol 3 proposal" : "Sol 3 mission state", coverage: selected?.geographicName || "Unavailable", status: selected ? "Official target" : "Unavailable" },
+          { record: "Historical observation", provider: "NASA record match", coverage: selected?.historicalObservations?.length ? "Target catalogue records" : "Unavailable", status: selected?.observationStatus || "Unavailable" },
+          { record: "Target terrain evidence", provider: "PHOBOSIA profile", coverage: selected?.terrainEvidence || "Unavailable", status: selected ? "Profile description; not measurement data" : "Unavailable" },
+          ...(investigation ? [{ record: "Sol 4 investigation", provider: "Player-authored record", coverage: investigation.playerComment || investigation.rationale, status: "Player analysis" }] : []),
+          ...(assessment ? [{ record: "Sol 4 terrain assessment", provider: "Player-authored record", coverage: assessment.playerComment || assessment.rationale, status: "Player analysis" }] : [])
+        ];
+    }
+    const events = content.panels?.find((panel: any) => panel.type === "EVENT_FEED");
+    if (events) {
+      events.title = "OBSERVATION RECORD STATUS";
+      events.events = [{ time: `SOL 0${day}`, level: "WARN", message: day === 4 && selected ? `${targetLabel}. ${selected.observationStatus}` : "No official Sol 3 target or target-specific NASA observation record is matched." }];
+    }
+    const imagePanel = content.panels?.find((panel: any) => panel.type === "LINE_CHART");
+    if (day === 4 && imagePanel) {
+      imagePanel.type = "IMAGE_GALLERY";
+      imagePanel.title = selected ? `${targetLabel} - AVAILABLE PROJECT IMAGERY` : "SELECTED TARGET IMAGERY - UNAVAILABLE";
+      imagePanel.images = selected ? [
+        { label: "GRAYSCALE - PROJECT IMAGE", src: selected.images.grayscale },
+        { label: "COLOUR - PROJECT IMAGE", src: selected.images.color },
+        { label: "THERMAL - PROJECT IMAGE", src: selected.images.thermal }
+      ] : [];
+      imagePanel.emptyMessage = "No valid submitted Sol 3 target is available. No target images are displayed.";
+    }
+    return content;
+  }
   // =========================================================================
   // DEDICATED SCREEN LAYOUT RENDERERS
   // =========================================================================
@@ -439,6 +515,22 @@ export class ResearchScreenRenderer {
     h: number
   ): void {
     const panels = content.panels || [];
+    const targetGallery = panels.find((p: any) => p.type === "IMAGE_GALLERY");
+    if (this.missionDay === 4 && targetGallery) {
+      const workflowPanel = panels.find((p: any) => p.type === "WORKFLOW_GRAPH");
+      const dataPanel = panels.find((p: any) => p.type === "DATA_TABLE");
+      const healthPanel = panels.find((p: any) => p.type === "HEALTH_GRID");
+      const galleryHeight = Math.floor(h * 0.46);
+      const lowerY = y + galleryHeight + 12;
+      const lowerHeight = h - galleryHeight - 12;
+      const gap = 10;
+      const panelWidth = Math.floor((w - gap * 2) / 3);
+      this.drawImageGalleryPanel(ctx, x, y, w, galleryHeight, targetGallery);
+      if (workflowPanel) this.drawWorkflowGraph(ctx, x, lowerY, panelWidth, lowerHeight, workflowPanel);
+      if (dataPanel) this.drawDataTable(ctx, x + panelWidth + gap, lowerY, panelWidth, lowerHeight, dataPanel);
+      if (healthPanel) this.drawHealthGrid(ctx, x + (panelWidth + gap) * 2, lowerY, panelWidth, lowerHeight, healthPanel);
+      return;
+    }
     const colW = Math.floor((w - 20) / 2);
     const leftX = x;
     const rightX = x + colW + 20;
@@ -459,6 +551,60 @@ export class ResearchScreenRenderer {
     // Bottom Right: EVENT_FEED (System Events)
     const eventPanel = panels.find((p: any) => p.type === "EVENT_FEED") || panels[4];
     if (eventPanel) this.drawEventFeed(ctx, rightX, y + rowH + 16, colW, rowH, eventPanel);
+  }
+
+  private drawImageGalleryPanel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, panel: any): void {
+    this.drawPanelFrame(ctx, x, y, w, h, panel.title || "SELECTED TARGET PROJECT IMAGERY");
+    const images: Array<{ label?: string; src?: string }> = Array.isArray(panel.images) ? panel.images.slice(0, 3) : [];
+    if (!images.length) {
+      ctx.fillStyle = "#8FA8BC";
+      ctx.font = "11px monospace";
+      ctx.fillText(String(panel.emptyMessage || "No target imagery available.").slice(0, 115), x + 14, y + Math.min(h - 12, 58));
+      return;
+    }
+    const gap = 10;
+    const cellWidth = (w - 24 - gap * (images.length - 1)) / images.length;
+    images.forEach((item, index) => {
+      const cellX = x + 12 + index * (cellWidth + gap);
+      const imageY = y + 38;
+      const imageHeight = Math.max(24, h - 50);
+      ctx.fillStyle = "#bfd4dc";
+      ctx.font = "9px monospace";
+      ctx.fillText(String(item.label || "PROJECT IMAGE").slice(0, Math.floor(cellWidth / 5.5)), cellX, y + 31);
+      ctx.fillStyle = "#07121b";
+      ctx.fillRect(cellX, imageY, cellWidth, imageHeight);
+      ctx.strokeStyle = "#294354";
+      ctx.strokeRect(cellX, imageY, cellWidth, imageHeight);
+      if (!item.src || typeof Image === "undefined") {
+        ctx.fillStyle = "#8FA8BC";
+        ctx.font = "9px monospace";
+        ctx.fillText("PREVIEW UNAVAILABLE", cellX + 8, imageY + Math.max(14, imageHeight / 2));
+        return;
+      }
+      let image = this.imageCache.get(item.src);
+      if (!image) {
+        image = new Image();
+        this.imageCache.set(item.src, image);
+        image.onload = () => {
+          for (const binding of this.activeBindings) {
+            this.renderBinding(binding);
+            binding.texture.needsUpdate = true;
+          }
+        };
+        image.src = item.src;
+      }
+      if (!image.complete) return;
+      if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+        ctx.fillStyle = "#d2b47e";
+        ctx.font = "9px monospace";
+        ctx.fillText("IMAGE UNAVAILABLE", cellX + 8, imageY + Math.max(14, imageHeight / 2));
+        return;
+      }
+      const scale = Math.min(cellWidth / image.naturalWidth, imageHeight / image.naturalHeight);
+      const drawWidth = image.naturalWidth * scale;
+      const drawHeight = image.naturalHeight * scale;
+      ctx.drawImage(image, cellX + (cellWidth - drawWidth) / 2, imageY + (imageHeight - drawHeight) / 2, drawWidth, drawHeight);
+    });
   }
 
   private renderSeedStoragePanels(

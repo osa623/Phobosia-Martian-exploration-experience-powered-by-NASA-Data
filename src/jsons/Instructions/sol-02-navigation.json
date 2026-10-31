@@ -1,0 +1,68 @@
+{
+  "sol": 2,
+  "missionId": "PHOBOSIA_SOL_02",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "SOL02_HABITAT_MAIN_STATUS",
+      "title": "Review Habitat Status, Life Support, and Emergency Information",
+      "message": "Begin with the Habitat status displays.",
+      "guidance": "Review the available overview, life-support, and emergency information together. Inspect their related records and logs, then record what the evidence supports and note uncertainty or unavailable data.",
+      "destination": { "name": "Habitat Main Monitoring Area", "module": "Habitat", "section": "Status, Life Support, and Emergency Views" },
+      "activity": "Use the existing Habitat monitor and submit one combined status investigation."
+    },
+    {
+      "taskId": "SOL02_WATER_NUTRITION",
+      "title": "Inspect Water and Nutrition Systems",
+      "message": "Proceed to the Habitat water and nutrition station.",
+      "guidance": "Review the available system status, procedure, and inspection logs. Base your conclusion only on supplied records.",
+      "destination": { "name": "Habitat Water and Nutrition Station", "module": "Habitat", "section": "Water and Nutrition Station" },
+      "activity": "Approach the existing station interaction point, open its interface, and submit the investigation."
+    },
+    {
+      "taskId": "SOL02_ENGINEERING_MONITORING",
+      "title": "Inspect Engineering Monitoring",
+      "message": "Continue to the Engineering monitoring section.",
+      "guidance": "Review the available indicators, operational information, and monitoring logs. Record relevant observations.",
+      "destination": { "name": "Engineering Monitoring Section", "module": "Engineering Unit", "section": "Monitoring Section" },
+      "activity": "Approach the existing section interaction point and submit the monitoring review."
+    },
+    {
+      "taskId": "SOL02_POWER_INVESTIGATION",
+      "title": "Investigate the Power Unit",
+      "message": "Proceed to the Engineering power section.",
+      "guidance": "Inspect the available power status, procedures, and logs. Compare readings with limits only when the records provide them, then explain and submit your conclusion.",
+      "destination": { "name": "Engineering Power Section", "module": "Engineering Unit", "section": "Power Section" },
+      "activity": "Approach the existing power workstation interaction point and submit the evidence-linked investigation."
+    },
+    {
+      "taskId": "SOL02_ENGINEERING_LIFESUPPORT",
+      "title": "Inspect Engineering Life Support",
+      "message": "Review the Engineering life support section.",
+      "guidance": "Read the available operating procedure and records, then document a conclusion that reflects the evidence and its limitations.",
+      "destination": { "name": "Engineering Life Support Section", "module": "Engineering Unit", "section": "Life Support Section" },
+      "activity": "Use the existing Engineering life-support interface and submit the investigation."
+    },
+    {
+      "taskId": "SOL02_DIAGNOSTICS",
+      "title": "Review Engineering Diagnostics",
+      "message": "Continue to the Engineering diagnostics workstation.",
+      "guidance": "Review the available diagnostic procedure, test information, and logs. Missing diagnostic data is not itself proof of a fault.",
+      "destination": { "name": "Engineering Diagnostics Workstation", "module": "Engineering Unit", "section": "Diagnostics Workstation" },
+      "activity": "Use the existing diagnostics interface and submit your assessment."
+    },
+    {
+      "taskId": "SOL02_READINESS_ASSESSMENT",
+      "title": "Submit the Outpost Readiness Assessment",
+      "message": "Review the inspection records and prepare the readiness assessment.",
+      "guidance": "Reference the submitted inspection evidence, identify unresolved concerns, and choose a readiness conclusion supported by the records.",
+      "destination": { "name": "Engineering Monitoring Section", "module": "Engineering Unit", "section": "Readiness Assessment" },
+      "activity": "Submit the final readiness assessment with its supporting record references.",
+      "requiresCompletedTasks": ["SOL02_HABITAT_MAIN_STATUS", "SOL02_WATER_NUTRITION", "SOL02_ENGINEERING_MONITORING", "SOL02_POWER_INVESTIGATION", "SOL02_ENGINEERING_LIFESUPPORT", "SOL02_DIAGNOSTICS"]
+    }
+  ],
+  "completion": {
+    "title": "Sol 2 Required Activities Complete",
+    "message": "All mandatory Sol 2 activities are complete. Return to the Habitat Rest Area and use the existing rest interaction to conclude the Sol."
+  }
+}
