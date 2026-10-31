@@ -129,11 +129,11 @@ function loadCentralHubScreenData(): CentralHubScreenDataRoot {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       return eval("require")("../src/jsons/Screens/central-hub-screens.json");
     } catch {
-      return {
-        project: "PHOBOSIA",
-        zone: "CENTRAL_HUB",
-        screens: []
-      };
+      try {
+        return eval("require")("../../src/jsons/Screens/central-hub-screens.json");
+      } catch {
+        return { project: "PHOBOSIA", zone: "CENTRAL_HUB", screens: [] };
+      }
     }
   }
 }

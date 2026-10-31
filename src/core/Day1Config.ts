@@ -12,7 +12,8 @@ export type Day1ZoneId =
   | "ENGINEERING_UNIT"
   | "RESEARCH_LAB"
   | "MISSION_CONTROL"
-  | "AIRLOCK";
+  | "AIRLOCK"
+  | "DRONE_SECTION";
 
 export type Day1TaskId =
   | "D1_HAB_LIFE_SUPPORT"
@@ -33,7 +34,8 @@ export type Day1TaskId =
   | "D1_MC_MAIN"
   | "D1_MC_SYSTEMS"
   | "D1_MC_NAVIGATION"
-  | "D1_AIRLOCK_CONTROL";
+  | "D1_AIRLOCK_CONTROL"
+  | "D1_DRONE_SECTION";
 
 export interface Day1TaskDefinition {
   taskId: Day1TaskId;
@@ -64,7 +66,7 @@ export interface Day1ZoneDefinition {
   zoneId: Day1ZoneId;
   friendlyName: string;
   description: string;
-  moduleName: "Habitat" | "Hub" | "Engineering" | "Science" | "MissionControl" | "Airlock";
+  moduleName: "Habitat" | "Hub" | "Engineering" | "Science" | "MissionControl" | "Airlock" | "Drone";
   introduction: {
     id: string;
     title: string;
@@ -246,6 +248,15 @@ export const DAY1_TASKS: Day1TaskDefinition[] = [
     description: "Identify the Airlock Control Console and understand its general purpose.",
     zoneId: "AIRLOCK",
     interactionGroupId: "AIRLOCK_CONTROL_GROUP",
+    required: true,
+    completionEvent: "DAY1_TASK_COMPLETED"
+  },
+  {
+    taskId: "D1_DRONE_SECTION",
+    title: "Drone Section",
+    description: "Proceed to the Drone Section, enter through its existing entrance, and inspect the drone to familiarise yourself with the outpost's aerial observation equipment.",
+    zoneId: "DRONE_SECTION",
+    interactionGroupId: "DRONE_PHYSICAL_INSPECTION",
     required: true,
     completionEvent: "DAY1_TASK_COMPLETED"
   }
@@ -658,6 +669,35 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
         required: true
       }
     ]
+  },
+  {
+    zoneId: "DRONE_SECTION",
+    friendlyName: "Drone Section",
+    description: "A dedicated area for the outpost's existing aerial observation drone.",
+    moduleName: "Drone",
+    introduction: {
+      id: "INTRO_DRONE_SECTION",
+      title: "Drone Section",
+      description: "Enter the Drone Section and inspect the existing aerial observation drone. The inspection records only what is physically visible.",
+      cameraPresentationId: "CAM_DRONE_SECTION_OVERVIEW",
+      durationSeconds: 4,
+      skipKey: "Enter"
+    },
+    interactionGroups: [
+      {
+        id: "DRONE_PHYSICAL_INSPECTION",
+        friendlyName: "Drone Section",
+        description: "Inspect the existing drone in person to familiarise yourself with the outpost's aerial observation equipment.",
+        triggerObjectName: "Drone",
+        screenObjectNames: [],
+        cameraPresentationId: "CAM_DRONE_PHYSICAL_INSPECTION",
+        cameraFraming: "A short view of the existing drone from the physical inspection point.",
+        cameraDurationSeconds: 3,
+        interactionMode: "PhysicalInspect",
+        taskId: "D1_DRONE_SECTION",
+        required: true
+      }
+    ]
   }
 ];
 
@@ -670,7 +710,8 @@ export const MODULE_TO_ZONE_MAP: Record<string, Day1ZoneId> = {
   Engineering: "ENGINEERING_UNIT",
   Science: "RESEARCH_LAB",
   MissionControl: "MISSION_CONTROL",
-  Airlock: "AIRLOCK"
+  Airlock: "AIRLOCK",
+  Drone: "DRONE_SECTION"
 };
 
 /** Per-entrance travel key. Omitted entries continue to use the game's E key. */

@@ -2,8 +2,11 @@ import type {
   GeologicalSurveyRecord,
   SurfaceObservationRecord,
   ScienceAnalysisRecord,
-  DroneSurveyRecord
+  DroneSurveyRecord,
+  Sol5ImageRecord,
+  Sol5FlightSnapshot
 } from "./MissionManager";
+import type { ResolvedMissionNavigation } from "../systems/navigation/missionNavigation";
 
 export type TransitionPhase = "" | "loading" | "video" | "error";
 
@@ -15,6 +18,15 @@ export interface DroneTelemetryData {
   altitude: number;
   x: number;
   z: number;
+}
+
+export interface Sol5DroneTelemetryData {
+  targetId: string; targetName: string; batteryPercent: number; signalPercent: number;
+  altitudeAglM: number; speedMps: number; distanceTravelledM: number;
+  distanceFromTakeoffM: number; distanceToTargetM: number; headingDegrees: number;
+  targetBearingDegrees: number;
+  elapsedSeconds: number; cameraView: string; warning: string | null;
+  boundaryStatus: "INSIDE" | "BOUNDARY"; evidenceCount: number; status: string;
 }
 
 export interface GameState {
@@ -44,11 +56,13 @@ export interface GameState {
   showRoutePlanning: boolean;
   selectedRouteTargetId: string | null;
   notification: string | null;
+  navigationInstruction: ResolvedMissionNavigation | null;
   restFeedback: {
     type: "success" | "blocked";
     message: string;
     missingTasks?: { title: string; zone: string }[];
   } | null;
+  restTransition: "out" | "in" | null;
 
   // Phase 3 dedicated UI states & records
   geologicalSurvey: GeologicalSurveyRecord | null;
@@ -63,6 +77,11 @@ export interface GameState {
 
   droneModeActive: boolean;
   droneTelemetry: DroneTelemetryData;
+  sol5DroneActive: boolean;
+  sol5Telemetry: Sol5DroneTelemetryData | null;
+  sol5Images: Sol5ImageRecord[];
+  sol5Flight: Sol5FlightSnapshot | null;
+  sol5Message: string | null;
 
   // Cinematic screen interaction + PHOBOSIA OS Desktop
   showCinematicOverlay: boolean;

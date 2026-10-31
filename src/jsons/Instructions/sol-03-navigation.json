@@ -1,0 +1,62 @@
+{
+  "sol": 3,
+  "missionId": "PHOBOSIA_SOL_03",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "SOL03_MISSION_CONTEXT",
+      "title": "Review Mission Objectives and Outpost Status",
+      "message": "Start at the Mission Control operations station.",
+      "guidance": "Review the Sol 3 objective, the available Sol 2 readiness report, and the limits of the supplied mission data.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Operations Station" },
+      "activity": "Use the existing Mission Control main interface and submit the context review."
+    },
+    {
+      "taskId": "SOL03_OBSERVATION_SITE_REVIEW",
+      "title": "Compare Target A, Target B, and Target C",
+      "message": "Proceed to the Mission Control navigation station.",
+      "guidance": "Review Target A, Target B, and Target C using their grayscale, colour, and thermal project imagery, descriptions, terrain notes, and available records. In the comparison form, select all three target profile records, complete both review checks, write your comparison rationale, and state limitations before submitting. Keep unavailable coordinates or historical observations marked as unavailable.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
+      "activity": "Submit the comparison with all three target profiles referenced. The next instruction updates after the comparison validates."
+    },
+    {
+      "taskId": "SOL03_SYSTEM_CONSTRAINTS",
+      "title": "Review Communications and Operational Constraints",
+      "message": "Review communications and system information in Mission Control.",
+      "guidance": "Check available operational constraints and relevant records, then explain how they affect observation planning.",
+      "destination": { "name": "Mission Control Systems Station", "module": "Mission Control", "section": "Communications and Systems" },
+      "activity": "Use the existing systems interface and submit the constraints review."
+    },
+    {
+      "taskId": "SOL03_SELECT_TARGET",
+      "title": "Select a Proposed Scientific Target",
+      "message": "Return to the observation-site information and propose one target.",
+      "guidance": "Choose one of Target A, Target B, or Target C and write a focused scientific question. This is a revisable proposal choice, not the official mission target. You may change it before submitting the final proposal. State known uncertainties and do not infer unavailable historical observations or coordinates.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Observation Sites" },
+      "activity": "Save the proposed target through the existing investigation form; this step alone does not commit the official mission target.",
+      "requiresCompletedTasks": ["SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS"]
+    },
+    {
+      "taskId": "SOL03_DATASET_ANALYSIS",
+      "title": "Investigate and Select a Scientific Dataset",
+      "message": "Proceed to the Research Analysis Station.",
+      "guidance": "Inspect the available dataset metadata and provenance. Evaluate its relevance to your question and record limitations. Available training metadata is not a measurement dataset.",
+      "destination": { "name": "Research Analysis Station", "module": "Research Lab", "section": "Analysis Station" },
+      "activity": "Select and assess the available catalogue record in the existing analysis interface.",
+      "requiresCompletedTasks": ["SOL03_SELECT_TARGET"]
+    },
+    {
+      "taskId": "SOL03_SUBMIT_TARGET_PROPOSAL",
+      "title": "Submit the Scientific Observation Proposal",
+      "message": "Return to Mission Control to review and submit the proposal.",
+      "guidance": "Review the proposed target, scientific question, training metadata, evidence references, operational constraints, and limitations. This validated submission establishes and locks the official mission target for Sol 4.",
+      "destination": { "name": "Mission Control Operations Station", "module": "Mission Control", "section": "Proposal Review" },
+      "activity": "Submit the validated proposal through the existing Mission Control interface. Only this successful submission commits the target and completes the target proposal task.",
+      "requiresCompletedTasks": ["SOL03_MISSION_CONTEXT", "SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SYSTEM_CONSTRAINTS", "SOL03_SELECT_TARGET", "SOL03_DATASET_ANALYSIS"]
+    }
+  ],
+  "completion": {
+    "title": "Sol 3 Required Activities Complete",
+    "message": "All mandatory Sol 3 activities are complete. Return to the Habitat Rest Area and use the existing rest interaction to conclude the Sol."
+  }
+}

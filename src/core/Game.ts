@@ -4,7 +4,7 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
-import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
@@ -17,6 +17,8 @@ import {
   type ScienceAnalysisRecord,
   type DroneSurveyRecord
 } from "./MissionManager";
+import { canLand, createDroneCameraRig, createDroneFlightState, createSol5Guidance, createSol5TargetBeacon, disposeSol5Guidance, disposeSol5TargetBeacon, detachDroneCameraRig, droneControlsFromKeys, getSol5TakeoffPosition, orientDroneCameraRig, resolveSol5EAction, setSol5TargetBeaconVisible, stepDroneFlight, updateSol5Guidance, updateSol5TargetBeacon, SOL5_LIMITS, type DroneCameraRig, type DroneFlightState, type DroneCameraView, type Sol5GuidanceRig, type Sol5TargetBeacon } from "../missions/sol-05/droneSimulation";
+import { resolveSol5Target, SOL5_EVIDENCE_ASSETS, SOL5_SCENE_TARGETS } from "../missions/sol-05/targetMapping";
 import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
@@ -25,6 +27,7 @@ import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 import { CameraPresentationManager } from "./CameraPresentation";
+import { GameAudioManager, resolveIndoorMovementAudioState } from "./GameAudioManager";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -49,12 +52,14 @@ const transitions: Record<ModuleName, Record<string, Transition>> = {
   },
   Airlock: {
     Terrain_Entrance_Trigger: { module: "Terrain", spawn: "Spwaning_Position" },
+    Drone_Section_Entrance_Trigger: { module: "Drone", spawn: "DroneZone_Entrance_Trigger" },
     Central_Hub_Entrance_Trigger: { module: "Hub", spawn: "Main_Entrance_Trigger" }
   },
   Engineering: { Engineering_Entrance: { module: "Hub", spawn: "Engineering_Entrance_Trigger" } },
   Science: { LAB_EXIT_TRIGGER: { module: "Hub", spawn: "ScienceLab_Entrance_Trigger" } },
   MissionControl: { MissionControl_Entrance_Trigger: { module: "Hub", spawn: "MissionControl_Entrance_Trigger" } },
-  Terrain: { Spwaning_Position: { module: "Airlock", spawn: "Terrain_Entrance_Trigger" } }
+  Terrain: { Spwaning_Position: { module: "Airlock", spawn: "Terrain_Entrance_Trigger" } },
+  Drone: { DroneZone_Entrance_Trigger: { module: "Airlock", spawn: "Drone_Section_Entrance_Trigger" } }
 };
 
 const labels: Record<ModuleName, string> = {
@@ -64,7 +69,8 @@ const labels: Record<ModuleName, string> = {
   Engineering: "Engineering Unit",
   Science: "Research Lab",
   MissionControl: "Mission Control",
-  Terrain: "Mars Terrain"
+  Terrain: "Mars Terrain",
+  Drone: "Drone Section"
 };
 
 const videos: Partial<Record<ModuleName, string>> = {
@@ -80,12 +86,14 @@ export class Game {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(70, 1, 0.05, 2500);
   private player = new Player(this.camera);
+  private audioManager: GameAudioManager;
   private clock = new THREE.Clock();
   private current?: THREE.Group;
   private loaded = new Map<ModuleName, THREE.Group>();
   private interactive: InteractionTarget[] = [];
   private colliders: THREE.Box3[] = [];
   private terrain?: THREE.Object3D;
+  private droneFloorHeight?: number;
   private raycaster = new THREE.Raycaster();
   private down = new THREE.Vector3(0, -1, 0);
   private temp = new THREE.Vector3();
@@ -140,6 +148,22 @@ export class Game {
   private droneYaw = 0;
   private dronePitch = -0.15;
   private droneBattery = 88;
+  // Sol 5 state is isolated from the legacy later-day FPV implementation above.
+  private sol5DroneActive = false;
+  private sol5Flight?: DroneFlightState;
+  private sol5DroneAnchor?: THREE.Object3D;
+  private sol5TargetNode?: THREE.Object3D;
+  private sol5TakeoffNode?: THREE.Object3D;
+  private sol5CameraRig?: DroneCameraRig;
+  private sol5Guidance?: Sol5GuidanceRig;
+  private sol5TargetBeacon?: Sol5TargetBeacon;
+  private sol5BuildingColliders: THREE.Box3[] = [];
+  private sol5BodyYaw = 0;
+  private sol5LookYaw = 0;
+  private sol5LookPitch = 0;
+  private sol5EInteractionConsumed = false;
+  private sol5LastSnapshotAt = 0;
+  private sol5AwaitingReturn = false;
 
   constructor(private host: HTMLDivElement, private emit: SetState) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -156,7 +180,7 @@ export class Game {
 
     const mission = this.missionManager.getCurrentMission();
     const mState = this.missionManager.getState();
-    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
+    const taskProgress = this.missionManager.getMissionTaskProgress();
 
     this.state = {
       ready: false,
@@ -173,20 +197,20 @@ export class Game {
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: day1RequiredTasks
-        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
-        : mState.completedStepIds.length,
-      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
+      completedStepCount: taskProgress.completed,
+      totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
-      briefingText: mission.briefing,
+      briefingText: this.missionManager.getCurrentMissionBriefing(),
       primaryObjective: mission.primaryObjective,
       controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock",
       isOutdoorTerrain: false,
       showRoutePlanning: false,
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
-      notification: mState.notification,
+      notification: mState.notification ?? this.missionManager.getCurrentNavigationNotification(),
+      navigationInstruction: this.missionManager.getCurrentNavigationInstruction(),
       restFeedback: null,
+      restTransition: null,
 
       geologicalSurvey: mState.geologicalSurvey,
       surfaceObservation: mState.surfaceObservation,
@@ -200,6 +224,11 @@ export class Game {
 
       droneModeActive: false,
       droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
+      sol5DroneActive: false,
+      sol5Telemetry: null,
+      sol5Images: mState.sol5.images,
+      sol5Flight: mState.sol5.flight,
+      sol5Message: null,
 
       showCinematicOverlay: false,
       showOSDesktop: false,
@@ -208,6 +237,8 @@ export class Game {
     };
 
     this.cameraPresentationManager = new CameraPresentationManager(this.camera);
+    this.audioManager = new GameAudioManager();
+    this.renderer.domElement.addEventListener("pointerdown", this.unlockAudio);
 
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(host);
@@ -243,26 +274,27 @@ export class Game {
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
     const mission = this.missionManager.getCurrentMission();
-    const day1RequiredTasks = mState.currentDay === 1 ? DAY1_TASKS.filter(task => task.required) : null;
+    const taskProgress = this.missionManager.getMissionTaskProgress();
     this.set({
       missionDay: mState.currentDay,
       missionTitle: mission.title,
       objectiveTitle: mission.primaryObjective,
       objectiveState: mState.objectiveState,
-      completedStepCount: day1RequiredTasks
-        ? day1RequiredTasks.filter(task => mState.completedStepIds.includes(task.taskId)).length
-        : mState.completedStepIds.length,
-      totalStepCount: day1RequiredTasks?.length ?? mission.steps.length,
+      completedStepCount: taskProgress.completed,
+      totalStepCount: taskProgress.total,
       dayBriefingSeen: mState.dayBriefingSeen,
       showBriefingModal: !mState.dayBriefingSeen,
-      briefingText: mission.briefing,
+      briefingText: this.missionManager.getCurrentMissionBriefing(),
       primaryObjective: mission.primaryObjective,
       selectedRouteTargetId: mState.selectedRouteTarget?.id ?? null,
       notification: mState.notification,
+      navigationInstruction: this.missionManager.getCurrentNavigationInstruction(),
       geologicalSurvey: mState.geologicalSurvey,
       surfaceObservation: mState.surfaceObservation,
       scienceAnalysis: mState.scienceAnalysis,
-      droneSurvey: mState.droneSurvey
+      droneSurvey: mState.droneSurvey,
+      sol5Images: mState.sol5.images,
+      sol5Flight: mState.sol5.flight
     });
   }
 
@@ -311,6 +343,10 @@ export class Game {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const mod = params.get("module") as ModuleName | null;
+      if (!mod && this.state.missionDay === 5 && this.missionManager.getSol5Progress().attemptStatus === "aborted") {
+        initialModule = "MissionControl";
+        initialSpawn = "MissionControl_Entrance_Trigger";
+      }
       if (mod) {
         hideBriefing = true;
         if (mod === "Hub") {
@@ -570,6 +606,8 @@ export class Game {
 
   openScreenOS(initialApp?: string) {
     this.cinematicGliding = false;
+    // Every OS entry path must release first-person pointer lock so UI controls can receive clicks.
+    if (document.pointerLockElement) document.exitPointerLock();
     this.set({
       showCinematicOverlay: false,
       showOSDesktop: true,
@@ -589,6 +627,298 @@ export class Game {
     this.cinematicGliding = false;
     this.set({ showOSDesktop: false, showCinematicOverlay: false });
     this.lock();
+  }
+
+  confirmSol5Briefing() {
+    const result = this.missionManager.confirmSol5Briefing();
+    this.set({ sol5Message: result.message, notification: result.success ? result.message : this.state.notification });
+  }
+
+  async startSol5DroneSimulation() {
+    if (this.sol5DroneActive || this.state.missionDay !== 5) return;
+    const targetId = this.missionManager.getSelectedSiteId();
+    if (!targetId) { this.set({ sol5Message: "Sol 5 is blocked: the official Sol 3 target is missing or invalid." }); return; }
+    const terrainModel = await this.getModel("Terrain");
+    if (this.disposed) return;
+    terrainModel.updateWorldMatrix(true, true);
+    const anchor = terrainModel.getObjectByName("Drone_Object");
+    const takeoffRef = terrainModel.getObjectByName("Drone_TakeoffPoint");
+    const target = resolveSol5Target(terrainModel, targetId, MASTER_TERRAIN_TARGETS);
+    const missingTargetNodes = Object.values(SOL5_SCENE_TARGETS).filter(name => !terrainModel.getObjectByName(name));
+    if (!anchor || !takeoffRef || !target || missingTargetNodes.length > 0 || !this.missionManager.getSol5Progress().briefingConfirmed) {
+      this.set({ sol5Message: `Simulation unavailable: verify briefing, Drone_Object, Drone_TakeoffPoint, selected target, and all target nodes in mars_Terrain. Missing: ${missingTargetNodes.join(", ") || "none"}.` });
+      return;
+    }
+    const previous = this.loaded.get("MissionControl");
+    const mcNav = previous?.getObjectByName("MC_NAVIGATION_01");
+    if (!previous || !mcNav) {
+      this.set({ sol5Message: "Simulation unavailable: the existing Mission Control Navigation reference is not loaded." });
+      return;
+    }
+    const terrainSurface = terrainModel.getObjectByName("PHOBOSIA_MarsTerrain_2km");
+    const takeoff = getSol5TakeoffPosition(takeoffRef);
+    const evidenceAssets = SOL5_EVIDENCE_ASSETS[targetId];
+    if (!terrainSurface) { this.set({ sol5Message: "Simulation unavailable: master terrain mesh is missing." }); return; }
+    if (!evidenceAssets?.length || evidenceAssets.some(asset => asset.targetId !== targetId)) {
+      this.set({ sol5Message: "Simulation unavailable: verified mission-provided evidence for the official target is missing." }); return;
+    }
+    try {
+      const responses = await Promise.all(evidenceAssets.map(asset => fetch(asset.assetPath, { method: "HEAD" })));
+      if (this.disposed) return;
+      if (responses.some(response => !response.ok || !response.headers.get("content-type")?.startsWith("image/"))) {
+        this.set({ sol5Message: "Simulation unavailable: one or more selected-target image files are missing or unsupported. No other target's imagery will be used." }); return;
+      }
+    } catch {
+      this.set({ sol5Message: "Simulation unavailable: selected-target image assets could not be verified." }); return;
+    }
+    this.raycaster.set(new THREE.Vector3(takeoff.x, 1000, takeoff.z), this.down);
+    const takeoffGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
+    if (!Number.isFinite(takeoffGround)) { this.set({ sol5Message: "Simulation unavailable: no terrain surface is resolved below Drone_TakeoffPoint." }); return; }
+    const authorization = this.missionManager.startSol5Simulation();
+    if (!authorization.success) { this.set({ sol5Message: authorization.message }); return; }
+    this.sol5AwaitingReturn = false;
+    this.astronautStateBeforeDrone = { module: "MissionControl", position: this.camera.position.clone(), rotation: this.camera.rotation.clone() };
+    if (this.current) this.scene.remove(this.current);
+    this.current = terrainModel;
+    this.scene.add(terrainModel);
+    this.active = "Terrain";
+    this.updateEnvironment();
+    this.configureModule(terrainModel, "Terrain");
+    terrainModel.updateWorldMatrix(true, true);
+
+    const resolvedTarget = resolveSol5Target(terrainModel, targetId, MASTER_TERRAIN_TARGETS);
+    if (!resolvedTarget) { this.set({ sol5Message: "Simulation unavailable: official target scene mapping was lost during initialization." }); return; }
+    this.sol5Flight = createDroneFlightState(takeoff, resolvedTarget.position);
+    this.sol5Flight.maxAltitudeAglM = this.sol5Flight.position.y - takeoff.y;
+    this.sol5DroneAnchor = anchor;
+    this.sol5TargetNode = resolvedTarget.object;
+    this.sol5TakeoffNode = takeoffRef;
+    this.sol5BuildingColliders = buildTerrainBuildingColliders(terrainModel);
+    const direction = resolvedTarget.position.clone().sub(takeoff);
+    this.sol5BodyYaw = Math.atan2(-direction.x, -direction.z);
+    this.setSol5DroneWorldPose(this.sol5Flight.position, this.sol5BodyYaw);
+    this.sol5LookYaw = 0;
+    this.sol5LookPitch = -0.04;
+    this.sol5CameraRig = createDroneCameraRig(anchor, this.camera);
+    orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
+    this.sol5Guidance = createSol5Guidance(this.scene);
+    updateSol5Guidance(this.sol5Guidance, anchor, resolvedTarget.object, takeoffRef, this.missionManager.getSol5Progress().targetInspected);
+    if (this.sol5TargetBeacon) disposeSol5TargetBeacon(this.sol5TargetBeacon);
+    this.sol5TargetBeacon = createSol5TargetBeacon(this.scene, resolvedTarget.object);
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, !this.missionManager.getSol5Progress().targetInspected);
+    this.sol5DroneActive = true;
+    this.sol5AwaitingReturn = false;
+    this.audioManager.setSol5DroneActive(true);
+    this.droneKeys.clear();
+    this.sol5EInteractionConsumed = false;
+    const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
+    const agl = ground === null ? 1 : this.sol5Flight.position.y - ground;
+    this.set({
+      showOSDesktop: false, showCinematicOverlay: false, sol5DroneActive: true,
+      sol5Message: "Sol 5 simulation active. All flight telemetry is simulated from current scene coordinates.",
+      controlHint: "W/A/S/D fly · E ascend / interact · Q descend · Shift boost · Mouse look · 1–5 camera · Esc abort",
+      sol5Telemetry: { targetId, targetName: target.definition.name, batteryPercent: this.sol5Flight.batteryPercent,
+        signalPercent: 100, altitudeAglM: agl, speedMps: 0, distanceTravelledM: this.sol5Flight.totalDistanceM,
+        distanceFromTakeoffM: 0, distanceToTargetM: takeoff.distanceTo(resolvedTarget.position), headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360, targetBearingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360,
+        elapsedSeconds: this.sol5Flight.elapsedSeconds, cameraView: "front", warning: null, boundaryStatus: "INSIDE",
+        evidenceCount: this.missionManager.getSol5Progress().images.length, status: "READY" }
+    });
+    this.astronautStateBeforeDrone = { module: "MissionControl", position: mcNav.getWorldPosition(new THREE.Vector3()), rotation: new THREE.Euler() };
+    this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
+    void this.renderer.domElement.requestPointerLock();
+  }
+
+  confirmSol5ImageReview() {
+    const result = this.missionManager.confirmSol5ImageReview();
+    this.set({ sol5Message: result.message });
+  }
+
+  setSol5Camera(view: DroneCameraView) {
+    if (!this.sol5DroneActive || !this.sol5Flight) return;
+    this.sol5Flight.cameraView = view;
+    this.sol5LookYaw = 0;
+    this.sol5LookPitch = 0;
+  }
+
+  submitSol5Report(input: { observedFeatures: string; playerInterpretation: string; uncertainties: string; groundFollowUp: string }) {
+    const result = this.missionManager.submitSol5Report(input);
+    this.set({ sol5Message: result.message });
+  }
+
+  private toSol5Snapshot(status: "ready" | "flying" | "landed" | "aborted") {
+    const flight = this.sol5Flight!;
+    const targetId = this.missionManager.getSelectedSiteId()!;
+    return {
+      targetId, status, takeoff: { x: flight.takeoff.x, y: flight.takeoff.y, z: flight.takeoff.z },
+      position: { x: flight.position.x, y: flight.position.y, z: flight.position.z },
+      elapsedSeconds: flight.elapsedSeconds, totalDistanceM: flight.totalDistanceM, maxAltitudeAglM: flight.maxAltitudeAglM, speedMps: flight.velocity.length(),
+      batteryPercent: flight.batteryPercent, signalPercent: this.state.sol5Telemetry?.signalPercent ?? 100,
+      cameraView: flight.cameraView, landed: flight.landed
+    } as const;
+  }
+
+  private sol5GroundHeight(x: number, z: number): number | null {
+    if (!this.terrain) return null;
+    this.raycaster.set(new THREE.Vector3(x, 1000, z), this.down);
+    const hit = this.raycaster.intersectObject(this.terrain, true)[0];
+    return hit?.point.y ?? null;
+  }
+
+  private setSol5AnchorWorldPosition(position: THREE.Vector3) {
+    this.setSol5DroneWorldPose(position, this.sol5BodyYaw);
+  }
+
+  private setSol5DroneWorldPose(position: THREE.Vector3, yaw: number) {
+    const anchor = this.sol5DroneAnchor;
+    if (!anchor) return;
+    anchor.parent?.updateWorldMatrix(true, false);
+    const localPosition = position.clone();
+    anchor.parent?.worldToLocal(localPosition);
+    anchor.position.copy(localPosition);
+    const worldRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+    const parentRotation = anchor.parent?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion();
+    anchor.quaternion.copy(parentRotation.invert().multiply(worldRotation));
+    anchor.updateWorldMatrix(true, false);
+  }
+
+  private detachSol5Camera() {
+    if (this.sol5CameraRig && this.sol5DroneAnchor) detachDroneCameraRig(this.sol5DroneAnchor, this.scene, this.sol5CameraRig, this.camera);
+    this.sol5CameraRig = undefined;
+    this.sol5DroneAnchor = undefined;
+  }
+
+  private cleanupSol5Guidance() {
+    if (this.sol5Guidance) disposeSol5Guidance(this.sol5Guidance);
+    this.sol5Guidance = undefined;
+    disposeSol5TargetBeacon(this.sol5TargetBeacon);
+    this.sol5TargetBeacon = undefined;
+    this.sol5TargetNode = undefined;
+    this.sol5TakeoffNode = undefined;
+    this.sol5BuildingColliders = [];
+  }
+
+  private updateSol5Drone(dt: number) {
+    const flight = this.sol5Flight;
+    if (!flight || !this.sol5DroneAnchor) return;
+    if (this.sol5AwaitingReturn) return;
+    this.sol5TargetNode?.getWorldPosition(flight.target);
+    this.sol5TakeoffNode?.getWorldPosition(flight.takeoff);
+    const controls = droneControlsFromKeys(this.droneKeys, this.sol5BodyYaw);
+    stepDroneFlight(flight, controls, dt, (x, z) => this.sol5GroundHeight(x, z), (from, to) => segmentHitsAnyBox(from, to, this.sol5BuildingColliders));
+    this.setSol5DroneWorldPose(flight.position, this.sol5BodyYaw);
+    const progress = this.missionManager.getSol5Progress();
+    if (this.sol5TargetNode) updateSol5TargetBeacon(this.sol5TargetBeacon, this.sol5TargetNode, !progress.targetInspected);
+    if (this.sol5Guidance && this.sol5DroneAnchor && this.sol5TargetNode && this.sol5TakeoffNode) {
+      updateSol5Guidance(this.sol5Guidance, this.sol5DroneAnchor, this.sol5TargetNode, this.sol5TakeoffNode, progress.targetInspected);
+    }
+    const telemetry = this.state.sol5Telemetry;
+    if (!telemetry) return;
+    const baseDistance = Math.hypot(flight.position.x - flight.takeoff.x, flight.position.z - flight.takeoff.z);
+    const targetWorld = this.sol5TargetNode?.getWorldPosition(new THREE.Vector3()) ?? flight.target;
+    const guidanceWorld = progress.targetInspected
+      ? (this.sol5TakeoffNode?.getWorldPosition(new THREE.Vector3()) ?? flight.takeoff)
+      : targetWorld;
+    const targetDx = guidanceWorld.x - flight.position.x, targetDz = guidanceWorld.z - flight.position.z;
+    const ground = this.sol5GroundHeight(flight.position.x, flight.position.z);
+    const agl = ground === null ? 0 : flight.position.y - ground;
+    if (this.sol5CameraRig) orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
+    const warning = flight.warning ?? (agl >= 9 ? "Approaching 10 m AGL limit." : baseDistance > 1200 ? "Simulated communication link degrading with distance." : null);
+    const signal = Math.max(0, Math.round(100 - Math.min(baseDistance, 1500) / 1500 * 100));
+    const targetDistance = flight.position.distanceTo(targetWorld);
+    if (targetDistance <= SOL5_LIMITS.targetInspectionRadiusM && this.missionManager.markSol5TargetReached(this.missionManager.getSelectedSiteId() ?? "")) {
+      this.set({ sol5Message: "Selected target reached. Press E to inspect and load its prepared evidence." });
+    }
+    const boundaryHalf = 750;
+    const atBoundary = Math.abs(flight.position.x - flight.boundaryCenter.x) > boundaryHalf - 20 || Math.abs(flight.position.z - flight.boundaryCenter.z) > boundaryHalf - 20;
+    if (this.frame % 6 === 0) {
+      const targetBearingDegrees = (Math.atan2(-targetDx, -targetDz) * 180 / Math.PI + 360) % 360;
+      const update = { ...telemetry, batteryPercent: Math.round(flight.batteryPercent), signalPercent: signal,
+        altitudeAglM: Math.round(agl * 10) / 10, speedMps: Math.round(flight.velocity.length() * 10) / 10,
+        distanceTravelledM: Math.round(flight.totalDistanceM * 10) / 10, distanceFromTakeoffM: Math.round(baseDistance * 10) / 10,
+        distanceToTargetM: Math.round(targetDistance * 10) / 10, headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360, targetBearingDegrees,
+        elapsedSeconds: Math.floor(flight.elapsedSeconds), cameraView: flight.cameraView,
+        warning: warning ?? (signal < 20 ? "Simulated signal is critically low; return toward base." : null),
+        boundaryStatus: atBoundary ? "BOUNDARY" as const : "INSIDE" as const,
+        evidenceCount: this.missionManager.getSol5Progress().images.length, status: progress.targetInspected ? "RETURN TO LANDING ZONE" : "FLIGHT TO SELECTED TARGET" };
+      this.set({ sol5Telemetry: update });
+      if (flight.elapsedSeconds - this.sol5LastSnapshotAt >= 3) {
+        this.sol5LastSnapshotAt = flight.elapsedSeconds;
+        this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
+      }
+    }
+  }
+
+  inspectSol5Target() {
+    if (!this.sol5DroneActive || !this.sol5Flight || !this.sol5TargetNode) return;
+    const targetId = this.missionManager.getSelectedSiteId();
+    if (!targetId || this.missionManager.getSol5Progress().targetInspected) return;
+    const targetPosition = this.sol5TargetNode.getWorldPosition(new THREE.Vector3());
+    const inspectionDistance = this.sol5Flight.position.distanceTo(targetPosition);
+    if (inspectionDistance > SOL5_LIMITS.targetInspectionRadiusM) { this.set({ sol5Message: `Inspection unavailable: move into the selected target area (${inspectionDistance.toFixed(1)} m away).` }); return; }
+    if (!this.missionManager.getSol5Progress().targetReached) { this.set({ sol5Message: "Approach the selected target before inspecting it." }); return; }
+    const assets = SOL5_EVIDENCE_ASSETS[targetId];
+    if (!assets?.length) { this.set({ sol5Message: `Inspection unavailable: no verified evidence assets are mapped to ${targetId}.` }); return; }
+    const result = this.missionManager.completeSol5TargetInspection(targetId, assets);
+    if (this.missionManager.getSol5Progress().targetInspected) setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+    this.set({ sol5Message: result.message, sol5Images: this.missionManager.getSol5Progress().images });
+  }
+
+  requestSol5Landing() {
+    if (!this.sol5Flight || !this.state.sol5Telemetry) return;
+    this.sol5TakeoffNode?.getWorldPosition(this.sol5Flight.takeoff);
+    const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
+    if (ground === null) { this.set({ sol5Message: "Landing blocked: no terrain surface is resolved beneath the drone." }); return; }
+    const result = canLand(this.sol5Flight, ground, this.missionManager.getSol5Progress().targetInspected);
+    if (!result.ok) { this.set({ sol5Message: result.reason }); return; }
+    this.setSol5AnchorWorldPosition(this.sol5Flight.position);
+    const saved = this.missionManager.completeSol5Landing(this.toSol5Snapshot("landed"));
+    if (!saved.success) { this.set({ sol5Message: saved.message }); return; }
+    if (this.state.sol5Telemetry) this.set({ sol5Telemetry: { ...this.state.sol5Telemetry, status: "LANDED", speedMps: 0 } });
+    this.sol5AwaitingReturn = true;
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+    this.audioManager.setSol5DroneActive(false);
+    this.droneKeys.clear();
+    document.exitPointerLock();
+    this.set({ sol5DroneActive: true, sol5Message: `${saved.message} Press G to return to the Mission Control Navigation station.` });
+  }
+
+  private finishSol5LandingAndReturn() {
+    if (!this.sol5AwaitingReturn) return;
+    this.sol5AwaitingReturn = false;
+    this.sol5DroneActive = false;
+    this.droneKeys.clear();
+    document.exitPointerLock();
+    void this.returnPlayerToMissionControlNavigation("Landing confirmed. Sol 5 landing task complete; returned to Mission Control Navigation.");
+  }
+
+  private async returnPlayerToMissionControlNavigation(message: string) {
+    this.detachSol5Camera();
+    this.cleanupSol5Guidance();
+    const mc = await this.getModel("MissionControl");
+    if (this.disposed) return;
+    const nav = mc.getObjectByName("MC_NAVIGATION_01");
+    if (!nav) { this.set({ sol5DroneActive: false, sol5Message: "Landing succeeded, but the existing Mission Control Navigation spawn marker could not be resolved." }); return; }
+    if (this.current) this.scene.remove(this.current);
+    this.current = mc; this.scene.add(mc); this.active = "MissionControl";
+    this.updateEnvironment(); this.player.setEyeHeight(1.65); this.configureModule(mc, "MissionControl");
+    mc.updateWorldMatrix(true, true);
+    const position = nav.getWorldPosition(new THREE.Vector3());
+    this.camera.position.copy(position).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
+    const rotation = new THREE.Euler().setFromQuaternion(nav.getWorldQuaternion(new THREE.Quaternion()), "YXZ");
+    this.camera.rotation.copy(rotation); this.player.face(new THREE.Quaternion().setFromEuler(rotation));
+    this.player.resetVelocity(); this.player.syncBasePosition();
+    this.set({ module: labels.MissionControl, isOutdoorTerrain: false, sol5DroneActive: false, sol5Flight: this.missionManager.getSol5Progress().flight,
+      sol5Images: this.missionManager.getSol5Progress().images, sol5Message: message,
+      sol5Telemetry: this.state.sol5Telemetry ? { ...this.state.sol5Telemetry, status: "LANDED · REVIEW REQUIRED" } : null,
+      prompt: "", notification: message });
+    this.lock();
+  }
+
+  abortSol5Flight() {
+    if (!this.sol5DroneActive || !this.sol5Flight) return;
+    this.missionManager.abortSol5SimulationAttempt();
+    this.sol5DroneActive = false; this.audioManager.setSol5DroneActive(false); setSol5TargetBeaconVisible(this.sol5TargetBeacon, false); this.droneKeys.clear(); document.exitPointerLock();
+    void this.returnPlayerToMissionControlNavigation("Drone attempt aborted. Return to Mission Control to activate a new attempt from the launch pad.");
   }
 
   async startDroneFPV() {
@@ -704,7 +1034,27 @@ export class Game {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
     document.addEventListener("visibilitychange", this.visibility);
+    window.addEventListener("pagehide", this.pageExit);
+    window.addEventListener("beforeunload", this.pageExit);
+    window.addEventListener("pageshow", this.pageRestore);
   }
+
+  private pageExit = () => {
+    if (!this.sol5DroneActive) return;
+    this.missionManager.abortSol5SimulationAttempt(false);
+    this.sol5DroneActive = false;
+    this.droneKeys.clear();
+    this.audioManager.setSol5DroneActive(false);
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+  };
+
+  private pageRestore = (event: PageTransitionEvent) => {
+    if (event.persisted && this.active === "Terrain" && this.missionManager.getSol5Progress().attemptStatus === "aborted") {
+      void this.returnPlayerToMissionControlNavigation("The previous drone attempt was aborted. Activate a new attempt from Mission Control.");
+    }
+  };
+
+  private unlockAudio = () => this.audioManager.unlock();
 
   private resize = () => {
     const width = this.host.clientWidth;
@@ -712,6 +1062,12 @@ export class Game {
     if (!width || !height) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    if (this.sol5CameraRig) {
+      for (const camera of Object.values(this.sol5CameraRig)) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+    }
     this.renderer.setSize(width, height, false);
   };
 
@@ -741,7 +1097,10 @@ export class Game {
 
     if (isModalOpen) return;
 
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.sol5LookYaw -= e.movementX * 0.002;
+      this.sol5LookPitch = THREE.MathUtils.clamp(this.sol5LookPitch - e.movementY * 0.002, -1.35, 1.35);
+    } else if (this.droneModeActive) {
       this.droneYaw -= e.movementX * 0.002;
       this.dronePitch = Math.max(-1.4, Math.min(1.4, this.dronePitch - e.movementY * 0.002));
       this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
@@ -753,6 +1112,7 @@ export class Game {
   private keyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | undefined;
     if (target?.matches("input,textarea,[contenteditable='true']")) return;
+    this.audioManager.unlock();
 
     // Day 1 Camera Presentation Skip with Enter
     if (this.cameraPresentationManager.isPresentationActive() && e.code === "Enter") {
@@ -771,7 +1131,35 @@ export class Game {
 
     if (this.transitioning) return;
 
-    // Drone FPV Input Handling
+    // Sol 5 owns its controls only during the isolated drone simulation.
+    if (this.sol5DroneActive) {
+      if (this.sol5AwaitingReturn) {
+        if (e.code === "KeyG" && !e.repeat) { e.preventDefault(); this.finishSol5LandingAndReturn(); }
+        return;
+      }
+      if (e.code === "KeyE" && this.sol5Flight) {
+        if (e.repeat && this.sol5EInteractionConsumed) { e.preventDefault(); return; }
+        if (!e.repeat) {
+          this.sol5EInteractionConsumed = false;
+          const progress = this.missionManager.getSol5Progress();
+          const target = this.sol5TargetNode?.getWorldPosition(new THREE.Vector3()) ?? this.sol5Flight.target;
+          const takeoff = this.sol5TakeoffNode?.getWorldPosition(new THREE.Vector3()) ?? this.sol5Flight.takeoff;
+          const action = resolveSol5EAction(this.sol5Flight.position, target, takeoff, progress.targetInspected);
+          if (action === "inspect_target") { this.sol5EInteractionConsumed = true; e.preventDefault(); this.inspectSol5Target(); return; }
+          if (action === "confirm_landing") { this.sol5EInteractionConsumed = true; e.preventDefault(); this.requestSol5Landing(); return; }
+        }
+      }
+      const movementCodes = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyQ", "ShiftLeft", "ShiftRight"];
+      if (movementCodes.includes(e.code)) { e.preventDefault(); this.droneKeys.add(e.code); }
+      const views: Record<string, DroneCameraView> = { Digit1: "front", Digit2: "rear", Digit3: "left", Digit4: "right", Digit5: "down" };
+      if (views[e.code] && this.sol5Flight) {
+        e.preventDefault(); this.sol5Flight.cameraView = views[e.code]; this.sol5LookYaw = 0; this.sol5LookPitch = 0;
+      }
+      if (e.code === "Escape" && !e.repeat) { e.preventDefault(); this.abortSol5Flight(); }
+      return;
+    }
+
+    // Legacy later-day drone FPV Input Handling
     if (this.droneModeActive) {
       if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code)) {
         e.preventDefault();
@@ -875,7 +1263,10 @@ export class Game {
   };
 
   private keyUp = (e: KeyboardEvent) => {
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.droneKeys.delete(e.code);
+      if (e.code === "KeyE") this.sol5EInteractionConsumed = false;
+    } else if (this.droneModeActive) {
       this.droneKeys.delete(e.code);
     } else {
       this.player.keys.delete(e.code);
@@ -886,6 +1277,8 @@ export class Game {
     if (document.hidden) {
       this.player.keys.clear();
       this.droneKeys.clear();
+      this.sol5EInteractionConsumed = false;
+      this.audioManager.setIndoorMovement("idle");
     }
   };
 
@@ -944,6 +1337,7 @@ export class Game {
     this.interactive = [];
     this.colliders = [];
     this.terrain = undefined;
+    this.droneFloorHeight = undefined;
 
     const previous = model.getObjectByName("Runtime interaction indicators and lighting");
     if (previous) {
@@ -976,9 +1370,16 @@ export class Game {
       if (/collider/i.test(o.name)) {
         o.visible = false;
       }
+      if (module === "Drone" && o.name === "Drone") {
+        const target = this.makeTarget(o, "Drone");
+        this.interactive.push(target);
+      }
 
       if (o.name === "PHOBOSIA_MarsTerrain_2km") {
         this.terrain = o;
+      }
+      if (module === "Drone" && o.name === "Floor" && (o as THREE.Mesh).isMesh) {
+        this.droneFloorHeight = getSurfaceHeight(o);
       }
     });
 
@@ -994,6 +1395,8 @@ export class Game {
       this.colliders = buildCentralHubColliders(model);
     } else if (module === "Science") {
       this.colliders = buildScienceLabColliders(model);
+    } else if (module === "Drone") {
+      this.colliders = buildDroneSectionColliders(model);
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     } else if (module !== "Terrain") {
@@ -1242,7 +1645,7 @@ export class Game {
       this.active = route.module;
 
       this.updateEnvironment();
-      this.player.setEyeHeight(route.module === "Hub" ? 0.95 : 1.65);
+      this.player.setEyeHeight(route.module === "Hub" ? 0.95 : route.module === "Drone" ? 0.55 : 1.65);
       this.configureModule(model, route.module);
 
       const marker = model.getObjectByName(route.spawn);
@@ -1280,6 +1683,16 @@ export class Game {
       } else if (route.module === "Engineering") {
         const forwardDir = new THREE.Vector3(0.5, 0, 5.0).normalize();
         this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+      } else if (route.module === "Drone") {
+        const drone = model.getObjectByName("Drone");
+        if (drone) {
+          const forwardDir = drone.getWorldPosition(new THREE.Vector3()).sub(this.camera.position);
+          forwardDir.y = 0;
+          if (forwardDir.lengthSq() > 0.001) {
+            forwardDir.normalize();
+            this.player.face(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), forwardDir));
+          }
+        }
       }
 
       this.player.resetVelocity();
@@ -1308,6 +1721,15 @@ export class Game {
 
   private interact(key: "E" | "Q" = "E") {
     if (this.transitioning) return;
+
+    if (key === "E" && this.active === "Drone") {
+      const exitTarget = this.interactive.find(target => target.identifier === "DroneZone_Entrance_Trigger");
+      if (exitTarget && this.camera.position.distanceTo(exitTarget.center) <= exitTarget.range + 0.5) {
+        this.nearby = exitTarget;
+        void this.beginTransition(transitions.Drone.DroneZone_Entrance_Trigger);
+        return;
+      }
+    }
 
     // A. Check outdoor terrain survey triggers if outdoors on Terrain
     if (this.active === "Terrain") {
@@ -1339,6 +1761,37 @@ export class Game {
 
     if (!this.nearby) return;
 
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 1 && key === "E") {
+      const wasComplete = this.missionManager.isStepComplete("D1_DRONE_SECTION");
+      const result = this.missionManager.handleContextEvent({
+        type: "trigger_interacted",
+        module: this.active,
+        identifier: this.nearby.identifier
+      });
+      const completed = this.missionManager.isStepComplete("D1_DRONE_SECTION");
+      this.set({
+        prompt: "",
+        notification: !wasComplete && completed
+          ? "Task Complete: Drone Section"
+          : result.feedback && completed
+            ? "Drone Section inspection already recorded."
+            : "The drone inspection could not be validated."
+      });
+      return;
+    }
+
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 4) {
+      const saved = this.missionManager.recordPhysicalDroneInspection("Physical inspection completed in the Drone Section. Only visible presence was verified; battery, fuel, mechanical, camera, and communications readings are unavailable.");
+      this.set({ prompt: "", notification: saved ? "Physical drone inspection recorded. The drone remains grounded for Sol 5." : "Drone inspection is already recorded." });
+      return;
+    }
+
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 5) {
+      const recorded = this.missionManager.recordSol5OptionalDroneInspection();
+      this.set({ prompt: "", notification: recorded ? "Optional physical drone readiness inspection recorded. It does not block the mission." : "Optional inspection is unavailable." });
+      return;
+    }
+
     // 1. Entrance / Module Transition
     const route = transitions[this.active][this.nearby.identifier];
     if (route) {
@@ -1356,13 +1809,12 @@ export class Game {
       }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
-        const remaining = this.state.missionDay === 1
-          ? DAY1_TASKS.filter(task => task.required && !this.missionManager.isStepComplete(task.taskId))
-          : [];
-        const missingTasks = remaining.map(task => ({
-          title: task.title,
-          zone: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.friendlyName ?? ""
-        }));
+        const remaining = this.missionManager.getRemainingSteps();
+        const missingTasks = remaining.map(task => {
+          const dayOneTask = DAY1_TASKS.find(item => item.taskId === task.stepId);
+          const inferredZone = task.targetTrigger?.startsWith("HAB_") ? "Habitat" : task.targetTrigger?.startsWith("Engineering_") ? "Engineering Unit" : task.targetTrigger?.startsWith("MC_") ? "Mission Control" : task.targetTrigger?.startsWith("LAB_") ? "Research Lab" : "";
+          return { title: task.label, zone: task.targetModule ?? (inferredZone || (dayOneTask ? DAY1_ZONES.find(zone => zone.zoneId === dayOneTask.zoneId)?.friendlyName ?? "" : "")) };
+        });
         this.set({
           restFeedback: {
             type: "blocked",
@@ -1374,14 +1826,19 @@ export class Game {
           prompt: ""
         });
       } else {
-        const adv = this.missionManager.advanceDay();
-        if (adv.success) {
-          this.set({
-            restFeedback: { type: "success", message: adv.message },
-            prompt: "",
-            showBriefingModal: true
-          });
-        }
+        this.missionManager.saveState();
+        this.set({ restTransition: "out", restFeedback: { type: "success", message: "Rest cycle in progress…" }, prompt: "" });
+        window.setTimeout(() => {
+          if (this.disposed) return;
+          const adv = this.missionManager.advanceDay();
+          if (adv.success) {
+            this.set({ restTransition: "in", restFeedback: { type: "success", message: adv.message }, showBriefingModal: true });
+            window.setTimeout(() => { if (!this.disposed) this.set({ restTransition: null }); }, 950);
+          } else {
+            this.set({ restTransition: "in", restFeedback: { type: "blocked", message: adv.message } });
+            window.setTimeout(() => { if (!this.disposed) this.set({ restTransition: null }); }, 950);
+          }
+        }, 1100);
       }
       return;
     }
@@ -1390,6 +1847,7 @@ export class Game {
     if (this.state.missionDay === 1) {
       const group = TRIGGER_TO_GROUP_MAP[this.nearby.identifier];
       if (group) {
+        const triggerId = this.nearby.identifier;
         if (group.taskId) this.missionManager.completeStep(group.taskId);
         let targetMesh: THREE.Object3D | null = null;
         if (this.current) {
@@ -1414,6 +1872,9 @@ export class Game {
           },
           () => {
             this.set({ cameraPresentation: null });
+            if (!this.disposed && screenActions[triggerId]) {
+              this.openScreenOS(`trigger:${triggerId}`);
+            }
           }
         );
 
@@ -1435,16 +1896,6 @@ export class Game {
 
     // 3. Mission Control Day 5 Route Planning & Day 6 Target Review & Day 9 Drone Console
     if (this.active === "MissionControl") {
-      if (this.state.missionDay === 5 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
-        document.exitPointerLock();
-        this.missionManager.completeStep("DAY5_REVIEW_MASTER_TERRAIN");
-        this.set({
-          showRoutePlanning: true,
-          prompt: ""
-        });
-        return;
-      }
-
       if (this.state.missionDay === 6 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
         document.exitPointerLock();
         this.missionManager.completeStep("D6_OBJ_01_REVIEW_TARGET");
@@ -1473,8 +1924,10 @@ export class Game {
       }
     }
 
-    // 4. Research Lab Day 8 Analysis Interaction
+    // 4. Sol 8 Research Lab analysis sequence. Sol 3 uses the same physical
+    // analysis trigger for its dataset investigation through TriggerOperatingSystem.
     if (
+      this.state.missionDay === 8 &&
       this.active === "Science" &&
       (this.nearby.identifier === "LAB_RESEARCH_ANALYSIS_01" || this.nearby.identifier === "LAB_RESEARCH_MONITORING_01")
     ) {
@@ -1512,25 +1965,7 @@ export class Game {
       document.exitPointerLock();
 
       const id = this.nearby.identifier;
-      let targetApp = "overview";
-      const sol2InvestigationApps: Record<string, string> = {
-        HAB_MONITOR_01: "SOL02_HABITAT_STATUS", HAB_WATER_NUTRITION_01: "SOL02_WATER_NUTRITION",
-        Engineering_Monitoring_Trigger: "SOL02_ENGINEERING_MONITORING", Engineering_PowerUnit_Trigger: "SOL02_POWER_REVIEW",
-        Engineering_LifeSupport_Trigger: "SOL02_ENGINEERING_LIFESUPPORT", Engineering_Diagnostics_Trigger: "SOL02_DIAGNOSTICS"
-      };
-      const sol3InvestigationApps: Record<string, string> = {
-        MC_MAIN_01: "SOL03_MISSION_CONTEXT", MC_NAVIGATION_01: "SOL03_OBSERVATION_SITE_REVIEW",
-        MC_SYSTEMS_01: "SOL03_SYSTEM_CONSTRAINTS", LAB_RESEARCH_ANALYSIS_01: "SOL03_SELECT_DATASET"
-      };
-      if (this.state.missionDay === 2 && sol2InvestigationApps[id]) targetApp = `investigation:${sol2InvestigationApps[id]}`;
-      if (this.state.missionDay === 3 && sol3InvestigationApps[id]) targetApp = `investigation:${sol3InvestigationApps[id]}`;
-      if (/Habitat/i.test(id)) targetApp = "habitat";
-      else if (/Power|LifeSupportUnit|Monitoring|Diagnostics/i.test(id)) targetApp = "engineering";
-      else if (/Science|Research|Lab|Seed|Water/i.test(id)) targetApp = "science";
-      else if (/Navigation|TerrainMap|Sites/i.test(id)) targetApp = "navigation";
-      else if (/Drone/i.test(id)) targetApp = "drone";
-      else if (/Comms|Communications/i.test(id)) targetApp = "comms";
-      else if (/Timeline|Log|Objectives/i.test(id)) targetApp = "timeline";
+      const targetApp = `trigger:${id}`;
 
       this.astronautPreTerminalState = {
         position: this.camera.position.clone(),
@@ -1611,6 +2046,43 @@ export class Game {
       }
     }
 
+    // The three Airlock portal meshes are authored close together. Resolve an
+    // aimed-at portal before falling back to nearest-center proximity so the
+    // Drone Section entrance remains selectable beside the Hub/Terrain exits.
+    if (this.active === "Airlock") {
+      const routeTargets = this.interactive.filter(target =>
+        Boolean(transitions.Airlock[target.identifier]) && at.distanceTo(target.center) <= target.range
+      );
+      if (routeTargets.length > 1) {
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+        const intersections = raycaster.intersectObjects(routeTargets.map(target => target.object), true);
+        for (const hit of intersections) {
+          const aimedTarget = routeTargets.find(target => {
+            let object: THREE.Object3D | null = hit.object;
+            while (object) {
+              if (object === target.object) return true;
+              object = object.parent;
+            }
+            return false;
+          });
+          if (aimedTarget) {
+            best = aimedTarget;
+            break;
+          }
+        }
+      }
+    }
+
+    // Prefer the authored return portal when the player is standing on it,
+    // even if the Drone interaction is also within proximity range.
+    if (this.active === "Drone") {
+      const exitTarget = this.interactive.find(target => target.identifier === "DroneZone_Entrance_Trigger");
+      if (exitTarget && at.distanceTo(exitTarget.center) <= exitTarget.range + 0.5) {
+        best = exitTarget;
+      }
+    }
+
     this.nearby = best;
     if (!best) {
       // Don't clear prompt if on terrain and inside survey zone
@@ -1626,9 +2098,11 @@ export class Game {
       this.set({ prompt: `[${key}] TRAVEL TO ${labels[route.module].toUpperCase()}` });
     } else if (best.identifier === "HAB_REST_01") {
       this.set({ prompt: `[E] REST · CREW REST AREA` });
+    } else if (this.active === "Drone" && best.identifier === "Drone") {
+      this.set({ prompt: "[E] INSPECT · EXISTING DRONE" });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
       if (this.state.missionDay === 5) {
-        this.set({ prompt: "Press E to Access Terrain Survey Planning" });
+        this.set({ prompt: "[E] ACCESS · SOL 5 DRONE OPERATIONS" });
       } else if (this.state.missionDay === 6) {
         this.set({ prompt: "Press E to Review Geological Survey Target" });
       } else if (this.state.missionDay === 9) {
@@ -1670,6 +2144,9 @@ export class Game {
     );
 
   private groundHeight = (position: THREE.Vector3) => {
+    if (this.active === "Drone" && this.droneFloorHeight !== undefined) {
+      return this.droneFloorHeight;
+    }
     if (!this.terrain) return 0;
     this.raycaster.set(new THREE.Vector3(position.x, 1000, position.z), this.down);
     const hit = this.raycaster.intersectObject(this.terrain, true)[0];
@@ -1747,8 +2224,12 @@ export class Game {
       }
     }
 
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.updateSol5Drone(dt);
+      this.audioManager.setIndoorMovement("idle");
+    } else if (this.droneModeActive) {
       this.updateDrone(dt);
+      this.audioManager.setIndoorMovement("idle");
     } else {
       const isModalOpen =
         document.hidden ||
@@ -1769,10 +2250,23 @@ export class Game {
         this.player.update(dt, this.canOccupy, this.groundHeight);
         this.findNearby();
         this.checkTerrainMissionZones();
+        this.audioManager.setIndoorMovement(resolveIndoorMovementAudioState({
+          indoor: this.active !== "Terrain",
+          playerControlled: !this.droneModeActive && !this.sol5DroneActive && !this.cinematicGliding,
+          grounded: this.player.grounded,
+          horizontalSpeed: Math.hypot(this.player.velocity.x, this.player.velocity.z),
+          running: this.player.keys.has("ShiftLeft") || this.player.keys.has("ShiftRight")
+        }));
+      } else {
+        this.audioManager.setIndoorMovement("idle");
       }
     }
+    this.audioManager.update(dt);
 
-    this.renderer.render(this.scene, this.camera);
+    const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
+      ? this.sol5CameraRig[this.sol5Flight.cameraView]
+      : this.camera;
+    this.renderer.render(this.scene, renderCamera);
 
     if (++this.frame % 30 === 0) {
       this.set({ fps: Math.round(1 / Math.max(dt, 0.001)) });
@@ -1780,13 +2274,22 @@ export class Game {
   };
 
   dispose() {
+    if (this.sol5DroneActive) this.missionManager.abortSol5SimulationAttempt(false);
+    this.sol5DroneActive = false;
     this.disposed = true;
+    this.audioManager.dispose();
+    this.renderer.domElement.removeEventListener("pointerdown", this.unlockAudio);
+    this.detachSol5Camera();
+    this.cleanupSol5Guidance();
     this.observer.disconnect();
     document.removeEventListener("pointerlockchange", this.pointer);
     document.removeEventListener("mousemove", this.mouse);
     window.removeEventListener("keydown", this.keyDown);
     window.removeEventListener("keyup", this.keyUp);
     document.removeEventListener("visibilitychange", this.visibility);
+    window.removeEventListener("pagehide", this.pageExit);
+    window.removeEventListener("beforeunload", this.pageExit);
+    window.removeEventListener("pageshow", this.pageRestore);
 
     if (document.pointerLockElement === this.renderer.domElement) {
       document.exitPointerLock();
