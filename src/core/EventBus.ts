@@ -26,7 +26,7 @@ export interface Sol5DroneTelemetryData {
   distanceFromTakeoffM: number; distanceToTargetM: number; headingDegrees: number;
   targetBearingDegrees: number;
   elapsedSeconds: number; cameraView: string; warning: string | null;
-  boundaryStatus: "INSIDE" | "BOUNDARY"; imageCount: number; status: string;
+  boundaryStatus: "INSIDE" | "BOUNDARY"; evidenceCount: number; status: string;
 }
 
 export interface GameState {

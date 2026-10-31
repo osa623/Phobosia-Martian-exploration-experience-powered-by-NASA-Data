@@ -75,9 +75,9 @@ const TASK_VIEW_NAMES: Record<string, string> = {
   D1_DRONE_SECTION: "Physical inspection of the existing drone",
   SOL05_PREFLIGHT_BRIEFING: "Sol 5 preflight briefing and target validation",
   SOL05_ACTIVATE_SIMULATION: "Drone simulation activation",
-  SOL05_AERIAL_RECONNAISSANCE: "Live camera image capture and target approach survey",
+  SOL05_AERIAL_RECONNAISSANCE: "Manual flight to and inspection of the selected target",
   SOL05_SAFE_LANDING: "Validated takeoff-point landing",
-  SOL05_REVIEW_IMAGES: "Saved image previews and flight metadata",
+  SOL05_REVIEW_IMAGES: "Review target-linked mission-provided imagery",
   SOL05_SUBMIT_REPORT: "Aerial reconnaissance report"
 };
 
@@ -209,10 +209,9 @@ export interface DroneSurveyRecord {
 }
 
 export interface Sol5ImageRecord {
-  id: string; sequence: number; targetId: string; imageDataUrl: string;
-  position: { x: number; y: number; z: number }; altitudeAglM: number;
-  headingDegrees: number; elapsedSeconds: number; cameraView: string; capturedAt: string;
+  id: string; sequence: number; targetId: string; assetPath: string; fileName: string;
 }
+export type Sol5AttemptStatus = "not_started" | "active" | "aborted" | "completed";
 export interface Sol5FlightSnapshot {
   targetId: string; status: "ready" | "flying" | "landed" | "aborted";
   takeoff: { x: number; y: number; z: number }; position: { x: number; y: number; z: number };
@@ -226,11 +225,15 @@ export interface Sol5ReconnaissanceReport {
 }
 export interface Sol5MissionProgress {
   briefingConfirmed: boolean; simulationActivated: boolean; optionalDroneInspection: boolean;
+  attemptStatus: Sol5AttemptStatus; targetReached: boolean;
+  targetInspected: boolean; evidenceLoaded: boolean;
   flight: Sol5FlightSnapshot | null; images: Sol5ImageRecord[]; imagesReviewed: boolean;
   report: Sol5ReconnaissanceReport | null;
 }
 const createInitialSol5Progress = (): Sol5MissionProgress => ({
   briefingConfirmed: false, simulationActivated: false, optionalDroneInspection: false,
+  attemptStatus: "not_started", targetReached: false,
+  targetInspected: false, evidenceLoaded: false,
   flight: null, images: [], imagesReviewed: false, report: null
 });
 
@@ -273,6 +276,11 @@ export interface InvestigationRecord {
 }
 
 const STORAGE_KEY = "phobosia_mission_progress_v4";
+const SOL5_EVIDENCE_ROOTS: Record<string, string> = {
+  TARGET_ALPHA_CRATER_RIM: "/assets/images/Selected_Missions/target_01/",
+  TARGET_BETA_DUNE_BASIN: "/assets/images/Selected_Missions/target_02/",
+  TARGET_GAMMA_SOUTH_ESCARPMENT: "/assets/images/Selected_Missions/target_03/"
+};
 const V3_STORAGE_KEY = "phobosia_mission_progress_v3";
 const PREV_STORAGE_KEY = "phobosia_mission_progress_v2";
 
@@ -379,9 +387,9 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     day: 5,
     id: "DAY_05_DRONE_AERIAL_RECONNAISSANCE",
     title: "Drone-Based Aerial Reconnaissance",
-    storyContext: "Use the target submitted during Sol 3 and prepared during Sol 4 to document the approach from the air.",
-    briefing: "At Mission Control, confirm the preflight briefing for the official Sol 3 target. Activate the existing drone, capture at least five real camera images, return to Drone_TakeoffPoint for a validated landing, review the saved records, and submit the reconnaissance report.",
-    primaryObjective: "Fly the existing drone to document the selected target approach, capture at least five images, land safely, and submit a target-linked reconnaissance report.",
+    storyContext: "Manually fly the existing drone from Drone_TakeoffPoint to inspect the target submitted during Sol 3, review its prepared evidence, and return safely.",
+    briefing: "At Mission Control, confirm the target-specific briefing and controls. Fly from Drone_TakeoffPoint to the official target using the visual guide, press E in the valid inspection area to load mission-provided evidence, then return and confirm a safe landing with E. Review the evidence and submit the report.",
+    primaryObjective: "Manually inspect the official target, review its prepared evidence, return to Drone_TakeoffPoint, and complete a validated landing and report.",
     steps: SOL5_TASKS.map(task => ({ ...task, completed: false })),
     allowedModules: ["MissionControl", "Hub", "Habitat", "Terrain", "Drone"],
     completionFeedback: "Sol 5 reconnaissance report submitted. Return to Habitat Rest Area to begin the next mission day."
@@ -476,6 +484,7 @@ export class MissionManager {
 
   constructor() {
     this.state = this.loadState();
+    if (this.state.sol5.attemptStatus === "aborted") this.saveState();
   }
 
   private loadState(): MissionProgressState {
@@ -489,10 +498,45 @@ export class MissionManager {
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
       if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 9) {
+            const rawSol5 = parsed.sol5 && typeof parsed.sol5 === "object"
+              ? { ...createInitialSol5Progress(), ...(parsed.sol5 as Partial<Sol5MissionProgress>) }
+              : createInitialSol5Progress();
+            const landedSuccessfully = Boolean(rawSol5.flight?.landed && rawSol5.flight.status === "landed");
+            const rawAttemptStatus = (parsed.sol5 as Partial<Sol5MissionProgress> | undefined)?.attemptStatus;
+            const interruptedAttempt = parsed.currentDay === 5 && !landedSuccessfully && (
+              rawAttemptStatus === "active" || rawAttemptStatus === "aborted" || rawAttemptStatus === "completed" ||
+              (rawAttemptStatus === undefined && rawSol5.simulationActivated)
+            );
+            const evidence = Array.isArray(rawSol5.images) ? rawSol5.images.filter((image): image is Sol5ImageRecord =>
+              Boolean(image && typeof image.assetPath === "string" && image.assetPath.startsWith("/assets/images/Selected_Missions/") && typeof image.targetId === "string" && typeof image.fileName === "string")
+            ) : [];
+            const persistedTargetId = this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []);
+            const validEvidenceState = Boolean(rawSol5.targetInspected && rawSol5.evidenceLoaded && persistedTargetId && SOL5_EVIDENCE_ROOTS[persistedTargetId] && evidence.length && evidence.every(image => image.targetId === persistedTargetId && image.assetPath.startsWith(SOL5_EVIDENCE_ROOTS[persistedTargetId])));
+            const resumableFlightOnly = Boolean(rawAttemptStatus === undefined && !rawSol5.targetInspected && Array.isArray(rawSol5.images) && rawSol5.images.length === 0 && rawSol5.flight && !rawSol5.flight.landed && rawSol5.flight.targetId === persistedTargetId);
+            const sol5 = interruptedAttempt
+              ? {
+                  ...rawSol5, simulationActivated: false, attemptStatus: "aborted" as const, targetReached: false,
+                  targetInspected: false, evidenceLoaded: false, flight: null, images: [], imagesReviewed: false, report: null
+                }
+              : validEvidenceState
+              ? { ...rawSol5, attemptStatus: landedSuccessfully ? "completed" as const : (rawAttemptStatus ?? "not_started") as Sol5AttemptStatus, images: evidence, imagesReviewed: Boolean(rawSol5.imagesReviewed && rawSol5.flight?.landed) }
+              : resumableFlightOnly
+                ? { ...rawSol5, attemptStatus: "aborted" as const, simulationActivated: false, targetReached: false, targetInspected: false, evidenceLoaded: false, flight: null, images: [], imagesReviewed: false, report: null }
+                : createInitialSol5Progress();
+            const oldSol5StepIds = new Set(SOL5_TASKS.map(step => step.stepId));
+            const retryableSol5StepIds = new Set([
+              "SOL05_ACTIVATE_SIMULATION", "SOL05_AERIAL_RECONNAISSANCE", "SOL05_SAFE_LANDING",
+              "SOL05_REVIEW_IMAGES", "SOL05_SUBMIT_REPORT"
+            ]);
+            const completedStepIds = Array.isArray(parsed.completedStepIds)
+              ? parsed.completedStepIds.filter(id => !interruptedAttempt && !resumableFlightOnly
+                ? validEvidenceState || !oldSol5StepIds.has(id)
+                : !retryableSol5StepIds.has(id))
+              : [];
             return {
               currentDay: parsed.currentDay as MissionDayNumber,
               objectiveState: parsed.objectiveState ?? "not_started",
-              completedStepIds: Array.isArray(parsed.completedStepIds) ? parsed.completedStepIds : [],
+              completedStepIds,
               completedIntroductionIds: Array.isArray(parsed.completedIntroductionIds) ? parsed.completedIntroductionIds : [],
               observationRecords: Array.isArray(parsed.observationRecords) ? parsed.observationRecords : [],
               selectedRouteTarget: parsed.selectedRouteTarget ?? null,
@@ -505,11 +549,7 @@ export class MissionManager {
               droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null,
               investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : [],
               selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []),
-              sol5: {
-                ...createInitialSol5Progress(),
-                ...(parsed.sol5 && typeof parsed.sol5 === "object" ? parsed.sol5 as Sol5MissionProgress : {}),
-                images: parsed.sol5 && Array.isArray((parsed.sol5 as Sol5MissionProgress).images) ? (parsed.sol5 as Sol5MissionProgress).images : []
-              }
+              sol5
             };
           }
         }
@@ -653,10 +693,49 @@ export class MissionManager {
     const targetId = this.getSelectedSiteId();
     const prep = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
     if (this.state.currentDay !== 5 || !this.state.sol5.briefingConfirmed) return { success: false, message: "Complete the Sol 5 preflight briefing first." };
+    if (!this.isStepComplete("SOL05_PREFLIGHT_BRIEFING")) return { success: false, message: "Complete the Sol 5 preflight briefing task before activation." };
     if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`)) return { success: false, message: "Official target or matching Sol 4 preparation record is unresolved." };
+    if (this.state.sol5.attemptStatus === "completed" || this.state.sol5.flight?.landed) return { success: false, message: "The Sol 5 drone attempt has already landed successfully." };
     this.state.sol5.simulationActivated = true;
+    this.state.sol5.attemptStatus = "active";
+    this.state.sol5.targetReached = false;
+    this.state.sol5.targetInspected = false;
+    this.state.sol5.evidenceLoaded = false;
+    this.state.sol5.flight = null;
+    this.state.sol5.images = [];
+    this.state.sol5.imagesReviewed = false;
+    this.state.sol5.report = null;
     this.completeStep("SOL05_ACTIVATE_SIMULATION");
     return { success: true, message: `Drone simulation authorized for ${targetId}.` };
+  }
+
+  public markSol5TargetReached(targetId: string): boolean {
+    if (this.state.currentDay !== 5 || this.state.sol5.attemptStatus !== "active" || !this.state.sol5.simulationActivated || targetId !== this.getSelectedSiteId() || this.state.sol5.targetReached) return false;
+    this.state.sol5.targetReached = true;
+    this.emit();
+    return true;
+  }
+
+  public abortSol5SimulationAttempt(emitUpdate = true): boolean {
+    const sol5 = this.state.sol5;
+    if (this.state.currentDay !== 5 || sol5.attemptStatus !== "active" || (sol5.flight?.landed && sol5.flight.status === "landed")) return false;
+    const targetId = this.getSelectedSiteId();
+    sol5.simulationActivated = false;
+    sol5.attemptStatus = "aborted";
+    sol5.targetReached = false;
+    sol5.targetInspected = false;
+    sol5.evidenceLoaded = false;
+    sol5.flight = null;
+    sol5.images = [];
+    sol5.imagesReviewed = false;
+    sol5.report = null;
+    const retryable = new Set(["SOL05_ACTIVATE_SIMULATION", "SOL05_AERIAL_RECONNAISSANCE", "SOL05_SAFE_LANDING", "SOL05_REVIEW_IMAGES", "SOL05_SUBMIT_REPORT"]);
+    this.state.completedStepIds = this.state.completedStepIds.filter(id => !retryable.has(id));
+    this.state.observationRecords = this.state.observationRecords.filter(record => !(record.day === 5 && record.type === "drone_survey" && record.sourceIdentifier === targetId));
+    this.state.notification = "Drone attempt aborted. Return to Mission Control to start again from the launch pad.";
+    if (emitUpdate) this.emit();
+    else this.saveState();
+    return true;
   }
 
   public recordSol5OptionalDroneInspection(): boolean {
@@ -674,46 +753,55 @@ export class MissionManager {
     return true;
   }
 
-  public saveSol5Image(image: Sol5ImageRecord): { success: boolean; message: string } {
-    const targetId = this.getSelectedSiteId();
-    if (this.state.currentDay !== 5 || !this.state.sol5.simulationActivated || this.state.sol5.flight?.landed) return { success: false, message: "Aerial image capture is unavailable in the current mission state." };
-    if (!targetId || image.targetId !== targetId) return { success: false, message: "Image target does not match the official Sol 3 selection." };
-    if (!image.imageDataUrl.startsWith("data:image/jpeg;base64,") || image.imageDataUrl.length < 500) return { success: false, message: "Camera capture was empty or invalid; no image record was saved." };
-    if (this.state.sol5.images.length >= 20) return { success: false, message: "Capture storage limit reached; return and preserve the existing records." };
-    const saved = { ...image, sequence: this.state.sol5.images.length + 1 };
-    this.state.sol5.images.push(saved);
+  public completeSol5TargetInspection(requestedTargetId: string, assets: readonly { id: string; targetId: string; fileName: string; assetPath: string }[]): { success: boolean; message: string } {
+    const officialTargetId = this.getSelectedSiteId();
+    if (this.state.currentDay !== 5 || this.state.sol5.attemptStatus !== "active" || !this.state.sol5.simulationActivated || !this.state.sol5.targetReached || this.state.sol5.flight?.landed) return { success: false, message: "Reach the official target during the active drone attempt before inspecting it." };
+    if (!officialTargetId || requestedTargetId !== officialTargetId) return { success: false, message: "Inspection target does not match the official Sol 3 selection." };
+    if (this.state.sol5.targetInspected) return { success: false, message: "The official target has already been inspected." };
+    const expectedEvidenceRoot = SOL5_EVIDENCE_ROOTS[officialTargetId];
+    if (!assets.length || !expectedEvidenceRoot || assets.some(asset => asset.targetId !== officialTargetId || !asset.assetPath.startsWith(expectedEvidenceRoot) || !asset.fileName)) {
+      return { success: false, message: "No valid mission-provided evidence is available for the official target; no other target's evidence was substituted." };
+    }
+    this.state.sol5.targetInspected = true;
+    this.state.sol5.evidenceLoaded = true;
+    this.state.sol5.images = assets.map((asset, index) => ({ ...asset, sequence: index + 1 }));
+    this.completeStep("SOL05_AERIAL_RECONNAISSANCE", {
+      type: "drone_survey", sourceIdentifier: officialTargetId,
+      summary: `Manual drone inspection completed for ${officialTargetId}; target-specific mission evidence loaded.`,
+      details: { targetId: officialTargetId, evidenceIds: this.state.sol5.images.map(asset => asset.id).join(","), evidenceCount: this.state.sol5.images.length }
+    });
     this.emit();
-    return { success: true, message: `Aerial image ${saved.sequence} saved for ${targetId}.` };
+    return { success: true, message: `Inspection validated for ${officialTargetId}. Mission-provided evidence is ready for review at Mission Control after landing.` };
   }
 
   public completeSol5Landing(snapshot: Sol5FlightSnapshot): { success: boolean; message: string } {
     const targetId = this.getSelectedSiteId();
     const landingOffset = Math.hypot(snapshot.position.x - snapshot.takeoff.x, snapshot.position.z - snapshot.takeoff.z);
     const landingHeightOffset = Math.abs(snapshot.position.y - snapshot.takeoff.y);
-    if (this.state.currentDay !== 5 || !targetId || snapshot.targetId !== targetId || this.state.sol5.images.length < 5 ||
+    if (this.state.currentDay !== 5 || this.state.sol5.attemptStatus !== "active" || !targetId || snapshot.targetId !== targetId || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded || !this.state.sol5.images.length ||
       !snapshot.landed || snapshot.status !== "landed" || snapshot.speedMps > 0.4 || landingOffset > 1.25 || landingHeightOffset > 1.25) {
-      return { success: false, message: "Landing cannot complete: the official target, valid landing, or five-image requirement is missing." };
+      return { success: false, message: "Landing cannot complete: inspect the official target and load its evidence before a valid landing." };
     }
     this.state.sol5.flight = { ...snapshot, status: "landed", landed: true, takeoff: { ...snapshot.takeoff }, position: { ...snapshot.position } };
-    this.completeStep("SOL05_AERIAL_RECONNAISSANCE");
+    this.state.sol5.attemptStatus = "completed";
     this.completeStep("SOL05_SAFE_LANDING");
     return { success: true, message: "Landing validated and flight records saved." };
   }
 
   public confirmSol5ImageReview(): { success: boolean; message: string } {
-    if (this.state.currentDay !== 5 || !this.state.sol5.flight?.landed || this.state.sol5.images.length < 5 || this.state.sol5.images.some(image => image.targetId !== this.getSelectedSiteId())) {
-      return { success: false, message: "Review is blocked until a valid landing and five target-matched images are saved." };
+    if (this.state.currentDay !== 5 || !this.state.sol5.flight?.landed || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded || !this.state.sol5.images.length || this.state.sol5.images.some(image => image.targetId !== this.getSelectedSiteId())) {
+      return { success: false, message: "Review is blocked until the official target is inspected, its matching evidence is loaded, and the drone is safely landed." };
     }
     this.state.sol5.imagesReviewed = true;
     this.completeStep("SOL05_REVIEW_IMAGES");
-    return { success: true, message: "All saved aerial images are linked to the official target and ready for reporting." };
+    return { success: true, message: "Mission-provided images for the official target have been reviewed and are ready for reporting." };
   }
 
   public submitSol5Report(input: { observedFeatures: string; playerInterpretation: string; uncertainties: string; groundFollowUp: string }): { success: boolean; message: string } {
     const targetId = this.getSelectedSiteId();
     const flight = this.state.sol5.flight;
-    if (this.state.currentDay !== 5 || !targetId || !flight?.landed || !this.state.sol5.imagesReviewed || this.state.sol5.images.length < 5) {
-      return { success: false, message: "Complete the flight, landing, five-image review, and target validation before reporting." };
+    if (this.state.currentDay !== 5 || !targetId || !flight?.landed || !this.state.sol5.targetInspected || !this.state.sol5.imagesReviewed || !this.state.sol5.images.length) {
+      return { success: false, message: "Complete target inspection, valid landing, evidence review, and target validation before reporting." };
     }
     if ([input.observedFeatures, input.playerInterpretation, input.uncertainties, input.groundFollowUp].some(value => value.trim().length < 8)) {
       return { success: false, message: "Describe image observations, interpretation, uncertainty, and ground follow-up (at least eight characters each)." };
@@ -725,8 +813,8 @@ export class MissionManager {
     };
     this.completeStep("SOL05_SUBMIT_REPORT", {
       type: "drone_survey", sourceIdentifier: targetId,
-      summary: `Sol 5 aerial reconnaissance report submitted for ${targetId}; ${this.state.sol5.images.length} images saved.`,
-      details: { targetId, flightSeconds: flight.elapsedSeconds, distanceMeters: flight.totalDistanceM, maximumAglMeters: flight.maxAltitudeAglM, imageCount: this.state.sol5.images.length, reportId: this.state.sol5.report.id }
+      summary: `Sol 5 manual reconnaissance report submitted for ${targetId}; ${this.state.sol5.images.length} mission-provided evidence images reviewed.`,
+      details: { targetId, flightSeconds: flight.elapsedSeconds, distanceMeters: flight.totalDistanceM, maximumAglMeters: flight.maxAltitudeAglM, evidenceCount: this.state.sol5.images.length, reportId: this.state.sol5.report.id }
     });
     return { success: true, message: "Sol 5 reconnaissance report validated and saved." };
   }
@@ -957,6 +1045,18 @@ export class MissionManager {
     }
 
     if (!stepDef) return false;
+
+    if (this.state.currentDay === 5 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
+      return false;
+    }
+    if (this.state.currentDay === 5) {
+      if (stepId === "SOL05_PREFLIGHT_BRIEFING" && !this.state.sol5.briefingConfirmed) return false;
+      if (stepId === "SOL05_ACTIVATE_SIMULATION" && (!this.state.sol5.simulationActivated || this.state.sol5.attemptStatus !== "active")) return false;
+      if (stepId === "SOL05_AERIAL_RECONNAISSANCE" && (!this.state.sol5.targetReached || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded)) return false;
+      if (stepId === "SOL05_SAFE_LANDING" && (this.state.sol5.attemptStatus !== "completed" || !this.state.sol5.flight?.landed)) return false;
+      if (stepId === "SOL05_REVIEW_IMAGES" && !this.state.sol5.imagesReviewed) return false;
+      if (stepId === "SOL05_SUBMIT_REPORT" && !this.state.sol5.report) return false;
+    }
 
     if (!this.state.completedStepIds.includes(stepId)) {
       this.state.completedStepIds.push(stepId);
@@ -1317,8 +1417,8 @@ export class MissionManager {
     if (this.state.currentDay === 5) {
       const targetId = this.getSelectedSiteId();
       const prep = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
-      if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`) || !this.state.sol5.report || this.state.sol5.report.targetId !== targetId) {
-        return { canAdvance: false, reason: "Sol 5 requires the valid Sol 3 target, matching Sol 4 preparation report, five reviewed images, validated landing, and a target-linked report." };
+      if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`) || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded || !this.state.sol5.imagesReviewed || !this.state.sol5.flight?.landed || !this.state.sol5.report || this.state.sol5.report.targetId !== targetId) {
+        return { canAdvance: false, reason: "Sol 5 requires the valid Sol 3 target, matching Sol 4 preparation report, target inspection, target-specific evidence review, validated landing, and a target-linked report." };
       }
     }
 

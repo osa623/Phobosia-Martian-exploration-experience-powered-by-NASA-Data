@@ -4,7 +4,7 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
-import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { buildCentralHubColliders, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
@@ -17,8 +17,8 @@ import {
   type ScienceAnalysisRecord,
   type DroneSurveyRecord
 } from "./MissionManager";
-import { canLand, createDroneCameraRig, createDroneFlightState, detachDroneCameraRig, droneControlsFromKeys, orientDroneCameraRig, stepDroneFlight, type DroneCameraRig, type DroneFlightState, type DroneCameraView } from "../missions/sol-05/droneSimulation";
-import { resolveSol5Target, SOL5_SCENE_TARGETS } from "../missions/sol-05/targetMapping";
+import { canLand, createDroneCameraRig, createDroneFlightState, createSol5Guidance, createSol5TargetBeacon, disposeSol5Guidance, disposeSol5TargetBeacon, detachDroneCameraRig, droneControlsFromKeys, getSol5TakeoffPosition, orientDroneCameraRig, resolveSol5EAction, setSol5TargetBeaconVisible, stepDroneFlight, updateSol5Guidance, updateSol5TargetBeacon, SOL5_LIMITS, type DroneCameraRig, type DroneFlightState, type DroneCameraView, type Sol5GuidanceRig, type Sol5TargetBeacon } from "../missions/sol-05/droneSimulation";
+import { resolveSol5Target, SOL5_EVIDENCE_ASSETS, SOL5_SCENE_TARGETS } from "../missions/sol-05/targetMapping";
 import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
@@ -27,6 +27,7 @@ import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 import { CameraPresentationManager } from "./CameraPresentation";
+import { GameAudioManager, resolveIndoorMovementAudioState } from "./GameAudioManager";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -85,6 +86,7 @@ export class Game {
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(70, 1, 0.05, 2500);
   private player = new Player(this.camera);
+  private audioManager: GameAudioManager;
   private clock = new THREE.Clock();
   private current?: THREE.Group;
   private loaded = new Map<ModuleName, THREE.Group>();
@@ -150,11 +152,18 @@ export class Game {
   private sol5DroneActive = false;
   private sol5Flight?: DroneFlightState;
   private sol5DroneAnchor?: THREE.Object3D;
+  private sol5TargetNode?: THREE.Object3D;
+  private sol5TakeoffNode?: THREE.Object3D;
   private sol5CameraRig?: DroneCameraRig;
+  private sol5Guidance?: Sol5GuidanceRig;
+  private sol5TargetBeacon?: Sol5TargetBeacon;
+  private sol5BuildingColliders: THREE.Box3[] = [];
   private sol5BodyYaw = 0;
   private sol5LookYaw = 0;
   private sol5LookPitch = 0;
+  private sol5EInteractionConsumed = false;
   private sol5LastSnapshotAt = 0;
+  private sol5AwaitingReturn = false;
 
   constructor(private host: HTMLDivElement, private emit: SetState) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -228,6 +237,8 @@ export class Game {
     };
 
     this.cameraPresentationManager = new CameraPresentationManager(this.camera);
+    this.audioManager = new GameAudioManager();
+    this.renderer.domElement.addEventListener("pointerdown", this.unlockAudio);
 
     this.observer = new ResizeObserver(this.resize);
     this.observer.observe(host);
@@ -332,6 +343,10 @@ export class Game {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const mod = params.get("module") as ModuleName | null;
+      if (!mod && this.state.missionDay === 5 && this.missionManager.getSol5Progress().attemptStatus === "aborted") {
+        initialModule = "MissionControl";
+        initialSpawn = "MissionControl_Entrance_Trigger";
+      }
       if (mod) {
         hideBriefing = true;
         if (mod === "Hub") {
@@ -641,23 +656,27 @@ export class Game {
       return;
     }
     const terrainSurface = terrainModel.getObjectByName("PHOBOSIA_MarsTerrain_2km");
-    const takeoff = takeoffRef.getWorldPosition(new THREE.Vector3());
+    const takeoff = getSol5TakeoffPosition(takeoffRef);
+    const evidenceAssets = SOL5_EVIDENCE_ASSETS[targetId];
     if (!terrainSurface) { this.set({ sol5Message: "Simulation unavailable: master terrain mesh is missing." }); return; }
+    if (!evidenceAssets?.length || evidenceAssets.some(asset => asset.targetId !== targetId)) {
+      this.set({ sol5Message: "Simulation unavailable: verified mission-provided evidence for the official target is missing." }); return;
+    }
+    try {
+      const responses = await Promise.all(evidenceAssets.map(asset => fetch(asset.assetPath, { method: "HEAD" })));
+      if (this.disposed) return;
+      if (responses.some(response => !response.ok || !response.headers.get("content-type")?.startsWith("image/"))) {
+        this.set({ sol5Message: "Simulation unavailable: one or more selected-target image files are missing or unsupported. No other target's imagery will be used." }); return;
+      }
+    } catch {
+      this.set({ sol5Message: "Simulation unavailable: selected-target image assets could not be verified." }); return;
+    }
     this.raycaster.set(new THREE.Vector3(takeoff.x, 1000, takeoff.z), this.down);
     const takeoffGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
     if (!Number.isFinite(takeoffGround)) { this.set({ sol5Message: "Simulation unavailable: no terrain surface is resolved below Drone_TakeoffPoint." }); return; }
-    takeoff.y = takeoffGround!;
-    const droneStart = anchor.getWorldPosition(new THREE.Vector3());
-    this.raycaster.set(new THREE.Vector3(droneStart.x, 1000, droneStart.z), this.down);
-    const droneGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
-    if (!Number.isFinite(droneGround)) { this.set({ sol5Message: "Simulation unavailable: no terrain surface is resolved below Drone_Object in mars_Terrain." }); return; }
-    const initialAgl = droneStart.y - droneGround!;
-    if (initialAgl < 0.45 || initialAgl > 10) {
-      this.set({ sol5Message: `Drone_Object must begin between 0.45 m and 10 m above the terrain; current scene placement is ${initialAgl.toFixed(2)} m AGL.` });
-      return;
-    }
     const authorization = this.missionManager.startSol5Simulation();
     if (!authorization.success) { this.set({ sol5Message: authorization.message }); return; }
+    this.sol5AwaitingReturn = false;
     this.astronautStateBeforeDrone = { module: "MissionControl", position: this.camera.position.clone(), rotation: this.camera.rotation.clone() };
     if (this.current) this.scene.remove(this.current);
     this.current = terrainModel;
@@ -670,18 +689,11 @@ export class Game {
     const resolvedTarget = resolveSol5Target(terrainModel, targetId, MASTER_TERRAIN_TARGETS);
     if (!resolvedTarget) { this.set({ sol5Message: "Simulation unavailable: official target scene mapping was lost during initialization." }); return; }
     this.sol5Flight = createDroneFlightState(takeoff, resolvedTarget.position);
-    this.sol5Flight.position.copy(droneStart);
-    this.sol5Flight.maxAltitudeAglM = initialAgl;
-    const savedFlight = this.missionManager.getSol5Progress().flight;
-    if (savedFlight && !savedFlight.landed && savedFlight.targetId === targetId &&
-      (savedFlight.status === "aborted" || savedFlight.status === "flying" || savedFlight.status === "ready")) {
-      this.sol5Flight.position.set(savedFlight.position.x, savedFlight.position.y, savedFlight.position.z);
-      this.sol5Flight.elapsedSeconds = savedFlight.elapsedSeconds;
-      this.sol5Flight.totalDistanceM = savedFlight.totalDistanceM;
-      this.sol5Flight.maxAltitudeAglM = savedFlight.maxAltitudeAglM;
-      this.sol5Flight.batteryPercent = savedFlight.batteryPercent;
-    }
+    this.sol5Flight.maxAltitudeAglM = this.sol5Flight.position.y - takeoff.y;
     this.sol5DroneAnchor = anchor;
+    this.sol5TargetNode = resolvedTarget.object;
+    this.sol5TakeoffNode = takeoffRef;
+    this.sol5BuildingColliders = buildTerrainBuildingColliders(terrainModel);
     const direction = resolvedTarget.position.clone().sub(takeoff);
     this.sol5BodyYaw = Math.atan2(-direction.x, -direction.z);
     this.setSol5DroneWorldPose(this.sol5Flight.position, this.sol5BodyYaw);
@@ -689,19 +701,27 @@ export class Game {
     this.sol5LookPitch = -0.04;
     this.sol5CameraRig = createDroneCameraRig(anchor, this.camera);
     orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
+    this.sol5Guidance = createSol5Guidance(this.scene);
+    updateSol5Guidance(this.sol5Guidance, anchor, resolvedTarget.object, takeoffRef, this.missionManager.getSol5Progress().targetInspected);
+    if (this.sol5TargetBeacon) disposeSol5TargetBeacon(this.sol5TargetBeacon);
+    this.sol5TargetBeacon = createSol5TargetBeacon(this.scene, resolvedTarget.object);
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, !this.missionManager.getSol5Progress().targetInspected);
     this.sol5DroneActive = true;
+    this.sol5AwaitingReturn = false;
+    this.audioManager.setSol5DroneActive(true);
     this.droneKeys.clear();
+    this.sol5EInteractionConsumed = false;
     const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
     const agl = ground === null ? 1 : this.sol5Flight.position.y - ground;
     this.set({
       showOSDesktop: false, showCinematicOverlay: false, sol5DroneActive: true,
       sol5Message: "Sol 5 simulation active. All flight telemetry is simulated from current scene coordinates.",
-      controlHint: "W/A/S/D fly · E ascend · Q descend · Mouse look · 1–5 camera · C capture · L land · Esc abort",
+      controlHint: "W/A/S/D fly · E ascend / interact · Q descend · Shift boost · Mouse look · 1–5 camera · Esc abort",
       sol5Telemetry: { targetId, targetName: target.definition.name, batteryPercent: this.sol5Flight.batteryPercent,
         signalPercent: 100, altitudeAglM: agl, speedMps: 0, distanceTravelledM: this.sol5Flight.totalDistanceM,
         distanceFromTakeoffM: 0, distanceToTargetM: takeoff.distanceTo(resolvedTarget.position), headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360, targetBearingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360,
         elapsedSeconds: this.sol5Flight.elapsedSeconds, cameraView: "front", warning: null, boundaryStatus: "INSIDE",
-        imageCount: this.missionManager.getSol5Progress().images.length, status: "READY" }
+        evidenceCount: this.missionManager.getSol5Progress().images.length, status: "READY" }
     });
     this.astronautStateBeforeDrone = { module: "MissionControl", position: mcNav.getWorldPosition(new THREE.Vector3()), rotation: new THREE.Euler() };
     this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
@@ -767,22 +787,47 @@ export class Game {
     this.sol5DroneAnchor = undefined;
   }
 
+  private cleanupSol5Guidance() {
+    if (this.sol5Guidance) disposeSol5Guidance(this.sol5Guidance);
+    this.sol5Guidance = undefined;
+    disposeSol5TargetBeacon(this.sol5TargetBeacon);
+    this.sol5TargetBeacon = undefined;
+    this.sol5TargetNode = undefined;
+    this.sol5TakeoffNode = undefined;
+    this.sol5BuildingColliders = [];
+  }
+
   private updateSol5Drone(dt: number) {
     const flight = this.sol5Flight;
     if (!flight || !this.sol5DroneAnchor) return;
+    if (this.sol5AwaitingReturn) return;
+    this.sol5TargetNode?.getWorldPosition(flight.target);
+    this.sol5TakeoffNode?.getWorldPosition(flight.takeoff);
     const controls = droneControlsFromKeys(this.droneKeys, this.sol5BodyYaw);
-    stepDroneFlight(flight, controls, dt, (x, z) => this.sol5GroundHeight(x, z));
+    stepDroneFlight(flight, controls, dt, (x, z) => this.sol5GroundHeight(x, z), (from, to) => segmentHitsAnyBox(from, to, this.sol5BuildingColliders));
     this.setSol5DroneWorldPose(flight.position, this.sol5BodyYaw);
+    const progress = this.missionManager.getSol5Progress();
+    if (this.sol5TargetNode) updateSol5TargetBeacon(this.sol5TargetBeacon, this.sol5TargetNode, !progress.targetInspected);
+    if (this.sol5Guidance && this.sol5DroneAnchor && this.sol5TargetNode && this.sol5TakeoffNode) {
+      updateSol5Guidance(this.sol5Guidance, this.sol5DroneAnchor, this.sol5TargetNode, this.sol5TakeoffNode, progress.targetInspected);
+    }
     const telemetry = this.state.sol5Telemetry;
     if (!telemetry) return;
     const baseDistance = Math.hypot(flight.position.x - flight.takeoff.x, flight.position.z - flight.takeoff.z);
-    const targetDx = flight.target.x - flight.position.x, targetDz = flight.target.z - flight.position.z;
+    const targetWorld = this.sol5TargetNode?.getWorldPosition(new THREE.Vector3()) ?? flight.target;
+    const guidanceWorld = progress.targetInspected
+      ? (this.sol5TakeoffNode?.getWorldPosition(new THREE.Vector3()) ?? flight.takeoff)
+      : targetWorld;
+    const targetDx = guidanceWorld.x - flight.position.x, targetDz = guidanceWorld.z - flight.position.z;
     const ground = this.sol5GroundHeight(flight.position.x, flight.position.z);
     const agl = ground === null ? 0 : flight.position.y - ground;
     if (this.sol5CameraRig) orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
     const warning = flight.warning ?? (agl >= 9 ? "Approaching 10 m AGL limit." : baseDistance > 1200 ? "Simulated communication link degrading with distance." : null);
     const signal = Math.max(0, Math.round(100 - Math.min(baseDistance, 1500) / 1500 * 100));
-    const targetDistance = flight.position.distanceTo(flight.target);
+    const targetDistance = flight.position.distanceTo(targetWorld);
+    if (targetDistance <= SOL5_LIMITS.targetInspectionRadiusM && this.missionManager.markSol5TargetReached(this.missionManager.getSelectedSiteId() ?? "")) {
+      this.set({ sol5Message: "Selected target reached. Press E to inspect and load its prepared evidence." });
+    }
     const boundaryHalf = 750;
     const atBoundary = Math.abs(flight.position.x - flight.boundaryCenter.x) > boundaryHalf - 20 || Math.abs(flight.position.z - flight.boundaryCenter.z) > boundaryHalf - 20;
     if (this.frame % 6 === 0) {
@@ -794,7 +839,7 @@ export class Game {
         elapsedSeconds: Math.floor(flight.elapsedSeconds), cameraView: flight.cameraView,
         warning: warning ?? (signal < 20 ? "Simulated signal is critically low; return toward base." : null),
         boundaryStatus: atBoundary ? "BOUNDARY" as const : "INSIDE" as const,
-        imageCount: this.missionManager.getSol5Progress().images.length, status: "FLIGHT ACTIVE" };
+        evidenceCount: this.missionManager.getSol5Progress().images.length, status: progress.targetInspected ? "RETURN TO LANDING ZONE" : "FLIGHT TO SELECTED TARGET" };
       this.set({ sol5Telemetry: update });
       if (flight.elapsedSeconds - this.sol5LastSnapshotAt >= 3) {
         this.sol5LastSnapshotAt = flight.elapsedSeconds;
@@ -803,51 +848,52 @@ export class Game {
     }
   }
 
-  captureSol5Image() {
-    if (!this.sol5DroneActive || !this.sol5Flight || !this.state.sol5Telemetry) return;
-    try {
-      const source = this.renderer.domElement;
-      const canvas = document.createElement("canvas");
-      canvas.width = 640; canvas.height = 360;
-      const context = canvas.getContext("2d");
-      if (!context || source.width === 0 || source.height === 0) throw new Error("Camera frame unavailable.");
-      context.drawImage(source, 0, 0, canvas.width, canvas.height);
-      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.62);
-      const position = this.sol5Flight.position;
-      const ground = this.sol5GroundHeight(position.x, position.z);
-      if (ground === null) throw new Error("Terrain reference unavailable below the camera.");
-      const result = this.missionManager.saveSol5Image({
-        id: `SOL05_IMAGE_${Date.now()}_${this.missionManager.getSol5Progress().images.length + 1}`,
-        sequence: this.missionManager.getSol5Progress().images.length + 1,
-        targetId: this.sol5Flight ? this.missionManager.getSelectedSiteId()! : "",
-        imageDataUrl, position: { x: position.x, y: position.y, z: position.z },
-        altitudeAglM: position.y - ground, headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360,
-        elapsedSeconds: this.sol5Flight.elapsedSeconds, cameraView: this.sol5Flight.cameraView, capturedAt: new Date().toISOString()
-      });
-      this.set({ sol5Message: result.message, sol5Images: this.missionManager.getSol5Progress().images });
-    } catch (error) {
-      this.set({ sol5Message: error instanceof Error ? error.message : "Camera capture failed." });
-    }
+  inspectSol5Target() {
+    if (!this.sol5DroneActive || !this.sol5Flight || !this.sol5TargetNode) return;
+    const targetId = this.missionManager.getSelectedSiteId();
+    if (!targetId || this.missionManager.getSol5Progress().targetInspected) return;
+    const targetPosition = this.sol5TargetNode.getWorldPosition(new THREE.Vector3());
+    const inspectionDistance = this.sol5Flight.position.distanceTo(targetPosition);
+    if (inspectionDistance > SOL5_LIMITS.targetInspectionRadiusM) { this.set({ sol5Message: `Inspection unavailable: move into the selected target area (${inspectionDistance.toFixed(1)} m away).` }); return; }
+    if (!this.missionManager.getSol5Progress().targetReached) { this.set({ sol5Message: "Approach the selected target before inspecting it." }); return; }
+    const assets = SOL5_EVIDENCE_ASSETS[targetId];
+    if (!assets?.length) { this.set({ sol5Message: `Inspection unavailable: no verified evidence assets are mapped to ${targetId}.` }); return; }
+    const result = this.missionManager.completeSol5TargetInspection(targetId, assets);
+    if (this.missionManager.getSol5Progress().targetInspected) setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+    this.set({ sol5Message: result.message, sol5Images: this.missionManager.getSol5Progress().images });
   }
 
   requestSol5Landing() {
     if (!this.sol5Flight || !this.state.sol5Telemetry) return;
+    this.sol5TakeoffNode?.getWorldPosition(this.sol5Flight.takeoff);
     const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
     if (ground === null) { this.set({ sol5Message: "Landing blocked: no terrain surface is resolved beneath the drone." }); return; }
-    const result = canLand(this.sol5Flight, ground, this.missionManager.getSol5Progress().images.length);
+    const result = canLand(this.sol5Flight, ground, this.missionManager.getSol5Progress().targetInspected);
     if (!result.ok) { this.set({ sol5Message: result.reason }); return; }
     this.setSol5AnchorWorldPosition(this.sol5Flight.position);
     const saved = this.missionManager.completeSol5Landing(this.toSol5Snapshot("landed"));
     if (!saved.success) { this.set({ sol5Message: saved.message }); return; }
     if (this.state.sol5Telemetry) this.set({ sol5Telemetry: { ...this.state.sol5Telemetry, status: "LANDED", speedMps: 0 } });
+    this.sol5AwaitingReturn = true;
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+    this.audioManager.setSol5DroneActive(false);
+    this.droneKeys.clear();
+    document.exitPointerLock();
+    this.set({ sol5DroneActive: true, sol5Message: `${saved.message} Press G to return to the Mission Control Navigation station.` });
+  }
+
+  private finishSol5LandingAndReturn() {
+    if (!this.sol5AwaitingReturn) return;
+    this.sol5AwaitingReturn = false;
     this.sol5DroneActive = false;
     this.droneKeys.clear();
     document.exitPointerLock();
-    void this.returnPlayerToMissionControlNavigation(saved.message);
+    void this.returnPlayerToMissionControlNavigation("Landing confirmed. Sol 5 landing task complete; returned to Mission Control Navigation.");
   }
 
   private async returnPlayerToMissionControlNavigation(message: string) {
     this.detachSol5Camera();
+    this.cleanupSol5Guidance();
     const mc = await this.getModel("MissionControl");
     if (this.disposed) return;
     const nav = mc.getObjectByName("MC_NAVIGATION_01");
@@ -870,10 +916,9 @@ export class Game {
 
   abortSol5Flight() {
     if (!this.sol5DroneActive || !this.sol5Flight) return;
-    const snapshot = this.toSol5Snapshot("aborted");
-    this.missionManager.saveSol5FlightSnapshot(snapshot);
-    this.sol5DroneActive = false; this.droneKeys.clear(); document.exitPointerLock();
-    void this.returnPlayerToMissionControlNavigation("Flight aborted. The drone remains at its last recorded scene position; mission completion is not awarded.");
+    this.missionManager.abortSol5SimulationAttempt();
+    this.sol5DroneActive = false; this.audioManager.setSol5DroneActive(false); setSol5TargetBeaconVisible(this.sol5TargetBeacon, false); this.droneKeys.clear(); document.exitPointerLock();
+    void this.returnPlayerToMissionControlNavigation("Drone attempt aborted. Return to Mission Control to activate a new attempt from the launch pad.");
   }
 
   async startDroneFPV() {
@@ -989,7 +1034,27 @@ export class Game {
     window.addEventListener("keydown", this.keyDown);
     window.addEventListener("keyup", this.keyUp);
     document.addEventListener("visibilitychange", this.visibility);
+    window.addEventListener("pagehide", this.pageExit);
+    window.addEventListener("beforeunload", this.pageExit);
+    window.addEventListener("pageshow", this.pageRestore);
   }
+
+  private pageExit = () => {
+    if (!this.sol5DroneActive) return;
+    this.missionManager.abortSol5SimulationAttempt(false);
+    this.sol5DroneActive = false;
+    this.droneKeys.clear();
+    this.audioManager.setSol5DroneActive(false);
+    setSol5TargetBeaconVisible(this.sol5TargetBeacon, false);
+  };
+
+  private pageRestore = (event: PageTransitionEvent) => {
+    if (event.persisted && this.active === "Terrain" && this.missionManager.getSol5Progress().attemptStatus === "aborted") {
+      void this.returnPlayerToMissionControlNavigation("The previous drone attempt was aborted. Activate a new attempt from Mission Control.");
+    }
+  };
+
+  private unlockAudio = () => this.audioManager.unlock();
 
   private resize = () => {
     const width = this.host.clientWidth;
@@ -1047,6 +1112,7 @@ export class Game {
   private keyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | undefined;
     if (target?.matches("input,textarea,[contenteditable='true']")) return;
+    this.audioManager.unlock();
 
     // Day 1 Camera Presentation Skip with Enter
     if (this.cameraPresentationManager.isPresentationActive() && e.code === "Enter") {
@@ -1067,14 +1133,28 @@ export class Game {
 
     // Sol 5 owns its controls only during the isolated drone simulation.
     if (this.sol5DroneActive) {
-      const movementCodes = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyQ"];
+      if (this.sol5AwaitingReturn) {
+        if (e.code === "KeyG" && !e.repeat) { e.preventDefault(); this.finishSol5LandingAndReturn(); }
+        return;
+      }
+      if (e.code === "KeyE" && this.sol5Flight) {
+        if (e.repeat && this.sol5EInteractionConsumed) { e.preventDefault(); return; }
+        if (!e.repeat) {
+          this.sol5EInteractionConsumed = false;
+          const progress = this.missionManager.getSol5Progress();
+          const target = this.sol5TargetNode?.getWorldPosition(new THREE.Vector3()) ?? this.sol5Flight.target;
+          const takeoff = this.sol5TakeoffNode?.getWorldPosition(new THREE.Vector3()) ?? this.sol5Flight.takeoff;
+          const action = resolveSol5EAction(this.sol5Flight.position, target, takeoff, progress.targetInspected);
+          if (action === "inspect_target") { this.sol5EInteractionConsumed = true; e.preventDefault(); this.inspectSol5Target(); return; }
+          if (action === "confirm_landing") { this.sol5EInteractionConsumed = true; e.preventDefault(); this.requestSol5Landing(); return; }
+        }
+      }
+      const movementCodes = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyQ", "ShiftLeft", "ShiftRight"];
       if (movementCodes.includes(e.code)) { e.preventDefault(); this.droneKeys.add(e.code); }
       const views: Record<string, DroneCameraView> = { Digit1: "front", Digit2: "rear", Digit3: "left", Digit4: "right", Digit5: "down" };
       if (views[e.code] && this.sol5Flight) {
         e.preventDefault(); this.sol5Flight.cameraView = views[e.code]; this.sol5LookYaw = 0; this.sol5LookPitch = 0;
       }
-      if (e.code === "KeyC" && !e.repeat) { e.preventDefault(); this.captureSol5Image(); }
-      if (e.code === "KeyL" && !e.repeat) { e.preventDefault(); this.requestSol5Landing(); }
       if (e.code === "Escape" && !e.repeat) { e.preventDefault(); this.abortSol5Flight(); }
       return;
     }
@@ -1185,6 +1265,7 @@ export class Game {
   private keyUp = (e: KeyboardEvent) => {
     if (this.sol5DroneActive) {
       this.droneKeys.delete(e.code);
+      if (e.code === "KeyE") this.sol5EInteractionConsumed = false;
     } else if (this.droneModeActive) {
       this.droneKeys.delete(e.code);
     } else {
@@ -1196,6 +1277,8 @@ export class Game {
     if (document.hidden) {
       this.player.keys.clear();
       this.droneKeys.clear();
+      this.sol5EInteractionConsumed = false;
+      this.audioManager.setIndoorMovement("idle");
     }
   };
 
@@ -2143,8 +2226,10 @@ export class Game {
 
     if (this.sol5DroneActive) {
       this.updateSol5Drone(dt);
+      this.audioManager.setIndoorMovement("idle");
     } else if (this.droneModeActive) {
       this.updateDrone(dt);
+      this.audioManager.setIndoorMovement("idle");
     } else {
       const isModalOpen =
         document.hidden ||
@@ -2165,8 +2250,18 @@ export class Game {
         this.player.update(dt, this.canOccupy, this.groundHeight);
         this.findNearby();
         this.checkTerrainMissionZones();
+        this.audioManager.setIndoorMovement(resolveIndoorMovementAudioState({
+          indoor: this.active !== "Terrain",
+          playerControlled: !this.droneModeActive && !this.sol5DroneActive && !this.cinematicGliding,
+          grounded: this.player.grounded,
+          horizontalSpeed: Math.hypot(this.player.velocity.x, this.player.velocity.z),
+          running: this.player.keys.has("ShiftLeft") || this.player.keys.has("ShiftRight")
+        }));
+      } else {
+        this.audioManager.setIndoorMovement("idle");
       }
     }
+    this.audioManager.update(dt);
 
     const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
       ? this.sol5CameraRig[this.sol5Flight.cameraView]
@@ -2179,14 +2274,22 @@ export class Game {
   };
 
   dispose() {
+    if (this.sol5DroneActive) this.missionManager.abortSol5SimulationAttempt(false);
+    this.sol5DroneActive = false;
     this.disposed = true;
+    this.audioManager.dispose();
+    this.renderer.domElement.removeEventListener("pointerdown", this.unlockAudio);
     this.detachSol5Camera();
+    this.cleanupSol5Guidance();
     this.observer.disconnect();
     document.removeEventListener("pointerlockchange", this.pointer);
     document.removeEventListener("mousemove", this.mouse);
     window.removeEventListener("keydown", this.keyDown);
     window.removeEventListener("keyup", this.keyUp);
     document.removeEventListener("visibilitychange", this.visibility);
+    window.removeEventListener("pagehide", this.pageExit);
+    window.removeEventListener("beforeunload", this.pageExit);
+    window.removeEventListener("pageshow", this.pageRestore);
 
     if (document.pointerLockElement === this.renderer.domElement) {
       document.exitPointerLock();

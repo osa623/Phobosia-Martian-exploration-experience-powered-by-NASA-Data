@@ -100,12 +100,20 @@ function completeSol5(mm) {
   const flight = { targetId, status: 'flying', takeoff, position: { x: 20, y: 3, z: 30 }, speedMps: 0.2, elapsedSeconds: 42,
     totalDistanceM: 61.5, maxAltitudeAglM: 4.4, batteryPercent: 98.2, signalPercent: 94, cameraView: 'down', landed: false };
   assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
-  for (let i = 1; i <= 5; i++) {
-    const result = mm.saveSol5Image({ id: `test-image-${targetId}-${i}`, sequence: i, targetId,
-      imageDataUrl: `data:image/jpeg;base64,${'A'.repeat(600)}`, position: { x: 10 + i, y: 3, z: 15 + i },
-      altitudeAglM: 1, headingDegrees: 90, elapsedSeconds: i * 4, cameraView: i === 5 ? 'down' : 'front', capturedAt: new Date(i).toISOString() });
-    assert.strictEqual(result.success, true, result.message);
-  }
+  assert.strictEqual(mm.markSol5TargetReached(targetId), true);
+  const { SOL5_EVIDENCE_ASSETS } = require('../dist/missions/sol-05/targetMapping.js');
+  const inspected = mm.completeSol5TargetInspection(targetId, SOL5_EVIDENCE_ASSETS[targetId]);
+  assert.strictEqual(inspected.success, true, inspected.message);
+  const reloadedAfterInspection = new MissionManager();
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().attemptStatus, 'aborted', 'Reload before landing aborts even after target inspection');
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().targetInspected, false, 'Inspection must be repeated on the new attempt');
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().images.length, 0, 'Incomplete attempt evidence state is cleared for re-inspection');
+  assert.strictEqual(reloadedAfterInspection.getSelectedSiteId(), targetId, 'Reload preserves the submitted target');
+  mm = reloadedAfterInspection;
+  assert.strictEqual(mm.startSol5Simulation().success, true);
+  assert.strictEqual(mm.markSol5TargetReached(targetId), true);
+  assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
+  assert.strictEqual(mm.completeSol5TargetInspection(targetId, SOL5_EVIDENCE_ASSETS[targetId]).success, true);
   const landed = { ...flight, status: 'landed', position: takeoff, speedMps: 0, landed: true };
   assert.strictEqual(mm.completeSol5Landing(landed).success, true);
   assert.strictEqual(mm.isStepComplete('SOL05_AERIAL_RECONNAISSANCE'), true);
@@ -118,6 +126,7 @@ function completeSol5(mm) {
   assert.strictEqual(report.success, true, report.message);
   assert.strictEqual(mm.getState().sol5.report.targetId, targetId);
   assert(mm.getState().sol5.images.every(image => image.targetId === targetId));
+  return mm;
 }
 const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
@@ -494,11 +503,11 @@ test('Sol 4 requires the Sol 3 target, physical drone inspection, and a valid pr
   assert.strictEqual(mm.getState().currentDay, 5);
 });
 
-// Sol 5: Official-target drone reconnaissance, image, landing, and report gates.
-test('Sol 5 requires the official Sol 3 target and validates briefing, five images, landing, review, and report for A/B/C', () => {
+// Sol 5: Official-target manual reconnaissance, prepared evidence, landing, and report gates.
+test('Sol 5 requires the official Sol 3 target and validates inspection, prepared evidence, landing, review, and report for A/B/C', () => {
   for (const target of MASTER_TERRAIN_TARGETS) {
     mockStorage.clear();
-    const mm = new MissionManager();
+    let mm = new MissionManager();
     mm.completeStep('DAY1_REVIEW_CONTROLS');
     mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
     mm.completeStep('DAY1_INSPECT_BASE_AREAS');
@@ -519,24 +528,67 @@ test('Sol 5 requires the official Sol 3 target and validates briefing, five imag
     assert.strictEqual(mm.confirmSol5Briefing().success, true);
     assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).taskId, 'SOL05_ACTIVATE_SIMULATION');
     assert.strictEqual(mm.startSol5Simulation().success, true);
-    const resumeSnapshot = { targetId: target.id, status: 'flying', takeoff: { x: 2, y: 3, z: 4 },
+    const { SOL5_EVIDENCE_ASSETS } = require('../dist/missions/sol-05/targetMapping.js');
+    assert.strictEqual(mm.completeStep('SOL05_AERIAL_RECONNAISSANCE'), false, 'Target survey cannot be completed before arrival and inspection');
+    assert.strictEqual(mm.completeSol5TargetInspection('WRONG_TARGET', SOL5_EVIDENCE_ASSETS[target.id]).success, false, 'Inspection must remain linked to official target');
+    assert.strictEqual(mm.completeSol5TargetInspection(target.id, []).success, false, 'Missing evidence must not be replaced by another target');
+    assert.strictEqual(mm.getSol5Progress().targetInspected, false);
+    let resumeSnapshot = { targetId: target.id, status: 'flying', takeoff: { x: 2, y: 3, z: 4 },
       position: { x: 5, y: 6, z: 7 }, elapsedSeconds: 12, totalDistanceM: 19, maxAltitudeAglM: 4,
       speedMps: 1, batteryPercent: 88, signalPercent: 96, cameraView: 'down', landed: false };
     assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
-    const resumedMission = new MissionManager();
-    assert.strictEqual(resumedMission.getSol5Progress().flight.targetId, target.id, 'The active target-linked flight must persist across reload');
-    assert.strictEqual(resumedMission.getSol5Progress().flight.position.x, 5, 'The in-progress position must persist across reload');
-    completeSol5(mm);
+    mm = new MissionManager();
+    assert.strictEqual(mm.getSol5Progress().attemptStatus, 'aborted', 'An active persisted attempt is recovered as aborted');
+    assert.strictEqual(mm.getSol5Progress().simulationActivated, false, 'Restart returns to the activation stage');
+    assert.strictEqual(mm.getSol5Progress().flight, null, 'Aborted mid-flight coordinates are cleared');
+    assert.strictEqual(mm.getSelectedSiteId(), target.id, 'Recovery preserves the authoritative Sol 3 target');
+    assert.strictEqual(mm.isStepComplete('SOL05_PREFLIGHT_BRIEFING'), true, 'Completed briefing remains complete');
+    assert.strictEqual(mm.isStepComplete('SOL05_ACTIVATE_SIMULATION'), false, 'Activation must be performed again');
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).taskId, 'SOL05_ACTIVATE_SIMULATION');
+    assert.strictEqual(mm.completeStep('SOL05_SAFE_LANDING'), false, 'Landing cannot be skipped after an abort');
+
+    assert.strictEqual(mm.startSol5Simulation().success, true, 'A new attempt can be activated from Mission Control');
+    assert.strictEqual(mm.markSol5TargetReached(target.id), true);
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    assert.strictEqual(mm.abortSol5SimulationAttempt(), true, 'Manual abandonment persists an aborted attempt');
+    assert.strictEqual(mm.getSol5Progress().targetReached, false);
+    assert.strictEqual(mm.getSol5Progress().targetInspected, false);
+    assert.strictEqual(mm.getSelectedSiteId(), target.id);
+
+    assert.strictEqual(mm.startSol5Simulation().success, true, 'Retry starts a fresh attempt');
+    assert.strictEqual(mm.getSol5Progress().flight, null, 'Retry does not resume previous mid-air coordinates');
+    assert.strictEqual(mm.markSol5TargetReached(target.id), true, 'The canonical target must be reached again');
+    resumeSnapshot = { ...resumeSnapshot, position: { ...resumeSnapshot.takeoff }, speedMps: 0.2 };
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    assert.strictEqual(mm.completeSol5TargetInspection(target.id, SOL5_EVIDENCE_ASSETS[target.id]).success, true, 'Target inspection succeeds only after target approach and correct evidence');
+    assert.strictEqual(mm.completeSol5Landing({ ...resumeSnapshot, status: 'landed', position: { ...resumeSnapshot.takeoff }, speedMps: 0, landed: true }).success, true);
+    assert.strictEqual(mm.getSol5Progress().attemptStatus, 'completed');
+    const landedReload = new MissionManager();
+    assert.strictEqual(landedReload.getSol5Progress().attemptStatus, 'completed', 'Successful landing survives reload without becoming aborted');
+    assert.strictEqual(landedReload.startSol5Simulation().success, false, 'Completed attempt does not restart');
+    assert.strictEqual(landedReload.getSelectedSiteId(), target.id);
+
+    const review = mm.confirmSol5ImageReview();
+    assert.strictEqual(review.success, true, review.message);
+    const report = mm.submitSol5Report({ observedFeatures: 'Visible tonal variation in image frames.',
+      playerInterpretation: 'Possible surface texture differences; tentative.', uncertainties: 'Scale and feature identity remain uncertain.',
+      groundFollowUp: 'Verify the apparent texture from the ground during Sol 6.' });
+    assert.strictEqual(report.success, true, report.message);
+    assert.strictEqual(mm.getState().sol5.report.targetId, target.id);
+    assert(mm.getState().sol5.images.every(image => image.targetId === target.id));
     assert.strictEqual(mm.getMissionTaskProgress().completed, 6);
     assert.strictEqual(mm.getMissionTaskProgress().remaining, 0);
     assert.strictEqual(mm.canRestAndAdvance().canAdvance, true);
     assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).isCompletion, true);
+    assert.strictEqual(mm.advanceDay(true).success, true, 'Validated Sol 5 may advance using the existing progression system');
+    assert.strictEqual(mm.getSelectedSiteId(), target.id, 'The official target remains unchanged after transition');
+    assert(mm.getSol5Progress().images.every(image => image.targetId === target.id), 'Target-specific evidence remains available for Sol 6');
   }
 });
 // P3-002: Day 6 Geological Site Survey requires GeologicalSurveyRecord
 test('Day 6 Geological Site Survey validates steps and requires GeologicalSurveyRecord before rest', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 6
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -549,7 +601,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  completeSol5(mm);
+  mm = completeSol5(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 6);
@@ -594,7 +646,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
 // P3-003: Day 7 Surface Observation lifecycle & Airlock transition
 test('Day 7 Surface Observation validates airlock transit and saves SurfaceObservationRecord', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 7
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -607,7 +659,7 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  completeSol5(mm);
+  mm = completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -667,7 +719,7 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
 // P3-004: Day 8 Research Lab Analysis requires Day 7 source record & interpretation
 test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linked analysis', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward through Days 1 to 7
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -680,7 +732,7 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  completeSol5(mm);
+  mm = completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -749,7 +801,7 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
 // P3-005: Day 9 Drone Survey Lifecycle & Non-advancement beyond Day 9
 test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut controls, and strictly concludes Phase 3', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 9
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -762,7 +814,7 @@ test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut contro
   mm.advanceDay(true); // 4
   completeSol4(mm);
   mm.advanceDay(true); // 5
-  completeSol5(mm);
+  mm = completeSol5(mm);
   mm.advanceDay(true); // 6
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');

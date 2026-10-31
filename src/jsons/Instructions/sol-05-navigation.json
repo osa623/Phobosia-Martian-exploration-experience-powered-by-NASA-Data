@@ -1,59 +1,59 @@
 {
   "sol": 5,
   "missionId": "PHOBOSIA_SOL_05",
-  "version": 1,
+  "version": 2,
   "instructions": [
     {
       "taskId": "SOL05_PREFLIGHT_BRIEFING",
       "title": "Complete Drone Flight Operations Briefing",
       "message": "Proceed to the Mission Control Navigation station.",
-      "guidance": "Review the target submitted during Sol 3, the Sol 4 preparation report, the 1.5 km by 1.5 km gameplay boundary, the 10 m AGL ceiling, the existing takeoff and landing reference, and the five-image requirement. These flight values describe the PHOBOSIA simulation.",
+      "guidance": "Confirm the target submitted during Sol 3 and the matching Sol 4 preparation report. Return to Mission Control, then activate the drone from this Navigation interface. Each new attempt starts at the designated launch pad. Closing or refreshing the game, or leaving the active drone simulation before completing the landing, aborts the attempt; return to Mission Control and activate it again.",
       "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Drone Flight Operations" },
-      "activity": "Explicitly confirm the complete preflight briefing. Opening this interface alone does not complete the task."
+      "activity": "Confirm the target-specific briefing. No target reselection occurs during Sol 5."
     },
     {
       "taskId": "SOL05_ACTIVATE_SIMULATION",
       "title": "Activate Drone Reconnaissance Simulation",
       "message": "Remain at the Mission Control Navigation station.",
-      "guidance": "Activate the simulation only after the target and Sol 4 preparation record validate and the existing drone, takeoff reference, and matching target scene object resolve.",
+      "guidance": "Activation validates the official Sol 3 target, Sol 4 preparation, matching terrain target, and target-specific evidence assets. The drone control view begins at the designated launch pad.",
       "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Drone Flight Operations" },
-      "activity": "Use the existing Mission Control OS action to transfer control into the drone camera simulation.",
+      "activity": "Use the existing Mission Control OS action to enter the drone camera view.",
       "requiresCompletedTasks": ["SOL05_PREFLIGHT_BRIEFING"]
     },
     {
       "taskId": "SOL05_AERIAL_RECONNAISSANCE",
-      "title": "Conduct Aerial Route Reconnaissance",
-      "message": "Operate the drone over the Mars terrain scene.",
-      "guidance": "Use W/A/S/D for horizontal flight, E/Q for altitude, mouse movement for camera look, and keys 1–5 for the front, rear, left, right, and downward views. Stay inside the displayed gameplay boundary and below 10 m AGL. Capture at least five non-empty images with C.",
-      "destination": { "name": "Mars Terrain Drone Simulation", "module": "Mars Terrain", "section": "Aerial Reconnaissance" },
-      "activity": "Capture live camera images and return to the designated takeoff marker. The simulation does not claim NASA flight-controller fidelity.",
+      "title": "Inspect the Officially Selected Target",
+      "message": "Fly manually from the designated launch pad toward the highlighted selected target.",
+      "guidance": "Use W/S forward and back, A/D lateral, E/Q altitude, Shift for a temporary speed boost, mouse look, and 1–5 for front, rear, left, right, and downward views. The cyan line is direct visual guidance only. Press E inside the selected target inspection area to load its existing mission-provided images; this is not live drone photography.",
+      "destination": { "name": "Selected Observation Target", "module": "Mars Terrain", "section": "Aerial Target Inspection" },
+      "activity": "The selected target inspection is validated from the drone's actual position. E is an interaction in the target area and does not also ascend.",
       "requiresCompletedTasks": ["SOL05_ACTIVATE_SIMULATION"]
     },
     {
       "taskId": "SOL05_SAFE_LANDING",
       "title": "Return and Safely Land the Drone",
-      "message": "Return to the original Drone_TakeoffPoint.",
-      "guidance": "Reduce horizontal motion, descend close to the takeoff surface, and initiate landing with L only when position, AGL, speed, and image-count checks pass. The simulation will not teleport the drone or validate an incomplete image set.",
-      "destination": { "name": "Drone Takeoff and Landing Point", "module": "Mars Terrain", "section": "Drone Landing Area" },
-      "activity": "Press L or use the landing control to request the explicit landing validation.",
+      "message": "After inspection, follow the return guide to the designated launch pad.",
+      "guidance": "Fly the drone back manually. Press E within the landing area only when horizontal distance, terrain-relative altitude, and speed checks pass. After the landing is validated, press G to finish the landing sequence and return to the Mission Control Navigation station. Invalid landing attempts are rejected; the drone is not teleported.",
+      "destination": { "name": "Designated Drone Launch Pad", "module": "Mars Terrain", "section": "Drone Landing Area" },
+      "activity": "E validates the landing; then press G to return to the existing Mission Control Navigation spawn point and continue the remaining Sol 5 tasks.",
       "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"]
     },
     {
       "taskId": "SOL05_REVIEW_IMAGES",
-      "title": "Review Aerial Observation Records",
+      "title": "Review Target-Specific Evidence",
       "message": "Return to the Mission Control Navigation station after landing.",
-      "guidance": "Inspect each saved preview and its position, altitude, heading, elapsed time, camera view, and official target reference. Do not treat a player interpretation as an automated scientific finding.",
-      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Aerial Image Review" },
-      "activity": "Confirm the saved images have been reviewed before preparing the report.",
+      "guidance": "Review the pre-prepared images associated with the submitted Sol 3 target. Image files are mission-provided evidence, not photos captured by the drone; unavailable files are not replaced with another target's imagery.",
+      "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Aerial Evidence Review" },
+      "activity": "Confirm review of the selected target's loaded images in the authorized Mission Control interface.",
       "requiresCompletedTasks": ["SOL05_SAFE_LANDING"]
     },
     {
       "taskId": "SOL05_SUBMIT_REPORT",
       "title": "Submit Sol 5 Aerial Reconnaissance Report",
-      "message": "Submit the report at the Mission Control Navigation station.",
-      "guidance": "Report actual simulation status and metrics, describe visible image features in your own words, distinguish interpretation and uncertainty, and identify areas for Sol 6 ground verification. Missing values must remain unavailable.",
+      "message": "Submit the target-linked report at the Mission Control Navigation station.",
+      "guidance": "Describe visible features in the available images, separate your interpretation from observation, record uncertainty, and identify Sol 6 ground follow-up. Do not report invented coordinates, timestamps, or sensor readings.",
       "destination": { "name": "Mission Control Navigation Station", "module": "Mission Control", "section": "Reconnaissance Report" },
-      "activity": "Submit the target-linked report after image review. Return to Habitat Rest Area to conclude Sol 5.",
+      "activity": "Submit the report after validated target inspection, landing, and evidence review. Return to Habitat Rest Area to conclude Sol 5.",
       "requiresCompletedTasks": ["SOL05_REVIEW_IMAGES"]
     }
   ],

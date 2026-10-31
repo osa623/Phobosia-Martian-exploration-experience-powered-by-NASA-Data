@@ -26,6 +26,18 @@
     "Drone Section",
     "Mars Terrain"
   ],
+  "interfaces": [
+    { "interfaceId": "MISSION_CONTROL_NAVIGATION", "location": "Mission Control Navigation station", "triggerId": "MC_NAVIGATION_01" },
+    { "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "location": "Mars Terrain drone control view" }
+  ],
+  "tasks": [
+    { "taskId": "SOL05_PREFLIGHT_BRIEFING", "title": "Complete Drone Flight Operations Briefing", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Review and confirm the target-dependent manual-flight briefing." },
+    { "taskId": "SOL05_ACTIVATE_SIMULATION", "title": "Activate Drone Reconnaissance Simulation", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Activate the existing Drone_Object simulation after prerequisites validate.", "requiresCompletedTasks": ["SOL05_PREFLIGHT_BRIEFING"] },
+    { "taskId": "SOL05_AERIAL_RECONNAISSANCE", "title": "Inspect the Officially Selected Target", "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "mandatory": true, "objective": "Manually fly to and inspect the official target, then load only its existing evidence assets.", "requiresCompletedTasks": ["SOL05_ACTIVATE_SIMULATION"] },
+    { "taskId": "SOL05_SAFE_LANDING", "title": "Return and Safely Land the Drone", "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "mandatory": true, "objective": "Manually return to the launch pad, validate landing with E, then press G to return to Mission Control Navigation.", "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"] },
+    { "taskId": "SOL05_REVIEW_IMAGES", "title": "Review Target-Specific Evidence", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Review the mission-provided imagery linked to the official target.", "requiresCompletedTasks": ["SOL05_SAFE_LANDING"] },
+    { "taskId": "SOL05_SUBMIT_REPORT", "title": "Submit Sol 5 Aerial Reconnaissance Report", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Submit a target-linked report with observations, interpretation, uncertainty, and Sol 6 follow-up.", "requiresCompletedTasks": ["SOL05_REVIEW_IMAGES"] }
+  ],
   "objectives": [
     {
       "id": "SOL05_OBJ_01",
@@ -57,45 +69,45 @@
     {
       "id": "SOL05_OBJ_04",
       "title": "Survey the Selected Target",
-      "description": "Fly the existing drone toward the Sol 3 selected target and investigate its surrounding terrain and approach route.",
+      "description": "Manually fly the existing drone from Drone_TakeoffPoint to the Sol 3 selected target, following visual guidance without autopilot.",
       "zone": "Mars Terrain",
       "type": "drone_navigation",
       "required": true,
-      "completionCondition": "The player conducts the required aerial reconnaissance within the operational flight boundaries."
+      "completionCondition": "The player manually reaches the official target's validated inspection area."
     },
     {
       "id": "SOL05_OBJ_05",
-      "title": "Capture Aerial Evidence",
-      "description": "Capture at least five aerial images from meaningful positions along the selected target approach route.",
+      "title": "Inspect the Selected Target and Load Its Evidence",
+      "description": "Press E in the selected target's validated inspection area to load its existing mission-provided image evidence.",
       "zone": "Mars Terrain",
-      "type": "evidence_capture",
+      "type": "target_inspection_and_evidence_load",
       "required": true,
-      "minimumEvidenceCount": 5,
-      "completionCondition": "At least five valid aerial image records are captured and stored."
+      "evidenceSource": "public/assets/images/Selected_Missions/<selected-target-folder>",
+      "completionCondition": "The correct selected-target scene object is inspected and its existing target-specific images are associated with mission progress."
     },
     {
       "id": "SOL05_OBJ_06",
       "title": "Return and Land the Drone",
-      "description": "Navigate the drone back to the original take-off point and complete a validated landing.",
+      "description": "After target inspection, manually return to the original take-off point and confirm a validated landing with E.",
       "zone": "Mars Terrain",
       "type": "drone_landing",
       "required": true,
       "landingPoint": "Drone_TakeoffPoint",
-      "completionCondition": "The drone reaches the verified take-off point, satisfies landing conditions, and enters the landed state."
+      "completionCondition": "The inspected drone reaches the verified take-off point, satisfies landing conditions, and enters the landed state after E confirmation."
     },
     {
       "id": "SOL05_OBJ_07",
       "title": "Review Aerial Images",
-      "description": "Return to the normal player first-person view and review the captured aerial evidence through the existing Mission Control OS.",
+      "description": "Return to the normal player view and review the selected target's pre-prepared evidence through the existing Mission Control OS.",
       "zone": "Mission Control",
       "type": "evidence_review",
       "required": true,
-      "completionCondition": "The player reviews the captured image records and their associated metadata."
+      "completionCondition": "The player reviews the available mission-provided images associated with the official target; no live capture metadata is claimed."
     },
     {
       "id": "SOL05_OBJ_08",
       "title": "Submit Aerial Reconnaissance Report",
-      "description": "Prepare and submit the Sol 5 report using the captured evidence and verified mission records.",
+      "description": "Prepare and submit the Sol 5 report using the selected target's prepared imagery and verified mission records.",
       "zone": "Mission Control",
       "type": "report_submission",
       "required": true,
@@ -186,7 +198,9 @@
       "D": "move_right",
       "E": "ascend",
       "Q": "descend",
-      "Mouse": "camera_look"
+      "Mouse": "camera_look",
+      "Shift": "temporary_speed_boost",
+      "E_context": "Ascend during flight; interact at the selected-target inspection area or validated landing area without also ascending."
     },
     "cameraViews": {
       "enabled": true,
@@ -219,26 +233,23 @@
         "signalStrength",
         "flightDuration",
         "cameraView",
-        "capturedImageCount",
+        "targetInspectionStatus",
         "flightState"
       ],
       "dataClassification": "simulated_gameplay_telemetry"
     },
-    "evidenceCapture": {
-      "minimumImages": 5,
-      "captureMethod": "drone_camera",
-      "storeImageData": true,
-      "storeMetadata": true,
-      "metadataFields": [
-        "imageId",
-        "sequenceNumber",
-        "selectedTargetId",
-        "worldPosition",
-        "altitudeAGL",
-        "heading",
-        "cameraView",
-        "captureTime"
-      ]
+    "evidenceReview": {
+      "atLeastOneSupportedEvidenceAssetRequired": true,
+      "source": "pre_prepared_target_specific_assets",
+      "presentAsLiveDroneCapture": false,
+      "storeImageData": false,
+      "storeTargetLinkedAssetReferences": true,
+      "inspectionInteraction": "E",
+      "targetFolderMapping": {
+        "TARGET_ALPHA_CRATER_RIM": "public/assets/images/Selected_Missions/target_01",
+        "TARGET_BETA_DUNE_BASIN": "public/assets/images/Selected_Missions/target_02",
+        "TARGET_GAMMA_SOUTH_ESCARPMENT": "public/assets/images/Selected_Missions/target_03"
+      }
     }
   },
   "report": {
@@ -257,7 +268,7 @@
       "Recommendations for Sol 6 Ground Investigation"
     ],
     "evidenceRequired": true,
-    "minimumEvidenceCount": 5,
+    "minimumEvidenceCount": 1,
     "submissionRequired": true
   },
   "completion": {
@@ -267,6 +278,16 @@
     "nextSol": 6,
     "nextMission": "PHOBOSIA_SOL_06",
     "nextMissionNotification": "show_only_after_successful_validation"
+  },
+  "missionCompletion": {
+    "requiredTasks": [
+      "SOL05_PREFLIGHT_BRIEFING",
+      "SOL05_ACTIVATE_SIMULATION",
+      "SOL05_AERIAL_RECONNAISSANCE",
+      "SOL05_SAFE_LANDING",
+      "SOL05_REVIEW_IMAGES",
+      "SOL05_SUBMIT_REPORT"
+    ]
   },
   "dataIntegrity": {
     "neverInventNASAObservations": true,

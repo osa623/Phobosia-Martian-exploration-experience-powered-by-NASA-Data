@@ -57,6 +57,51 @@ export function buildInteriorColliders(
   return colliders;
 }
 
+/** Static coarse AABBs for solid mesh objects across mars_Terrain, including buildings, vehicles and rocks. */
+export function buildTerrainBuildingColliders(root: THREE.Object3D): THREE.Box3[] {
+  const skipped = /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
+  const colliders: THREE.Box3[] = [];
+  root.updateWorldMatrix(true, true);
+  root.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    let ancestor: THREE.Object3D | null = object;
+    while (ancestor && ancestor !== root && ancestor.name !== "Drone_Zone") ancestor = ancestor.parent;
+    if (ancestor?.name === "Drone_Zone") return;
+    if (!mesh.isMesh || !mesh.geometry || skipped.test(mesh.name) || terrain.test(mesh.name)) return;
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = box.getSize(new THREE.Vector3());
+    if (size.x < 0.12 || size.y < 0.12 || size.z < 0.12 || !Number.isFinite(size.length()) || size.length() > 160) return;
+    box.expandByVector(new THREE.Vector3(0.63, 0.53, 0.63));
+    colliders.push(box);
+  });
+  return colliders;
+}
+
+/** Swept drone-point test so a fast/boosted frame cannot step through a building AABB. */
+export function segmentHitsAnyBox(from: THREE.Vector3, to: THREE.Vector3, colliders: readonly THREE.Box3[]): boolean {
+  const delta = to.clone().sub(from);
+  const length = delta.length();
+  if (length <= 1e-8) return colliders.some(box => box.containsPoint(to));
+  const direction = delta.multiplyScalar(1 / length);
+  const ray = new THREE.Ray(from, direction);
+  const hitPoint = new THREE.Vector3();
+  for (const source of colliders) {
+    const fromInside = source.containsPoint(from);
+    const toInside = source.containsPoint(to);
+    if (toInside && !fromInside) return true;
+    if (fromInside && toInside) {
+      const depthFrom = Math.min(from.x - source.min.x, source.max.x - from.x, from.y - source.min.y, source.max.y - from.y, from.z - source.min.z, source.max.z - from.z);
+      const depthTo = Math.min(to.x - source.min.x, source.max.x - to.x, to.y - source.min.y, source.max.y - to.y, to.z - source.min.z, source.max.z - to.z);
+      if (depthTo > depthFrom + 1e-4) return true;
+      continue;
+    }
+    if (fromInside) continue;
+    const hit = ray.intersectBox(source, hitPoint);
+    if (hit && hit.distanceTo(from) <= length) return true;
+  }
+  return false;
+}
+
 export function removeSpawnOverlaps(
   colliders: THREE.Box3[],
   spawn: THREE.Vector3,
