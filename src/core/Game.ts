@@ -17,6 +17,8 @@ import {
   type ScienceAnalysisRecord,
   type DroneSurveyRecord
 } from "./MissionManager";
+import { canLand, createDroneCameraRig, createDroneFlightState, detachDroneCameraRig, droneControlsFromKeys, orientDroneCameraRig, stepDroneFlight, type DroneCameraRig, type DroneFlightState, type DroneCameraView } from "../missions/sol-05/droneSimulation";
+import { resolveSol5Target, SOL5_SCENE_TARGETS } from "../missions/sol-05/targetMapping";
 import { ScreenRenderer } from "./ScreenRenderer";
 import { HabitatScreenRenderer } from "./HabitatScreenRenderer";
 import { EngineeringScreenRenderer } from "./EngineeringScreenRenderer";
@@ -144,6 +146,15 @@ export class Game {
   private droneYaw = 0;
   private dronePitch = -0.15;
   private droneBattery = 88;
+  // Sol 5 state is isolated from the legacy later-day FPV implementation above.
+  private sol5DroneActive = false;
+  private sol5Flight?: DroneFlightState;
+  private sol5DroneAnchor?: THREE.Object3D;
+  private sol5CameraRig?: DroneCameraRig;
+  private sol5BodyYaw = 0;
+  private sol5LookYaw = 0;
+  private sol5LookPitch = 0;
+  private sol5LastSnapshotAt = 0;
 
   constructor(private host: HTMLDivElement, private emit: SetState) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -204,6 +215,11 @@ export class Game {
 
       droneModeActive: false,
       droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
+      sol5DroneActive: false,
+      sol5Telemetry: null,
+      sol5Images: mState.sol5.images,
+      sol5Flight: mState.sol5.flight,
+      sol5Message: null,
 
       showCinematicOverlay: false,
       showOSDesktop: false,
@@ -265,7 +281,9 @@ export class Game {
       geologicalSurvey: mState.geologicalSurvey,
       surfaceObservation: mState.surfaceObservation,
       scienceAnalysis: mState.scienceAnalysis,
-      droneSurvey: mState.droneSurvey
+      droneSurvey: mState.droneSurvey,
+      sol5Images: mState.sol5.images,
+      sol5Flight: mState.sol5.flight
     });
   }
 
@@ -596,6 +614,268 @@ export class Game {
     this.lock();
   }
 
+  confirmSol5Briefing() {
+    const result = this.missionManager.confirmSol5Briefing();
+    this.set({ sol5Message: result.message, notification: result.success ? result.message : this.state.notification });
+  }
+
+  async startSol5DroneSimulation() {
+    if (this.sol5DroneActive || this.state.missionDay !== 5) return;
+    const targetId = this.missionManager.getSelectedSiteId();
+    if (!targetId) { this.set({ sol5Message: "Sol 5 is blocked: the official Sol 3 target is missing or invalid." }); return; }
+    const terrainModel = await this.getModel("Terrain");
+    if (this.disposed) return;
+    terrainModel.updateWorldMatrix(true, true);
+    const anchor = terrainModel.getObjectByName("Drone_Object");
+    const takeoffRef = terrainModel.getObjectByName("Drone_TakeoffPoint");
+    const target = resolveSol5Target(terrainModel, targetId, MASTER_TERRAIN_TARGETS);
+    const missingTargetNodes = Object.values(SOL5_SCENE_TARGETS).filter(name => !terrainModel.getObjectByName(name));
+    if (!anchor || !takeoffRef || !target || missingTargetNodes.length > 0 || !this.missionManager.getSol5Progress().briefingConfirmed) {
+      this.set({ sol5Message: `Simulation unavailable: verify briefing, Drone_Object, Drone_TakeoffPoint, selected target, and all target nodes in mars_Terrain. Missing: ${missingTargetNodes.join(", ") || "none"}.` });
+      return;
+    }
+    const previous = this.loaded.get("MissionControl");
+    const mcNav = previous?.getObjectByName("MC_NAVIGATION_01");
+    if (!previous || !mcNav) {
+      this.set({ sol5Message: "Simulation unavailable: the existing Mission Control Navigation reference is not loaded." });
+      return;
+    }
+    const terrainSurface = terrainModel.getObjectByName("PHOBOSIA_MarsTerrain_2km");
+    const takeoff = takeoffRef.getWorldPosition(new THREE.Vector3());
+    if (!terrainSurface) { this.set({ sol5Message: "Simulation unavailable: master terrain mesh is missing." }); return; }
+    this.raycaster.set(new THREE.Vector3(takeoff.x, 1000, takeoff.z), this.down);
+    const takeoffGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
+    if (!Number.isFinite(takeoffGround)) { this.set({ sol5Message: "Simulation unavailable: no terrain surface is resolved below Drone_TakeoffPoint." }); return; }
+    takeoff.y = takeoffGround!;
+    const droneStart = anchor.getWorldPosition(new THREE.Vector3());
+    this.raycaster.set(new THREE.Vector3(droneStart.x, 1000, droneStart.z), this.down);
+    const droneGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
+    if (!Number.isFinite(droneGround)) { this.set({ sol5Message: "Simulation unavailable: no terrain surface is resolved below Drone_Object in mars_Terrain." }); return; }
+    const initialAgl = droneStart.y - droneGround!;
+    if (initialAgl < 0.45 || initialAgl > 10) {
+      this.set({ sol5Message: `Drone_Object must begin between 0.45 m and 10 m above the terrain; current scene placement is ${initialAgl.toFixed(2)} m AGL.` });
+      return;
+    }
+    const authorization = this.missionManager.startSol5Simulation();
+    if (!authorization.success) { this.set({ sol5Message: authorization.message }); return; }
+    this.astronautStateBeforeDrone = { module: "MissionControl", position: this.camera.position.clone(), rotation: this.camera.rotation.clone() };
+    if (this.current) this.scene.remove(this.current);
+    this.current = terrainModel;
+    this.scene.add(terrainModel);
+    this.active = "Terrain";
+    this.updateEnvironment();
+    this.configureModule(terrainModel, "Terrain");
+    terrainModel.updateWorldMatrix(true, true);
+
+    const resolvedTarget = resolveSol5Target(terrainModel, targetId, MASTER_TERRAIN_TARGETS);
+    if (!resolvedTarget) { this.set({ sol5Message: "Simulation unavailable: official target scene mapping was lost during initialization." }); return; }
+    this.sol5Flight = createDroneFlightState(takeoff, resolvedTarget.position);
+    this.sol5Flight.position.copy(droneStart);
+    this.sol5Flight.maxAltitudeAglM = initialAgl;
+    const savedFlight = this.missionManager.getSol5Progress().flight;
+    if (savedFlight && !savedFlight.landed && savedFlight.targetId === targetId &&
+      (savedFlight.status === "aborted" || savedFlight.status === "flying" || savedFlight.status === "ready")) {
+      this.sol5Flight.position.set(savedFlight.position.x, savedFlight.position.y, savedFlight.position.z);
+      this.sol5Flight.elapsedSeconds = savedFlight.elapsedSeconds;
+      this.sol5Flight.totalDistanceM = savedFlight.totalDistanceM;
+      this.sol5Flight.maxAltitudeAglM = savedFlight.maxAltitudeAglM;
+      this.sol5Flight.batteryPercent = savedFlight.batteryPercent;
+    }
+    this.sol5DroneAnchor = anchor;
+    const direction = resolvedTarget.position.clone().sub(takeoff);
+    this.sol5BodyYaw = Math.atan2(-direction.x, -direction.z);
+    this.setSol5DroneWorldPose(this.sol5Flight.position, this.sol5BodyYaw);
+    this.sol5LookYaw = 0;
+    this.sol5LookPitch = -0.04;
+    this.sol5CameraRig = createDroneCameraRig(anchor, this.camera);
+    orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
+    this.sol5DroneActive = true;
+    this.droneKeys.clear();
+    const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
+    const agl = ground === null ? 1 : this.sol5Flight.position.y - ground;
+    this.set({
+      showOSDesktop: false, showCinematicOverlay: false, sol5DroneActive: true,
+      sol5Message: "Sol 5 simulation active. All flight telemetry is simulated from current scene coordinates.",
+      controlHint: "W/A/S/D fly · E ascend · Q descend · Mouse look · 1–5 camera · C capture · L land · Esc abort",
+      sol5Telemetry: { targetId, targetName: target.definition.name, batteryPercent: this.sol5Flight.batteryPercent,
+        signalPercent: 100, altitudeAglM: agl, speedMps: 0, distanceTravelledM: this.sol5Flight.totalDistanceM,
+        distanceFromTakeoffM: 0, distanceToTargetM: takeoff.distanceTo(resolvedTarget.position), headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360, targetBearingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360,
+        elapsedSeconds: this.sol5Flight.elapsedSeconds, cameraView: "front", warning: null, boundaryStatus: "INSIDE",
+        imageCount: this.missionManager.getSol5Progress().images.length, status: "READY" }
+    });
+    this.astronautStateBeforeDrone = { module: "MissionControl", position: mcNav.getWorldPosition(new THREE.Vector3()), rotation: new THREE.Euler() };
+    this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
+    void this.renderer.domElement.requestPointerLock();
+  }
+
+  confirmSol5ImageReview() {
+    const result = this.missionManager.confirmSol5ImageReview();
+    this.set({ sol5Message: result.message });
+  }
+
+  setSol5Camera(view: DroneCameraView) {
+    if (!this.sol5DroneActive || !this.sol5Flight) return;
+    this.sol5Flight.cameraView = view;
+    this.sol5LookYaw = 0;
+    this.sol5LookPitch = 0;
+  }
+
+  submitSol5Report(input: { observedFeatures: string; playerInterpretation: string; uncertainties: string; groundFollowUp: string }) {
+    const result = this.missionManager.submitSol5Report(input);
+    this.set({ sol5Message: result.message });
+  }
+
+  private toSol5Snapshot(status: "ready" | "flying" | "landed" | "aborted") {
+    const flight = this.sol5Flight!;
+    const targetId = this.missionManager.getSelectedSiteId()!;
+    return {
+      targetId, status, takeoff: { x: flight.takeoff.x, y: flight.takeoff.y, z: flight.takeoff.z },
+      position: { x: flight.position.x, y: flight.position.y, z: flight.position.z },
+      elapsedSeconds: flight.elapsedSeconds, totalDistanceM: flight.totalDistanceM, maxAltitudeAglM: flight.maxAltitudeAglM, speedMps: flight.velocity.length(),
+      batteryPercent: flight.batteryPercent, signalPercent: this.state.sol5Telemetry?.signalPercent ?? 100,
+      cameraView: flight.cameraView, landed: flight.landed
+    } as const;
+  }
+
+  private sol5GroundHeight(x: number, z: number): number | null {
+    if (!this.terrain) return null;
+    this.raycaster.set(new THREE.Vector3(x, 1000, z), this.down);
+    const hit = this.raycaster.intersectObject(this.terrain, true)[0];
+    return hit?.point.y ?? null;
+  }
+
+  private setSol5AnchorWorldPosition(position: THREE.Vector3) {
+    this.setSol5DroneWorldPose(position, this.sol5BodyYaw);
+  }
+
+  private setSol5DroneWorldPose(position: THREE.Vector3, yaw: number) {
+    const anchor = this.sol5DroneAnchor;
+    if (!anchor) return;
+    anchor.parent?.updateWorldMatrix(true, false);
+    const localPosition = position.clone();
+    anchor.parent?.worldToLocal(localPosition);
+    anchor.position.copy(localPosition);
+    const worldRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0, "YXZ"));
+    const parentRotation = anchor.parent?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion();
+    anchor.quaternion.copy(parentRotation.invert().multiply(worldRotation));
+    anchor.updateWorldMatrix(true, false);
+  }
+
+  private detachSol5Camera() {
+    if (this.sol5CameraRig && this.sol5DroneAnchor) detachDroneCameraRig(this.sol5DroneAnchor, this.scene, this.sol5CameraRig, this.camera);
+    this.sol5CameraRig = undefined;
+    this.sol5DroneAnchor = undefined;
+  }
+
+  private updateSol5Drone(dt: number) {
+    const flight = this.sol5Flight;
+    if (!flight || !this.sol5DroneAnchor) return;
+    const controls = droneControlsFromKeys(this.droneKeys, this.sol5BodyYaw);
+    stepDroneFlight(flight, controls, dt, (x, z) => this.sol5GroundHeight(x, z));
+    this.setSol5DroneWorldPose(flight.position, this.sol5BodyYaw);
+    const telemetry = this.state.sol5Telemetry;
+    if (!telemetry) return;
+    const baseDistance = Math.hypot(flight.position.x - flight.takeoff.x, flight.position.z - flight.takeoff.z);
+    const targetDx = flight.target.x - flight.position.x, targetDz = flight.target.z - flight.position.z;
+    const ground = this.sol5GroundHeight(flight.position.x, flight.position.z);
+    const agl = ground === null ? 0 : flight.position.y - ground;
+    if (this.sol5CameraRig) orientDroneCameraRig(this.sol5CameraRig, this.sol5LookYaw, this.sol5LookPitch);
+    const warning = flight.warning ?? (agl >= 9 ? "Approaching 10 m AGL limit." : baseDistance > 1200 ? "Simulated communication link degrading with distance." : null);
+    const signal = Math.max(0, Math.round(100 - Math.min(baseDistance, 1500) / 1500 * 100));
+    const targetDistance = flight.position.distanceTo(flight.target);
+    const boundaryHalf = 750;
+    const atBoundary = Math.abs(flight.position.x - flight.boundaryCenter.x) > boundaryHalf - 20 || Math.abs(flight.position.z - flight.boundaryCenter.z) > boundaryHalf - 20;
+    if (this.frame % 6 === 0) {
+      const targetBearingDegrees = (Math.atan2(-targetDx, -targetDz) * 180 / Math.PI + 360) % 360;
+      const update = { ...telemetry, batteryPercent: Math.round(flight.batteryPercent), signalPercent: signal,
+        altitudeAglM: Math.round(agl * 10) / 10, speedMps: Math.round(flight.velocity.length() * 10) / 10,
+        distanceTravelledM: Math.round(flight.totalDistanceM * 10) / 10, distanceFromTakeoffM: Math.round(baseDistance * 10) / 10,
+        distanceToTargetM: Math.round(targetDistance * 10) / 10, headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360, targetBearingDegrees,
+        elapsedSeconds: Math.floor(flight.elapsedSeconds), cameraView: flight.cameraView,
+        warning: warning ?? (signal < 20 ? "Simulated signal is critically low; return toward base." : null),
+        boundaryStatus: atBoundary ? "BOUNDARY" as const : "INSIDE" as const,
+        imageCount: this.missionManager.getSol5Progress().images.length, status: "FLIGHT ACTIVE" };
+      this.set({ sol5Telemetry: update });
+      if (flight.elapsedSeconds - this.sol5LastSnapshotAt >= 3) {
+        this.sol5LastSnapshotAt = flight.elapsedSeconds;
+        this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
+      }
+    }
+  }
+
+  captureSol5Image() {
+    if (!this.sol5DroneActive || !this.sol5Flight || !this.state.sol5Telemetry) return;
+    try {
+      const source = this.renderer.domElement;
+      const canvas = document.createElement("canvas");
+      canvas.width = 640; canvas.height = 360;
+      const context = canvas.getContext("2d");
+      if (!context || source.width === 0 || source.height === 0) throw new Error("Camera frame unavailable.");
+      context.drawImage(source, 0, 0, canvas.width, canvas.height);
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.62);
+      const position = this.sol5Flight.position;
+      const ground = this.sol5GroundHeight(position.x, position.z);
+      if (ground === null) throw new Error("Terrain reference unavailable below the camera.");
+      const result = this.missionManager.saveSol5Image({
+        id: `SOL05_IMAGE_${Date.now()}_${this.missionManager.getSol5Progress().images.length + 1}`,
+        sequence: this.missionManager.getSol5Progress().images.length + 1,
+        targetId: this.sol5Flight ? this.missionManager.getSelectedSiteId()! : "",
+        imageDataUrl, position: { x: position.x, y: position.y, z: position.z },
+        altitudeAglM: position.y - ground, headingDegrees: (this.sol5BodyYaw * 180 / Math.PI + 360) % 360,
+        elapsedSeconds: this.sol5Flight.elapsedSeconds, cameraView: this.sol5Flight.cameraView, capturedAt: new Date().toISOString()
+      });
+      this.set({ sol5Message: result.message, sol5Images: this.missionManager.getSol5Progress().images });
+    } catch (error) {
+      this.set({ sol5Message: error instanceof Error ? error.message : "Camera capture failed." });
+    }
+  }
+
+  requestSol5Landing() {
+    if (!this.sol5Flight || !this.state.sol5Telemetry) return;
+    const ground = this.sol5GroundHeight(this.sol5Flight.position.x, this.sol5Flight.position.z);
+    if (ground === null) { this.set({ sol5Message: "Landing blocked: no terrain surface is resolved beneath the drone." }); return; }
+    const result = canLand(this.sol5Flight, ground, this.missionManager.getSol5Progress().images.length);
+    if (!result.ok) { this.set({ sol5Message: result.reason }); return; }
+    this.setSol5AnchorWorldPosition(this.sol5Flight.position);
+    const saved = this.missionManager.completeSol5Landing(this.toSol5Snapshot("landed"));
+    if (!saved.success) { this.set({ sol5Message: saved.message }); return; }
+    if (this.state.sol5Telemetry) this.set({ sol5Telemetry: { ...this.state.sol5Telemetry, status: "LANDED", speedMps: 0 } });
+    this.sol5DroneActive = false;
+    this.droneKeys.clear();
+    document.exitPointerLock();
+    void this.returnPlayerToMissionControlNavigation(saved.message);
+  }
+
+  private async returnPlayerToMissionControlNavigation(message: string) {
+    this.detachSol5Camera();
+    const mc = await this.getModel("MissionControl");
+    if (this.disposed) return;
+    const nav = mc.getObjectByName("MC_NAVIGATION_01");
+    if (!nav) { this.set({ sol5DroneActive: false, sol5Message: "Landing succeeded, but the existing Mission Control Navigation spawn marker could not be resolved." }); return; }
+    if (this.current) this.scene.remove(this.current);
+    this.current = mc; this.scene.add(mc); this.active = "MissionControl";
+    this.updateEnvironment(); this.player.setEyeHeight(1.65); this.configureModule(mc, "MissionControl");
+    mc.updateWorldMatrix(true, true);
+    const position = nav.getWorldPosition(new THREE.Vector3());
+    this.camera.position.copy(position).add(new THREE.Vector3(0, this.player.eyeHeight, 0));
+    const rotation = new THREE.Euler().setFromQuaternion(nav.getWorldQuaternion(new THREE.Quaternion()), "YXZ");
+    this.camera.rotation.copy(rotation); this.player.face(new THREE.Quaternion().setFromEuler(rotation));
+    this.player.resetVelocity(); this.player.syncBasePosition();
+    this.set({ module: labels.MissionControl, isOutdoorTerrain: false, sol5DroneActive: false, sol5Flight: this.missionManager.getSol5Progress().flight,
+      sol5Images: this.missionManager.getSol5Progress().images, sol5Message: message,
+      sol5Telemetry: this.state.sol5Telemetry ? { ...this.state.sol5Telemetry, status: "LANDED · REVIEW REQUIRED" } : null,
+      prompt: "", notification: message });
+    this.lock();
+  }
+
+  abortSol5Flight() {
+    if (!this.sol5DroneActive || !this.sol5Flight) return;
+    const snapshot = this.toSol5Snapshot("aborted");
+    this.missionManager.saveSol5FlightSnapshot(snapshot);
+    this.sol5DroneActive = false; this.droneKeys.clear(); document.exitPointerLock();
+    void this.returnPlayerToMissionControlNavigation("Flight aborted. The drone remains at its last recorded scene position; mission completion is not awarded.");
+  }
+
   async startDroneFPV() {
     if (this.droneModeActive || this.state.missionDay !== 9) return;
 
@@ -717,6 +997,12 @@ export class Game {
     if (!width || !height) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    if (this.sol5CameraRig) {
+      for (const camera of Object.values(this.sol5CameraRig)) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+    }
     this.renderer.setSize(width, height, false);
   };
 
@@ -746,7 +1032,10 @@ export class Game {
 
     if (isModalOpen) return;
 
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.sol5LookYaw -= e.movementX * 0.002;
+      this.sol5LookPitch = THREE.MathUtils.clamp(this.sol5LookPitch - e.movementY * 0.002, -1.35, 1.35);
+    } else if (this.droneModeActive) {
       this.droneYaw -= e.movementX * 0.002;
       this.dronePitch = Math.max(-1.4, Math.min(1.4, this.dronePitch - e.movementY * 0.002));
       this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
@@ -776,7 +1065,21 @@ export class Game {
 
     if (this.transitioning) return;
 
-    // Drone FPV Input Handling
+    // Sol 5 owns its controls only during the isolated drone simulation.
+    if (this.sol5DroneActive) {
+      const movementCodes = ["KeyW", "KeyA", "KeyS", "KeyD", "KeyE", "KeyQ"];
+      if (movementCodes.includes(e.code)) { e.preventDefault(); this.droneKeys.add(e.code); }
+      const views: Record<string, DroneCameraView> = { Digit1: "front", Digit2: "rear", Digit3: "left", Digit4: "right", Digit5: "down" };
+      if (views[e.code] && this.sol5Flight) {
+        e.preventDefault(); this.sol5Flight.cameraView = views[e.code]; this.sol5LookYaw = 0; this.sol5LookPitch = 0;
+      }
+      if (e.code === "KeyC" && !e.repeat) { e.preventDefault(); this.captureSol5Image(); }
+      if (e.code === "KeyL" && !e.repeat) { e.preventDefault(); this.requestSol5Landing(); }
+      if (e.code === "Escape" && !e.repeat) { e.preventDefault(); this.abortSol5Flight(); }
+      return;
+    }
+
+    // Legacy later-day drone FPV Input Handling
     if (this.droneModeActive) {
       if (["KeyW", "KeyA", "KeyS", "KeyD", "Space", "ShiftLeft", "ShiftRight"].includes(e.code)) {
         e.preventDefault();
@@ -880,7 +1183,9 @@ export class Game {
   };
 
   private keyUp = (e: KeyboardEvent) => {
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.droneKeys.delete(e.code);
+    } else if (this.droneModeActive) {
       this.droneKeys.delete(e.code);
     } else {
       this.player.keys.delete(e.code);
@@ -1398,6 +1703,12 @@ export class Game {
       return;
     }
 
+    if (this.active === "Drone" && this.nearby.identifier === "Drone" && this.state.missionDay === 5) {
+      const recorded = this.missionManager.recordSol5OptionalDroneInspection();
+      this.set({ prompt: "", notification: recorded ? "Optional physical drone readiness inspection recorded. It does not block the mission." : "Optional inspection is unavailable." });
+      return;
+    }
+
     // 1. Entrance / Module Transition
     const route = transitions[this.active][this.nearby.identifier];
     if (route) {
@@ -1502,16 +1813,6 @@ export class Game {
 
     // 3. Mission Control Day 5 Route Planning & Day 6 Target Review & Day 9 Drone Console
     if (this.active === "MissionControl") {
-      if (this.state.missionDay === 5 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
-        document.exitPointerLock();
-        this.missionManager.completeStep("DAY5_REVIEW_MASTER_TERRAIN");
-        this.set({
-          showRoutePlanning: true,
-          prompt: ""
-        });
-        return;
-      }
-
       if (this.state.missionDay === 6 && (this.nearby.identifier === "MC_NAVIGATION_01" || this.nearby.identifier === "MC_MAIN_01")) {
         document.exitPointerLock();
         this.missionManager.completeStep("D6_OBJ_01_REVIEW_TARGET");
@@ -1718,7 +2019,7 @@ export class Game {
       this.set({ prompt: "[E] INSPECT · EXISTING DRONE" });
     } else if (best.identifier === "MC_NAVIGATION_01" || (this.active === "MissionControl" && best.identifier === "MC_MAIN_01")) {
       if (this.state.missionDay === 5) {
-        this.set({ prompt: "Press E to Access Terrain Survey Planning" });
+        this.set({ prompt: "[E] ACCESS · SOL 5 DRONE OPERATIONS" });
       } else if (this.state.missionDay === 6) {
         this.set({ prompt: "Press E to Review Geological Survey Target" });
       } else if (this.state.missionDay === 9) {
@@ -1840,7 +2141,9 @@ export class Game {
       }
     }
 
-    if (this.droneModeActive) {
+    if (this.sol5DroneActive) {
+      this.updateSol5Drone(dt);
+    } else if (this.droneModeActive) {
       this.updateDrone(dt);
     } else {
       const isModalOpen =
@@ -1865,7 +2168,10 @@ export class Game {
       }
     }
 
-    this.renderer.render(this.scene, this.camera);
+    const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
+      ? this.sol5CameraRig[this.sol5Flight.cameraView]
+      : this.camera;
+    this.renderer.render(this.scene, renderCamera);
 
     if (++this.frame % 30 === 0) {
       this.set({ fps: Math.round(1 / Math.max(dt, 0.001)) });
@@ -1874,6 +2180,7 @@ export class Game {
 
   dispose() {
     this.disposed = true;
+    this.detachSol5Camera();
     this.observer.disconnect();
     document.removeEventListener("pointerlockchange", this.pointer);
     document.removeEventListener("mousemove", this.mouse);

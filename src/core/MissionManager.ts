@@ -10,6 +10,7 @@ import { SOL2_INVESTIGATION_RULES } from "../missions/sol-02/taskDefinitions";
 import { SOL3_DATASET_IDS } from "../missions/sol-03/taskDefinitions";
 import { resolveNextMissionNavigation } from "../systems/navigation/missionNavigation";
 import sol03Mission from "../jsons/Missions/sol-03.json";
+import { SOL5_TASKS } from "../missions/sol-05/taskDefinitions";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -71,7 +72,13 @@ const TASK_VIEW_NAMES: Record<string, string> = {
   SOL03_SELECT_TARGET: "Observation Sites view",
   SOL03_SELECT_DATASET: "Dataset analysis view",
   SOL03_SUBMIT_TARGET_RECORD: "Target proposal review",
-  D1_DRONE_SECTION: "Physical inspection of the existing drone"
+  D1_DRONE_SECTION: "Physical inspection of the existing drone",
+  SOL05_PREFLIGHT_BRIEFING: "Sol 5 preflight briefing and target validation",
+  SOL05_ACTIVATE_SIMULATION: "Drone simulation activation",
+  SOL05_AERIAL_RECONNAISSANCE: "Live camera image capture and target approach survey",
+  SOL05_SAFE_LANDING: "Validated takeoff-point landing",
+  SOL05_REVIEW_IMAGES: "Saved image previews and flight metadata",
+  SOL05_SUBMIT_REPORT: "Aerial reconnaissance report"
 };
 
 export interface ObservationRecord {
@@ -201,6 +208,32 @@ export interface DroneSurveyRecord {
   relatedSurfaceObservationId?: string | null;
 }
 
+export interface Sol5ImageRecord {
+  id: string; sequence: number; targetId: string; imageDataUrl: string;
+  position: { x: number; y: number; z: number }; altitudeAglM: number;
+  headingDegrees: number; elapsedSeconds: number; cameraView: string; capturedAt: string;
+}
+export interface Sol5FlightSnapshot {
+  targetId: string; status: "ready" | "flying" | "landed" | "aborted";
+  takeoff: { x: number; y: number; z: number }; position: { x: number; y: number; z: number };
+  elapsedSeconds: number; totalDistanceM: number; maxAltitudeAglM: number; speedMps: number;
+  batteryPercent: number; signalPercent: number; cameraView: string; landed: boolean;
+}
+export interface Sol5ReconnaissanceReport {
+  id: string; targetId: string; submittedAt: string; flight: Sol5FlightSnapshot;
+  imageIds: string[]; observedFeatures: string; playerInterpretation: string;
+  uncertainties: string; groundFollowUp: string;
+}
+export interface Sol5MissionProgress {
+  briefingConfirmed: boolean; simulationActivated: boolean; optionalDroneInspection: boolean;
+  flight: Sol5FlightSnapshot | null; images: Sol5ImageRecord[]; imagesReviewed: boolean;
+  report: Sol5ReconnaissanceReport | null;
+}
+const createInitialSol5Progress = (): Sol5MissionProgress => ({
+  briefingConfirmed: false, simulationActivated: false, optionalDroneInspection: false,
+  flight: null, images: [], imagesReviewed: false, report: null
+});
+
 export interface DayMissionDefinition {
   day: MissionDayNumber;
   id: string;
@@ -229,6 +262,7 @@ export interface MissionProgressState {
   droneSurvey: DroneSurveyRecord | null;
   investigationRecords: InvestigationRecord[];
   selectedSiteId: string | null;
+  sol5: Sol5MissionProgress;
 }
 
 export interface InvestigationRecord {
@@ -343,21 +377,15 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   },
   5: {
     day: 5,
-    id: "DAY_05_TERRAIN_ROUTE_PLANNING",
-    title: "Terrain Route Planning",
-    storyContext: "Preparation for outdoor scientific observation on the Martian surface.",
-    briefing: "Proceed to Mission Control. Access the Terrain Map console, review verified Master Terrain observation targets, and select your primary route plan for future field surveys.",
-    primaryObjective: "Review Master Terrain map in Mission Control and select a validated survey route plan.",
-    steps: [
-      { stepId: "DAY5_REACH_MISSION_CONTROL", label: "Enter Mission Control", description: "Transit to Mission Control from Central Hub.", targetModule: "MissionControl", completed: false },
-      { stepId: "DAY5_REVIEW_MASTER_TERRAIN", label: "Review Terrain Map", description: "Inspect Terrain Map screen in Mission Control.", targetTrigger: "MC_NAVIGATION_01", completed: false },
-      { stepId: "DAY5_SELECT_ROUTE_OR_TARGET", label: "Select Survey Target", description: "Choose a validated observation target from Master Terrain.", targetTrigger: "MC_NAVIGATION_01", completed: false },
-      { stepId: "DAY5_SAVE_ROUTE_PLAN", label: "Save Route Plan", description: "Confirm and save Route Plan to mission telemetry.", targetTrigger: "MC_NAVIGATION_01", completed: false }
-    ],
-    allowedModules: ["MissionControl", "Hub", "Habitat", "Airlock", "Terrain"],
-    completionFeedback: "Route plan registered. Target survey profile logged. You may rest in Habitat to commence Day 6 field surveys."
-  },
-  6: {
+    id: "DAY_05_DRONE_AERIAL_RECONNAISSANCE",
+    title: "Drone-Based Aerial Reconnaissance",
+    storyContext: "Use the target submitted during Sol 3 and prepared during Sol 4 to document the approach from the air.",
+    briefing: "At Mission Control, confirm the preflight briefing for the official Sol 3 target. Activate the existing drone, capture at least five real camera images, return to Drone_TakeoffPoint for a validated landing, review the saved records, and submit the reconnaissance report.",
+    primaryObjective: "Fly the existing drone to document the selected target approach, capture at least five images, land safely, and submit a target-linked reconnaissance report.",
+    steps: SOL5_TASKS.map(task => ({ ...task, completed: false })),
+    allowedModules: ["MissionControl", "Hub", "Habitat", "Terrain", "Drone"],
+    completionFeedback: "Sol 5 reconnaissance report submitted. Return to Habitat Rest Area to begin the next mission day."
+  },  6: {
     day: 6,
     id: "DAY_06_GEOLOGICAL_SITE_SURVEY",
     title: "Geological Site Survey",
@@ -432,10 +460,10 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
     return { completed, total: required.length, remaining: required.length - completed };
   }
   const steps = DAYS_CONFIG[day].steps;
-  // Sols 2–3 define each validated investigation record as one mission task.
-  // Sols 4–9 define one primary objective, with their listed steps as sub-actions.
-  const total = day === 2 || day === 3 || day === 4 ? steps.length : steps.length ? 1 : 0;
-  const completed = day === 2 || day === 3 || day === 4
+  // Sols 2–5 expose the validated mission tasks individually; later legacy days
+  // retain their existing single-objective progress treatment.
+  const total = day >= 2 && day <= 5 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 5
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -476,7 +504,12 @@ export class MissionManager {
               scienceAnalysis: (parsed.scienceAnalysis as ScienceAnalysisRecord) ?? null,
               droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null,
               investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : [],
-              selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : [])
+              selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []),
+              sol5: {
+                ...createInitialSol5Progress(),
+                ...(parsed.sol5 && typeof parsed.sol5 === "object" ? parsed.sol5 as Sol5MissionProgress : {}),
+                images: parsed.sol5 && Array.isArray((parsed.sol5 as Sol5MissionProgress).images) ? (parsed.sol5 as Sol5MissionProgress).images : []
+              }
             };
           }
         }
@@ -500,7 +533,8 @@ export class MissionManager {
       scienceAnalysis: null,
       droneSurvey: null,
       investigationRecords: [],
-      selectedSiteId: null
+      selectedSiteId: null,
+      sol5: createInitialSol5Progress()
     };
   }
 
@@ -601,6 +635,102 @@ export class MissionManager {
       : null;
   }
 
+  public getSol5Progress(): Readonly<Sol5MissionProgress> { return this.state.sol5; }
+
+  public confirmSol5Briefing(): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    const prep = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
+    if (this.state.currentDay !== 5) return { success: false, message: "The Sol 5 briefing is unavailable outside Sol 5." };
+    if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`) || !this.isStepComplete("SOL04_SUBMIT_PREPARATION_REPORT")) {
+      return { success: false, message: "Sol 5 is blocked: no valid Sol 3 target with a matching validated Sol 4 preparation report." };
+    }
+    this.state.sol5.briefingConfirmed = true;
+    this.completeStep("SOL05_PREFLIGHT_BRIEFING");
+    return { success: true, message: `Preflight briefing confirmed for ${targetId}.` };
+  }
+
+  public startSol5Simulation(): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    const prep = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
+    if (this.state.currentDay !== 5 || !this.state.sol5.briefingConfirmed) return { success: false, message: "Complete the Sol 5 preflight briefing first." };
+    if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`)) return { success: false, message: "Official target or matching Sol 4 preparation record is unresolved." };
+    this.state.sol5.simulationActivated = true;
+    this.completeStep("SOL05_ACTIVATE_SIMULATION");
+    return { success: true, message: `Drone simulation authorized for ${targetId}.` };
+  }
+
+  public recordSol5OptionalDroneInspection(): boolean {
+    if (this.state.currentDay !== 5) return false;
+    this.state.sol5.optionalDroneInspection = true;
+    this.emit();
+    return true;
+  }
+
+  public saveSol5FlightSnapshot(snapshot: Sol5FlightSnapshot): boolean {
+    const targetId = this.getSelectedSiteId();
+    if (this.state.currentDay !== 5 || !this.state.sol5.simulationActivated || !targetId || snapshot.targetId !== targetId) return false;
+    this.state.sol5.flight = { ...snapshot, takeoff: { ...snapshot.takeoff }, position: { ...snapshot.position } };
+    this.emit();
+    return true;
+  }
+
+  public saveSol5Image(image: Sol5ImageRecord): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    if (this.state.currentDay !== 5 || !this.state.sol5.simulationActivated || this.state.sol5.flight?.landed) return { success: false, message: "Aerial image capture is unavailable in the current mission state." };
+    if (!targetId || image.targetId !== targetId) return { success: false, message: "Image target does not match the official Sol 3 selection." };
+    if (!image.imageDataUrl.startsWith("data:image/jpeg;base64,") || image.imageDataUrl.length < 500) return { success: false, message: "Camera capture was empty or invalid; no image record was saved." };
+    if (this.state.sol5.images.length >= 20) return { success: false, message: "Capture storage limit reached; return and preserve the existing records." };
+    const saved = { ...image, sequence: this.state.sol5.images.length + 1 };
+    this.state.sol5.images.push(saved);
+    this.emit();
+    return { success: true, message: `Aerial image ${saved.sequence} saved for ${targetId}.` };
+  }
+
+  public completeSol5Landing(snapshot: Sol5FlightSnapshot): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    const landingOffset = Math.hypot(snapshot.position.x - snapshot.takeoff.x, snapshot.position.z - snapshot.takeoff.z);
+    const landingHeightOffset = Math.abs(snapshot.position.y - snapshot.takeoff.y);
+    if (this.state.currentDay !== 5 || !targetId || snapshot.targetId !== targetId || this.state.sol5.images.length < 5 ||
+      !snapshot.landed || snapshot.status !== "landed" || snapshot.speedMps > 0.4 || landingOffset > 1.25 || landingHeightOffset > 1.25) {
+      return { success: false, message: "Landing cannot complete: the official target, valid landing, or five-image requirement is missing." };
+    }
+    this.state.sol5.flight = { ...snapshot, status: "landed", landed: true, takeoff: { ...snapshot.takeoff }, position: { ...snapshot.position } };
+    this.completeStep("SOL05_AERIAL_RECONNAISSANCE");
+    this.completeStep("SOL05_SAFE_LANDING");
+    return { success: true, message: "Landing validated and flight records saved." };
+  }
+
+  public confirmSol5ImageReview(): { success: boolean; message: string } {
+    if (this.state.currentDay !== 5 || !this.state.sol5.flight?.landed || this.state.sol5.images.length < 5 || this.state.sol5.images.some(image => image.targetId !== this.getSelectedSiteId())) {
+      return { success: false, message: "Review is blocked until a valid landing and five target-matched images are saved." };
+    }
+    this.state.sol5.imagesReviewed = true;
+    this.completeStep("SOL05_REVIEW_IMAGES");
+    return { success: true, message: "All saved aerial images are linked to the official target and ready for reporting." };
+  }
+
+  public submitSol5Report(input: { observedFeatures: string; playerInterpretation: string; uncertainties: string; groundFollowUp: string }): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    const flight = this.state.sol5.flight;
+    if (this.state.currentDay !== 5 || !targetId || !flight?.landed || !this.state.sol5.imagesReviewed || this.state.sol5.images.length < 5) {
+      return { success: false, message: "Complete the flight, landing, five-image review, and target validation before reporting." };
+    }
+    if ([input.observedFeatures, input.playerInterpretation, input.uncertainties, input.groundFollowUp].some(value => value.trim().length < 8)) {
+      return { success: false, message: "Describe image observations, interpretation, uncertainty, and ground follow-up (at least eight characters each)." };
+    }
+    this.state.sol5.report = {
+      id: `SOL05_REPORT_${Date.now()}`, targetId, submittedAt: new Date().toISOString(), flight: { ...flight },
+      imageIds: this.state.sol5.images.map(image => image.id), observedFeatures: input.observedFeatures.trim(),
+      playerInterpretation: input.playerInterpretation.trim(), uncertainties: input.uncertainties.trim(), groundFollowUp: input.groundFollowUp.trim()
+    };
+    this.completeStep("SOL05_SUBMIT_REPORT", {
+      type: "drone_survey", sourceIdentifier: targetId,
+      summary: `Sol 5 aerial reconnaissance report submitted for ${targetId}; ${this.state.sol5.images.length} images saved.`,
+      details: { targetId, flightSeconds: flight.elapsedSeconds, distanceMeters: flight.totalDistanceM, maximumAglMeters: flight.maxAltitudeAglM, imageCount: this.state.sol5.images.length, reportId: this.state.sol5.report.id }
+    });
+    return { success: true, message: "Sol 5 reconnaissance report validated and saved." };
+  }
+
   /** Mission-level progress. Sols 4–9 have one primary objective with several implementation steps. */
   public getMissionTaskCards(): MissionTaskCard[] {
     const mission = this.getCurrentMission();
@@ -615,7 +745,7 @@ export class MissionManager {
         const group = DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.interactionGroups.find(item => item.id === task.interactionGroupId);
         return [{ ...step, targetTrigger: group?.triggerObjectName ?? undefined, targetModule: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.moduleName }];
       }).filter(group => group.length > 0);
-    } else if (currentDay === 2 || currentDay === 3 || currentDay === 4) {
+    } else if (currentDay === 2 || currentDay === 3 || currentDay === 4 || currentDay === 5) {
       groups = mission.steps.map(step => [step]);
     } else {
       // The Sol 4–9 definitions describe one primary mission outcome; their
@@ -665,7 +795,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 4) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 5) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -847,7 +977,7 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
-      if (this.state.currentDay === 2 || this.state.currentDay === 3 || this.state.currentDay === 4) {
+      if (this.state.currentDay >= 2 && this.state.currentDay <= 5) {
         this.state.notification = this.getCurrentNavigationNotification();
       }
       this.emit();
@@ -900,16 +1030,7 @@ export class MissionManager {
       }
     }
 
-    // Day 5
-    if (day === 5) {
-      if (event.type === "module_entered" && event.module === "MissionControl") {
-        this.completeStep("DAY5_REACH_MISSION_CONTROL");
-      }
-      if (event.type === "trigger_interacted" && (event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")) {
-        this.completeStep("DAY5_REVIEW_MASTER_TERRAIN");
-        return { handled: true, feedback: "Terrain Map console active. Select a survey route." };
-      }
-    }
+    // Sol 5 tasks are completed by explicit briefing, flight, image-review, and report validation.
 
     // Day 6
     if (day === 6) {
@@ -963,27 +1084,8 @@ export class MissionManager {
     return { handled: false };
   }
 
-  public selectRouteTarget(targetId: string): boolean {
-    const target = MASTER_TERRAIN_TARGETS.find(t => t.id === targetId);
-    if (!target || this.state.currentDay !== 5) return false;
-
-    this.state.selectedRouteTarget = target;
-    this.completeStep("DAY5_SELECT_ROUTE_OR_TARGET");
-    this.completeStep("DAY5_SAVE_ROUTE_PLAN", {
-      type: "route_plan",
-      summary: `Survey Route Plan confirmed: ${target.name} (${target.distanceEstimate})`,
-      details: {
-        targetId: target.id,
-        targetName: target.name,
-        targetX: target.coordinates.x,
-        targetY: target.coordinates.y,
-        targetZ: target.coordinates.z,
-        hazard: target.hazardRating
-      }
-    });
-    this.emit();
-    return true;
-  }
+  /** Sol 5 derives its only mission target from the validated Sol 3 proposal. */
+  public selectRouteTarget(_targetId: string): boolean { return false; }
 
   /**
    * Day 6: Saves Geological Survey Record
@@ -1212,6 +1314,14 @@ export class MissionManager {
       if (this.getSelectedSiteId() !== this.state.selectedSiteId) return { canAdvance: false, reason: "The Sol 4 report must retain the target selected during Sol 3." };
     }
 
+    if (this.state.currentDay === 5) {
+      const targetId = this.getSelectedSiteId();
+      const prep = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
+      if (!targetId || !prep?.evidenceReferences.includes(`TARGET:${targetId}`) || !this.state.sol5.report || this.state.sol5.report.targetId !== targetId) {
+        return { canAdvance: false, reason: "Sol 5 requires the valid Sol 3 target, matching Sol 4 preparation report, five reviewed images, validated landing, and a target-linked report." };
+      }
+    }
+
     if (remaining.length > 0) {
       if (this.state.currentDay === 1) {
         return {
@@ -1347,7 +1457,8 @@ export class MissionManager {
       scienceAnalysis: null,
       droneSurvey: null,
       investigationRecords: [],
-      selectedSiteId: null
+      selectedSiteId: null,
+      sol5: createInitialSol5Progress()
     };
     this.emit();
   }

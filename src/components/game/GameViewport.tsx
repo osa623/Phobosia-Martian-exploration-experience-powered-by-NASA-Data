@@ -54,6 +54,11 @@ const initialState: GameState = {
 
   droneModeActive: false,
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
+  sol5DroneActive: false,
+  sol5Telemetry: null,
+  sol5Images: [],
+  sol5Flight: null,
+  sol5Message: null,
 
   showCinematicOverlay: false,
   showOSDesktop: false,
@@ -113,7 +118,7 @@ export function GameViewport() {
     !state.showSurfaceObservationForm &&
     !state.showScienceAnalysisModal &&
     !state.showDroneConsoleModal &&
-    !state.droneModeActive &&
+    !state.droneModeActive && !state.sol5DroneActive &&
     !state.restFeedback &&
     !state.showCinematicOverlay &&
     !state.showOSDesktop &&
@@ -127,7 +132,7 @@ export function GameViewport() {
         onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
       />  */}
       {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
-      {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && (
+      {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && !state.sol5DroneActive && (
         <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:5] [box-shadow:inset_0_0_120px_40px_rgba(0,_0,_0,_0.75),_inset_0_0_40px_rgba(10,_25,_35,_0.6)]" aria-hidden="true">
           <div className="[position:absolute] [inset:0] [border-radius:40px] [border:1px_solid_rgba(85,_205,_232,_0.15)] [box-shadow:inset_0_0_60px_rgba(0,_0,_0,_0.85)]" />
           <div className="[position:absolute] [top:0] [left:0] [right:0] [height:25%] [background:linear-gradient(180deg,_rgba(85,_205,_232,_0.04)_0%,_transparent_100%)]" />
@@ -152,11 +157,11 @@ export function GameViewport() {
 
       {/* 2. PERSISTENT IN-GAME HUD */}
       <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:10]">
-        {!state.droneModeActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
-        {!state.droneModeActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
-        {!state.droneModeActive && (
+        {!state.droneModeActive && !state.sol5DroneActive && (
           <div className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
             <div className="[display:flex] [align-items:center] [gap:6px] text-[15px] font-kdam-thmor-pro font-bold [letter-spacing:0.12em] [color:#e88747]">
               <span className="[width:6px] [height:6px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8] [animation:pulse_2s_infinite_ease-in-out]" />
@@ -180,7 +185,7 @@ export function GameViewport() {
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && (
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (
           <section className="[position:absolute] [top:72px] [right:24px] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
@@ -195,7 +200,7 @@ export function GameViewport() {
         )}
 
         {/* Standard Reticle (only when not in drone mode) */}
-        {!state.droneModeActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
 
         {/* Contextual Interaction Prompt */}
         {state.prompt && <div className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
@@ -208,7 +213,7 @@ export function GameViewport() {
           </div>
         )}
 
-        {!state.droneModeActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
 
         {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 
@@ -827,6 +832,32 @@ export function GameViewport() {
                   Exit Drone FPV [ESC]
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {state.sol5DroneActive && state.sol5Telemetry && (
+          <div className="[position:fixed] [inset:0] [z-index:25] [display:flex] [flex-direction:column] [justify-content:space-between] [padding:12px] [pointer-events:none] text-[11px] font-mono text-[#d9eef2] sm:[padding:22px]" aria-label="Sol 5 simulated drone flight HUD">
+            <div className="[display:flex] [flex-wrap:wrap] [justify-content:space-between] [gap:12px] [border:1px_solid_#32596f] [background:rgba(5,_14,_20,_0.88)] [padding:10px_14px] [pointer-events:auto]">
+              <div><div className="[color:#55cde8] [font-weight:bold] [letter-spacing:0.1em]">SOL 05 · AERIAL RECONNAISSANCE · SIMULATED</div><div className="[margin-top:4px] [color:#e8f1f4]">{state.sol5Telemetry.targetName} · {state.sol5Telemetry.targetId}</div></div>
+              <div className="[display:grid] [grid-template-columns:repeat(4,_auto)] [gap:6px_14px] [color:#a9c6d0]">
+                <span>BAT {state.sol5Telemetry.batteryPercent}%</span><span>LINK {state.sol5Telemetry.signalPercent}%*</span><span>AGL {state.sol5Telemetry.altitudeAglM.toFixed(1)} / 10 m</span><span>SPD {state.sol5Telemetry.speedMps.toFixed(1)} m/s</span>
+                <span>TRAVEL {state.sol5Telemetry.distanceTravelledM.toFixed(1)} m</span><span>HOME {state.sol5Telemetry.distanceFromTakeoffM.toFixed(1)} m</span><span>TARGET {state.sol5Telemetry.distanceToTargetM.toFixed(1)} m</span><span>TIME {Math.floor(state.sol5Telemetry.elapsedSeconds / 60)}:{String(Math.floor(state.sol5Telemetry.elapsedSeconds % 60)).padStart(2, "0")}</span>
+              </div>
+            </div>
+            <div className="[align-self:center] [display:grid] [place-items:center] [width:180px] [height:140px] [border:1px_solid_rgba(85,_205,_232,_0.26)] [background:rgba(4,_12,_18,_0.24)] [pointer-events:none]">
+              <div className="[font-size:28px] [color:#61d3e7]" style={{ transform: `rotate(${state.sol5Telemetry.targetBearingDegrees - state.sol5Telemetry.headingDegrees}deg)` }}>↑</div>
+              <div className="[font-size:9px] [color:#c1d8df]">TARGET BEARING {state.sol5Telemetry.targetBearingDegrees.toFixed(0)}°</div>
+            </div>
+            <div className="[display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:12px] [border:1px_solid_#32596f] [background:rgba(5,_14,_20,_0.91)] [padding:10px_14px] [pointer-events:auto]">
+              <div className="[max-width:650px] [line-height:1.65] [color:#9cb8c2]">W/S forward/back · A/D lateral · E/Q altitude · mouse look · 1 front · 2 rear · 3 left · 4 right · 5 down · C capture · L land · Esc abort<br/>VIEW {state.sol5Telemetry.cameraView.toUpperCase()} · IMAGES {state.sol5Telemetry.imageCount}/5 · BOUNDARY {state.sol5Telemetry.boundaryStatus} · *DISTANCE-BASED SIMULATED LINK</div>
+              <div className="[display:flex] [flex-wrap:wrap] [gap:6px]">
+                {(["front", "rear", "left", "right", "down"] as const).map((view, index) => <button key={view} onClick={() => game.current?.setSol5Camera(view)} className="rounded border border-[#355766] px-2 py-1 text-[9px] text-[#bde1e8] hover:bg-[#142a34]">{index + 1} {view.toUpperCase()}</button>)}
+                <button onClick={() => game.current?.captureSol5Image()} className="rounded border border-[#ba8453] bg-[#312519] px-3 py-1 text-[9px] text-[#f1d4b7] hover:bg-[#422d1c]">CAPTURE · {state.sol5Telemetry.imageCount}/5</button>
+                <button onClick={() => game.current?.requestSol5Landing()} className="rounded border border-[#42624c] bg-[#12231a] px-3 py-1 text-[9px] text-[#9dd1b3] hover:bg-[#193422]">LAND · L</button>
+                <button onClick={() => game.current?.abortSol5Flight()} className="rounded border border-[#704337] px-3 py-1 text-[9px] text-[#e6b99c] hover:bg-[#271b16]">ABORT · ESC</button>
+              </div>
+              <div className="w-full text-right text-[10px] text-[#e6b27e]">{state.sol5Telemetry.warning ?? state.sol5Message ?? "Mission systems nominal within simulated limits."}</div>
             </div>
           </div>
         )}

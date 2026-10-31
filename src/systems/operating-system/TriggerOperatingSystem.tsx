@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
 import { DAYS_CONFIG, type MissionDayNumber } from "@/core/MissionManager";
@@ -13,6 +13,8 @@ import missionControlLegacy from "@/jsons/Screens/mission-control-screens.json";
 import centralHubLegacy from "@/jsons/Screens/central-hub-screens.json";
 import airlockLegacy from "@/jsons/Screens/airlock-screen-data.json";
 import sol03Mission from "@/jsons/Missions/sol-03.json";
+import { Sol5MissionPanel } from "@/missions/sol-05/components/Sol5MissionPanel";
+import { resolveTriggerScreens } from "./triggerAccess";
 
 type Section = "habitat" | "engineering" | "research" | "missionControl" | "centralHub" | "airlock";
 interface ScreenRecord { id: string; mesh: string; title: string; purpose?: string; data?: unknown; content?: any }
@@ -130,7 +132,9 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
   const selectedTargetId = game?.missionManager.getSelectedSiteId() ?? game?.missionManager.getProposedSiteId() ?? null;
   const mission = DAYS_CONFIG[state.missionDay as MissionDayNumber] ?? DAYS_CONFIG[1];
   const records = useMemo(() => spec?.section ? getScreens(spec.section, state.missionDay) : [], [spec, state.missionDay]);
-  const relevant = records.filter(record => spec?.screens.includes(record.mesh) || spec?.screens.includes(record.id));
+  const relevant = resolveTriggerScreens(records, spec?.screens ?? []);
+  useEffect(() => setSelected(0), [triggerId]);
+  const selectedRecord = relevant[selected] ?? relevant[0];
   const dataMode = spec?.section === "habitat" || spec?.section === "engineering" ? "SIMULATED OUTPOST TELEMETRY" : "SIMULATED PHOBOSIA DISPLAY DATA";
   if (!spec) return <div className="[position:fixed] [inset:0] [z-index:70] [background:#07111b] [color:white] [padding:30px]">No interface is configured for this trigger.<button onClick={onClose}>Close</button></div>;
   const allowedTasks = spec.tasks?.filter(id => mission.steps.some(step => step.stepId === id)) ?? [];
@@ -144,7 +148,8 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
           {allowedTasks.length > 0 && <div className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:12px]"><div className="font-mono [color:#e88747] [font-size:10px] [letter-spacing:0.1em]">MISSION TASKS HERE</div>{allowedTasks.map(id => { const task = mission.steps.find(step => step.stepId === id); return <p key={id} className="[margin:8px_0] [color:#c6d6dc] [font-size:11px]">{game?.missionManager.isStepComplete(id) ? "✓ " : "○ "}{task?.label}</p>; })}</div>}
         </nav>
         <main className="[min-width:0] [flex:1] [overflow-y:auto] [padding:14px]">
-          {spec.section ? <TriggerScreenView record={relevant[selected]} location={spec.location} dataMode={dataMode} showSol3TargetGallery={state.missionDay === 3 && spec.section === "missionControl" && relevant[selected]?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {state.missionDay}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
+          {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} showSol3TargetGallery={state.missionDay === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {state.missionDay}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
+          {state.missionDay === 5 && triggerId === "MC_NAVIGATION_01" && <section className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.18)] [padding-top:16px]"><Sol5MissionPanel game={game} state={state} /></section>}
           {allowedTasks.length > 0 && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.18)] [margin-top:10px] [padding-top:10px]"><MissionInvestigationPanel game={game} initialTaskId={allowedTasks[0]} availableTaskIds={allowedTasks} showSavedRecords={allowedTasks.includes("SOL02_READINESS_ASSESSMENT") || allowedTasks.includes("SOL03_SUBMIT_TARGET_RECORD")} /></section>}
           {triggerId === "HAB_MONITOR_01" && <section className="[margin:8px_12px] [border-top:1px_solid_rgba(85,_205,_232,_0.15)] [padding:12px]"><div className="font-mono [color:#55cde8] [font-size:10px]">OUTPOST OVERVIEW</div><p className="[color:#dce8ed]">Sol {state.missionDay} · {mission.title} · {missionState?.objectiveState ?? state.objectiveState}</p><p className="[color:#9fb4c0] [font-size:12px]">{mission.primaryObjective}</p><p className="[color:#d4ad72] [font-size:12px]">{game?.missionManager.getMissionTaskProgress().remaining ?? 0} required mission tasks remain. System-specific records stay in their own consoles.</p>{state.notification && <p role="status" className="[border-left:2px_solid_#e88747] [padding-left:8px] [color:#e8c18d] [font-size:12px]">Mission notification: {state.notification}</p>}</section>}
         </main>

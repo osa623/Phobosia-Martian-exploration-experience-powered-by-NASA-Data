@@ -4,16 +4,19 @@ import sol04Mission from "../../jsons/Missions/sol-04.json";
 import sol02Navigation from "../../jsons/Instructions/sol-02-navigation.json";
 import sol03Navigation from "../../jsons/Instructions/sol-03-navigation.json";
 import sol04Navigation from "../../jsons/Instructions/sol-04-navigation.json";
+import sol05Mission from "../../jsons/Missions/sol-05.json";
+import sol05Navigation from "../../jsons/Instructions/sol-05-navigation.json";
 import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
-  4: { mission: sol04Mission, navigation: sol04Navigation }
+  4: { mission: sol04Mission, navigation: sol04Navigation },
+  5: { mission: sol05Mission, navigation: sol05Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -53,7 +56,11 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL04_SELECTED_TARGET_INVESTIGATION: "MC_NAVIGATION_01",
   SOL04_TERRAIN_DATA_REVIEW: "LAB_RESEARCH_ANALYSIS_01",
   SOL04_DRONE_MISSION_PLAN: "MC_NAVIGATION_01",
-  SOL04_SUBMIT_PREPARATION_REPORT: "MC_MAIN_01"
+  SOL04_SUBMIT_PREPARATION_REPORT: "MC_MAIN_01",
+  SOL05_PREFLIGHT_BRIEFING: "MC_NAVIGATION_01",
+  SOL05_ACTIVATE_SIMULATION: "MC_NAVIGATION_01",
+  SOL05_REVIEW_IMAGES: "MC_NAVIGATION_01",
+  SOL05_SUBMIT_REPORT: "MC_NAVIGATION_01"
 };
 
 export interface ResolvedMissionNavigation {

@@ -65,7 +65,8 @@ export function MissionOperatingSystem({ game, state, onClose, initialApp }: { g
   const records = saved?.investigationRecords ?? [];
   const missionTasks = game?.missionManager.getMissionTaskCards() ?? [];
   const observations = saved?.observationRecords ?? [];
-  const target = MASTER_TERRAIN_TARGETS.find(item => item.id === selectedTarget);
+  const sol5TargetId = game?.missionManager.getSelectedSiteId() ?? null;
+  const target = MASTER_TERRAIN_TARGETS.find(item => item.id === (state.missionDay === 5 ? sol5TargetId : selectedTarget));
   const activeApp = APPS.find(item => item.id === app)!;
   const progress = state.totalStepCount > 0 ? Math.min(100, Math.round((state.completedStepCount / state.totalStepCount) * 100)) : 0;
   const alerts = useMemo(() => [state.notification, state.restFeedback?.message].filter((value): value is string => Boolean(value)), [state.notification, state.restFeedback]);

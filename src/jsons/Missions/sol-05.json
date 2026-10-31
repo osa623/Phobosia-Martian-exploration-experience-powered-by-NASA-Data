@@ -1,0 +1,76 @@
+{
+  "missionId": "PHOBOSIA_SOL_05",
+  "sol": 5,
+  "title": "Drone-Based Aerial Reconnaissance",
+  "subtitle": "Capture target-linked aerial evidence using the existing terrain-scene drone.",
+  "missionType": "target_dependent_simulated_drone_reconnaissance",
+  "description": "Operate the existing Drone_Object in the Mars terrain scene, document the approach to the officially submitted Sol 3 target, capture and review at least five camera images, return to the designated takeoff point for a validated landing, and submit an evidence-based report.",
+  "prerequisites": {
+    "completedMissions": ["PHOBOSIA_SOL_04"],
+    "requiredPersistentMissionState": ["selectedSiteId", "SOL04_SUBMIT_PREPARATION_REPORT"]
+  },
+  "progression": {
+    "completionUnlocks": "PHOBOSIA_SOL_06",
+    "dayAdvancementTrigger": "HAB_REST_01",
+    "requireMissionCompletionBeforeRestAdvancement": true
+  },
+  "accessPolicy": {
+    "accessMode": "existing_physical_mission_control_trigger_and_existing_os",
+    "remoteSectionAccess": false,
+    "allowCrossSectionNavigationFromUI": false,
+    "simulationActivationRequiresValidatedBriefing": true,
+    "simulationRequiresExistingDroneAndTakeoffReferences": true
+  },
+  "dataPolicy": {
+    "officialSol03TargetIsAuthoritative": true,
+    "useExistingSceneTargetNodes": true,
+    "neverSubstituteMissingTarget": true,
+    "capturedImagesMustComeFromActiveDroneCamera": true,
+    "labelTelemetryAsSimulation": true,
+    "separatePlayerInterpretationFromObservedImageEvidence": true,
+    "doNotInventNASADataOrScientificFindings": true
+  },
+  "sceneReferences": {
+    "terrainAsset": "/assets/models/mars_Terrain.glb",
+    "droneControlAnchor": "Drone_Object",
+    "takeoffAndLandingReference": "Drone_TakeoffPoint",
+    "targetMapping": {
+      "TARGET_ALPHA_CRATER_RIM": "target_01",
+      "TARGET_BETA_DUNE_BASIN": "target_02",
+      "TARGET_GAMMA_SOUTH_ESCARPMENT": "target_03"
+    },
+    "playerReturnReference": "MC_NAVIGATION_01"
+  },
+  "operationalLimits": {
+    "boundaryWidthMeters": 1500,
+    "boundaryDepthMeters": 1500,
+    "boundaryCenterRule": "Midpoint of the resolved existing Drone_TakeoffPoint and official target scene-node positions.",
+    "maximumAltitudeAboveGroundMeters": 10,
+    "minimumValidCapturedImages": 5,
+    "telemetryModel": "PHOBOSIA gameplay simulation; not measured physical or NASA vehicle telemetry."
+  },
+  "interfaces": [
+    { "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "location": "Mission Control Navigation Station" },
+    { "interfaceId": "SOL5_DRONE_SIMULATION", "location": "Mars Terrain Drone Simulation" }
+  ],
+  "tasks": [
+    { "taskId": "SOL05_PREFLIGHT_BRIEFING", "title": "Complete Drone Flight Operations Briefing", "triggerId": "MC_NAVIGATION_01", "interfaceId": "MISSION_CONTROL_NAVIGATION", "mandatory": true, "objective": "Review the official target, Sol 4 preparation record, objective, boundary, altitude cap, takeoff/landing procedure, capture requirement, safety limits, and simulation capabilities, then explicitly confirm readiness.", "validation": ["Official Sol 3 target is valid", "Sol 4 preparation report references that target", "Player confirms the briefing"] },
+    { "taskId": "SOL05_ACTIVATE_SIMULATION", "title": "Activate Drone Reconnaissance Simulation", "triggerId": "MC_NAVIGATION_01", "interfaceId": "MISSION_CONTROL_NAVIGATION", "mandatory": true, "requiresCompletedTasks": ["SOL05_PREFLIGHT_BRIEFING"], "objective": "Start the simulation only after resolving the existing drone anchor, takeoff marker, and official target object.", "validation": ["No fallback target", "No duplicate drone", "Existing scene references resolve"] },
+    { "taskId": "SOL05_AERIAL_RECONNAISSANCE", "title": "Conduct Aerial Route Reconnaissance", "interfaceId": "SOL5_DRONE_SIMULATION", "mandatory": true, "requiresCompletedTasks": ["SOL05_ACTIVATE_SIMULATION"], "objective": "Operate within the configured boundary and 10 m AGL maximum while capturing at least five non-empty images from the live drone camera.", "validation": ["At least five target-linked images", "Image metadata saved", "Flight operates within boundary and altitude limits"] },
+    { "taskId": "SOL05_SAFE_LANDING", "title": "Return and Safely Land the Drone", "interfaceId": "SOL5_DRONE_SIMULATION", "mandatory": true, "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"], "objective": "Return to Drone_TakeoffPoint and explicitly land at low speed near the surface.", "validation": ["Takeoff reference position and ground height satisfy landing tolerances", "Drone speed is below landing threshold", "Minimum image count is met"] },
+    { "taskId": "SOL05_REVIEW_IMAGES", "title": "Review Aerial Observation Records", "triggerId": "MC_NAVIGATION_01", "interfaceId": "MISSION_CONTROL_NAVIGATION", "mandatory": true, "requiresCompletedTasks": ["SOL05_SAFE_LANDING"], "objective": "Review the saved images individually with target, position, AGL, heading, flight time, camera view, and preview metadata.", "validation": ["All captured image records match the official target", "Player confirms image review"] },
+    { "taskId": "SOL05_SUBMIT_REPORT", "title": "Submit Sol 5 Aerial Reconnaissance Report", "triggerId": "MC_NAVIGATION_01", "interfaceId": "MISSION_CONTROL_NAVIGATION", "mandatory": true, "requiresCompletedTasks": ["SOL05_REVIEW_IMAGES"], "objective": "Submit actual flight statistics, image references, player-described visual observations, uncertainties, and areas for later ground verification.", "validation": ["Report target matches official target", "Report uses actual flight record", "Observations and uncertainties are supplied"] }
+  ],
+  "optionalActivities": [
+    { "taskId": "SOL05_OPTIONAL_DRONE_INSPECTION", "physicalInteraction": "Existing Drone Section drone interaction", "mandatory": false, "blocksMission": false, "unavailableReadingsRemainUnavailable": true }
+  ],
+  "missionCompletion": {
+    "requiredTasks": ["SOL05_PREFLIGHT_BRIEFING", "SOL05_ACTIVATE_SIMULATION", "SOL05_AERIAL_RECONNAISSANCE", "SOL05_SAFE_LANDING", "SOL05_REVIEW_IMAGES", "SOL05_SUBMIT_REPORT"],
+    "requireOfficialTarget": true,
+    "requireMinimumCapturedImages": 5,
+    "requireValidatedLanding": true,
+    "requireTargetLinkedReport": true,
+    "unlockNextSol": "PHOBOSIA_SOL_06"
+  },
+  "reportSections": ["Official target", "Mission objective", "Flight status", "Takeoff and landing", "Flight duration", "Distance travelled", "Maximum AGL", "Valid image count", "Player-described image observations", "Interpretation", "Uncertainties", "Ground follow-up", "Data limitations"]
+}

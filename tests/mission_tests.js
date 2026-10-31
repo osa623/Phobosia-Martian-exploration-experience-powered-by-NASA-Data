@@ -60,8 +60,7 @@ function completeSol2(mm) {
   assert.strictEqual(result.success, true, result.message);
 }
 
-function completeSol3(mm) {
-  const targetId = MASTER_TERRAIN_TARGETS[0].id;
+function completeSol3(mm, targetId = MASTER_TERRAIN_TARGETS[0].id) {
   const prepare = (taskId, evidenceReferences, extra = {}) => {
     const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'This is a planning record based on limited simulated metadata.', limitations: ['No external scientific measurements.'], procedureChecks: [`${taskId}:0`, `${taskId}:1`], ...extra });
     assert.strictEqual(result.success, true, result.message);
@@ -90,6 +89,35 @@ function completeSol4(mm) {
   submit('SOL04_DRONE_MISSION_PLAN');
   const refs = mm.getInvestigationRecords().filter(record => record.sol === 4).map(record => record.id);
   submit('SOL04_SUBMIT_PREPARATION_REPORT', ['Terrain measurements and drone telemetry are unavailable.'], refs);
+}
+
+function completeSol5(mm) {
+  const targetId = mm.getSelectedSiteId();
+  assert(targetId, 'Sol 5 must inherit the official target');
+  assert.strictEqual(mm.confirmSol5Briefing().success, true);
+  assert.strictEqual(mm.startSol5Simulation().success, true);
+  const takeoff = { x: 10, y: 2, z: 15 };
+  const flight = { targetId, status: 'flying', takeoff, position: { x: 20, y: 3, z: 30 }, speedMps: 0.2, elapsedSeconds: 42,
+    totalDistanceM: 61.5, maxAltitudeAglM: 4.4, batteryPercent: 98.2, signalPercent: 94, cameraView: 'down', landed: false };
+  assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
+  for (let i = 1; i <= 5; i++) {
+    const result = mm.saveSol5Image({ id: `test-image-${targetId}-${i}`, sequence: i, targetId,
+      imageDataUrl: `data:image/jpeg;base64,${'A'.repeat(600)}`, position: { x: 10 + i, y: 3, z: 15 + i },
+      altitudeAglM: 1, headingDegrees: 90, elapsedSeconds: i * 4, cameraView: i === 5 ? 'down' : 'front', capturedAt: new Date(i).toISOString() });
+    assert.strictEqual(result.success, true, result.message);
+  }
+  const landed = { ...flight, status: 'landed', position: takeoff, speedMps: 0, landed: true };
+  assert.strictEqual(mm.completeSol5Landing(landed).success, true);
+  assert.strictEqual(mm.isStepComplete('SOL05_AERIAL_RECONNAISSANCE'), true);
+  assert.strictEqual(mm.isStepComplete('SOL05_SAFE_LANDING'), true);
+  const review = mm.confirmSol5ImageReview();
+  assert.strictEqual(review.success, true, review.message);
+  const report = mm.submitSol5Report({ observedFeatures: 'Visible tonal variation in image frames.',
+    playerInterpretation: 'Possible surface texture differences; tentative.', uncertainties: 'Scale and feature identity remain uncertain.',
+    groundFollowUp: 'Verify the apparent texture from the ground during Sol 6.' });
+  assert.strictEqual(report.success, true, report.message);
+  assert.strictEqual(mm.getState().sol5.report.targetId, targetId);
+  assert(mm.getState().sol5.images.every(image => image.targetId === targetId));
 }
 const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
@@ -466,45 +494,45 @@ test('Sol 4 requires the Sol 3 target, physical drone inspection, and a valid pr
   assert.strictEqual(mm.getState().currentDay, 5);
 });
 
-// P3-001: Day 5 Route Planning & Advancement to Day 6
-test('Day 5 Route planning validates selection and advances to Day 6 in Phase 3', () => {
-  mockStorage.clear();
-  const mm = new MissionManager();
-  // Fast forward to Day 5
-  mm.completeStep('DAY1_REVIEW_CONTROLS');
-  mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
-  mm.completeStep('DAY1_INSPECT_BASE_AREAS');
-  mm.completeStep('DAY1_CONFIRM_ORIENTATION');
-  mm.advanceDay(true);
-  completeSol2(mm);
-  mm.advanceDay(true);
-  completeSol3(mm);
-  mm.advanceDay(true);
-  completeSol4(mm);
-  mm.advanceDay(true);
-
-  assert.strictEqual(mm.getState().currentDay, 5);
-  mm.handleContextEvent({ type: 'module_entered', module: 'MissionControl' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'MC_NAVIGATION_01' });
-
-  // Invalid target rejection
-  const badTarget = mm.selectRouteTarget('NON_EXISTENT_TARGET');
-  assert.strictEqual(badTarget, false);
-  assert.strictEqual(mm.getState().objectiveState, 'in_progress');
-
-  // Valid target selection
-  const goodTarget = mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
-  assert.strictEqual(goodTarget, true);
-  assert.strictEqual(mm.getState().selectedRouteTarget.id, 'TARGET_ALPHA_CRATER_RIM');
-  assert.strictEqual(mm.getState().objectiveState, 'completed');
-
-  // Phase 3 permits advancement to Day 6!
-  const adv = mm.advanceDay(true);
-  assert.strictEqual(adv.success, true);
-  assert.strictEqual(adv.newDay, 6);
-  assert.strictEqual(mm.getState().currentDay, 6);
+// Sol 5: Official-target drone reconnaissance, image, landing, and report gates.
+test('Sol 5 requires the official Sol 3 target and validates briefing, five images, landing, review, and report for A/B/C', () => {
+  for (const target of MASTER_TERRAIN_TARGETS) {
+    mockStorage.clear();
+    const mm = new MissionManager();
+    mm.completeStep('DAY1_REVIEW_CONTROLS');
+    mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
+    mm.completeStep('DAY1_INSPECT_BASE_AREAS');
+    mm.completeStep('DAY1_CONFIRM_ORIENTATION');
+    mm.advanceDay(true);
+    completeSol2(mm);
+    mm.advanceDay(true);
+    completeSol3(mm, target.id);
+    mm.advanceDay(true);
+    completeSol4(mm);
+    mm.advanceDay(true);
+    assert.strictEqual(mm.getState().currentDay, 5);
+    assert.strictEqual(mm.getSelectedSiteId(), target.id);
+    assert.strictEqual(mm.getMissionTaskProgress().total, 6);
+    assert.strictEqual(resolveNextMissionNavigation(5, []).taskId, 'SOL05_PREFLIGHT_BRIEFING');
+    assert.strictEqual(mm.startSol5Simulation().success, false, 'Simulation cannot bypass the briefing confirmation');
+    assert.strictEqual(mm.canRestAndAdvance().canAdvance, false, 'Flight and report must remain incomplete');
+    assert.strictEqual(mm.confirmSol5Briefing().success, true);
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).taskId, 'SOL05_ACTIVATE_SIMULATION');
+    assert.strictEqual(mm.startSol5Simulation().success, true);
+    const resumeSnapshot = { targetId: target.id, status: 'flying', takeoff: { x: 2, y: 3, z: 4 },
+      position: { x: 5, y: 6, z: 7 }, elapsedSeconds: 12, totalDistanceM: 19, maxAltitudeAglM: 4,
+      speedMps: 1, batteryPercent: 88, signalPercent: 96, cameraView: 'down', landed: false };
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    const resumedMission = new MissionManager();
+    assert.strictEqual(resumedMission.getSol5Progress().flight.targetId, target.id, 'The active target-linked flight must persist across reload');
+    assert.strictEqual(resumedMission.getSol5Progress().flight.position.x, 5, 'The in-progress position must persist across reload');
+    completeSol5(mm);
+    assert.strictEqual(mm.getMissionTaskProgress().completed, 6);
+    assert.strictEqual(mm.getMissionTaskProgress().remaining, 0);
+    assert.strictEqual(mm.canRestAndAdvance().canAdvance, true);
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).isCompletion, true);
+  }
 });
-
 // P3-002: Day 6 Geological Site Survey requires GeologicalSurveyRecord
 test('Day 6 Geological Site Survey validates steps and requires GeologicalSurveyRecord before rest', () => {
   mockStorage.clear();
@@ -521,9 +549,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  completeSol5(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 6);
@@ -581,9 +607,7 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -656,9 +680,7 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.advanceDay(true);
   completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -740,9 +762,7 @@ test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut contro
   mm.advanceDay(true); // 4
   completeSol4(mm);
   mm.advanceDay(true); // 5
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  completeSol5(mm);
   mm.advanceDay(true); // 6
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
