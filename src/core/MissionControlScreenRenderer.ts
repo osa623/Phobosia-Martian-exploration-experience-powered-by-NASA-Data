@@ -387,9 +387,11 @@ export class MissionControlScreenRenderer {
     const day = Math.min(9, Math.max(1, this.missionSol)) as MissionDayNumber;
     const mission = DAYS_CONFIG[day];
     const completedIds = this.missionState?.completedStepIds ?? [];
-    const selectedId = this.missionState?.selectedSiteId ?? null;
-    const selectedTarget = sol03Mission.targetCatalogue.find(item => item.targetId === selectedId);
     const targetRecord = this.missionState?.investigationRecords?.find(record => record.taskId === "SOL03_SUBMIT_TARGET_RECORD");
+    const submittedTargetId = targetRecord?.evidenceReferences?.find(reference => reference.startsWith("TARGET:"))?.slice("TARGET:".length) ?? null;
+    const selectedId = submittedTargetId && submittedTargetId === this.missionState?.selectedSiteId ? submittedTargetId : null;
+    const selectedTarget = sol03Mission.targetCatalogue.find(item => item.targetId === selectedId);
+    const selectedTargetLabel = selectedTarget ? `Target ${String.fromCharCode(64 + Number(selectedTarget.targetNumber))} · ${selectedTarget.name}` : "Official Sol 3 target unavailable";
     const isStepComplete = (id: string) => completedIds.includes(id);
 
     if (screenConf.screenId === "MC_OVERVIEW") {
@@ -429,17 +431,17 @@ export class MissionControlScreenRenderer {
       if (content.header) {
         content.header.title = day === 4 ? "SELECTED TARGET INVESTIGATION" : "OBSERVATION TARGET CATALOGUE";
         content.header.subtitle = selectedTarget ? `${selectedTarget.name} · ELYSIUM PLANITIA` : "THREE PHOBOSIA CANDIDATES · REGION CONTEXT ONLY";
-        content.header.status = selectedTarget ? "SOL 3 SELECTION ACTIVE" : "PLAYER SELECTION REQUIRED";
+        content.header.status = selectedTarget ? (day === 4 ? "OFFICIAL SOL 3 TARGET" : "PROPOSED TARGET") : "TARGET UNRESOLVED";
       }
       const table = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "site_registry");
       if (table && day === 4) table.fallback = selectedTarget ? [{
-        name: `Target ${selectedTarget.targetNumber}`,
+        name: `Target ${String.fromCharCode(64 + Number(selectedTarget.targetNumber))} · ${selectedTarget.targetId}`,
         target: selectedTarget.name,
-        status: selectedTarget.marsCoordinates ? "LOCATION RECORDED" : "COORDINATES UNAVAILABLE"
+        status: selectedTarget.marsCoordinates ? "LOCATION RECORDED" : "OFFICIAL · COORDINATES UNAVAILABLE"
       }] : [{ name: "SELECTED TARGET", target: "Sol 3 selection unavailable", status: "REVIEW RECORD" }];
       const card = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "selected_site");
       if (card) card.fallback = selectedTarget ? {
-        priority: "INVESTIGATION",
+        priority: day === 4 ? "OFFICIAL TARGET · INVESTIGATION" : "PROPOSED TARGET · INVESTIGATION",
         status: day === 4 ? (isStepComplete("SOL04_SELECTED_TARGET_INVESTIGATION") ? "REVIEW RECORDED" : "READY FOR REVIEW") : (selectedId ? "PLAYER SELECTED" : "NOT YET SELECTED"),
         message: day === 4
           ? `${this.missionState?.investigationRecords?.find(record => record.taskId === "SOL04_SELECTED_TARGET_INVESTIGATION")?.rationale || selectedTarget.scientificDescription} Location: coordinates and outpost distance unavailable. ${selectedTarget.observationStatus}`
@@ -470,18 +472,19 @@ export class MissionControlScreenRenderer {
 
     if (screenConf.screenId === "MC_TERRAIN_MAP" && (day === 3 || day === 4)) {
       if (content.header) {
-        content.header.title = day === 4 ? "SELECTED TARGET · TERRAIN EVIDENCE" : "CANDIDATE TERRAIN EVIDENCE";
-        content.header.subtitle = selectedTarget?.name || "Mars geographic coordinates unavailable";
+        content.header.title = day === 4 ? "SELECTED TARGET / NAVIGATION AND TERRAIN" : "CANDIDATE TERRAIN EVIDENCE";
+        content.header.subtitle = day === 4 ? selectedTargetLabel : selectedTarget?.name || "Mars geographic coordinates unavailable";
+        if (day === 4) content.header.status = selectedTarget ? `OFFICIAL · ${selectedTarget.targetId}` : "TARGET UNRESOLVED";
       }
       const overview = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "terrain_overview");
       if (overview) {
         overview.type = "STATUS_CARD";
         overview.title = "MEASUREMENTS AND COVERAGE";
-        overview.fallback = { priority: "DATA LIMIT", status: "UNAVAILABLE", message: "No target-matched elevation model, slope map, LiDAR product, obstacle inventory, or georeferenced terrain layer is available in the project." };
+        overview.fallback = { priority: selectedTarget ? "SELECTED TARGET DATA" : "TARGET UNRESOLVED", status: "UNAVAILABLE", message: `${selectedTargetLabel}. No target-matched elevation model, slope map, LiDAR product, obstacle inventory, or georeferenced terrain layer is available in the project.` };
       }
       const route = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "route_summary");
       const terrainRecord = this.missionState?.investigationRecords?.find(record => record.taskId === "SOL04_TERRAIN_DATA_REVIEW");
-      if (route) route.fallback = { priority: "PLANNING ONLY", status: isStepComplete("SOL04_TERRAIN_DATA_REVIEW") ? "ASSESSMENT RECORDED" : "NOT MEASURED", message: `${selectedTarget?.name ?? "Choose a Sol 3 target"}. ${terrainRecord?.rationale || "No terrain assessment is saved yet."} Scene coordinates are not Mars coordinates; verified route distance and traversability are unavailable.` };
+      if (route) route.fallback = { priority: selectedTarget ? "OFFICIAL SOL 3 TARGET" : "TARGET UNRESOLVED", status: selectedTarget ? (isStepComplete("SOL04_TERRAIN_DATA_REVIEW") ? "ASSESSMENT RECORDED" : "ROUTE UNAVAILABLE") : "NO VALID SUBMISSION", message: `${selectedTargetLabel}. Region: ${selectedTarget?.geographicName || "Unavailable"}. Mars coordinates: ${selectedTarget?.marsCoordinates ? JSON.stringify(selectedTarget.marsCoordinates) : "unavailable"}. ${terrainRecord?.rationale || "No terrain assessment is saved yet."} Verified route, destination coordinates, distance, and traversability are unavailable. Target investigation: ${isStepComplete("SOL04_SELECTED_TARGET_INVESTIGATION") ? "recorded" : "pending"}.` };
       const features = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "terrain_features");
       if (features) features.fallback = [
         { name: "Elevation", target: "No verified DEM", status: "UNAVAILABLE" },
@@ -495,7 +498,7 @@ export class MissionControlScreenRenderer {
     if (screenConf.screenId === "MC_DRONE_OPERATIONS" && (day === 3 || day === 4)) {
       if (content.header) {
         content.header.title = day === 4 ? "SOL 5 MISSION PREPARATION" : "DRONE MISSION STATUS";
-        content.header.subtitle = day === 4 ? (selectedTarget?.name || "Selected target unavailable") : "DRONE FLIGHT IS NOT PART OF SOL 3";
+        content.header.subtitle = day === 4 ? selectedTargetLabel : "DRONE FLIGHT IS NOT PART OF SOL 3";
         content.header.status = day === 4 ? "GROUNDED · PREPARATION ONLY" : "NO FLIGHT AUTHORIZED";
       }
       const missionCard = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "drone_mission");
@@ -504,13 +507,13 @@ export class MissionControlScreenRenderer {
       if (missionCard) missionCard.fallback = {
         priority: "SOL 5 PREPARATION",
         status: day === 4 ? (isStepComplete("SOL04_DRONE_MISSION_PLAN") ? "PLAN RECORDED" : "PLAN PENDING") : "NOT STARTED",
-        message: day === 4 ? `${plan?.rationale || "Define aerial observation objectives for the Sol 3 selected target."} ${inspection ? `Inspection note: ${inspection.playerComment || inspection.rationale}` : "Physical inspection is not recorded yet."} Flight area, route, and imagery plan are not defined. No flight or telemetry is recorded today.` : "Physical drone inspection and aerial reconnaissance are scheduled for later mission phases."
+        message: day === 4 ? `${selectedTargetLabel}. ${plan?.rationale || "Define aerial observation objectives for the Sol 3 selected target."} ${inspection ? `Inspection note: ${inspection.playerComment || inspection.rationale}` : "Physical inspection is not recorded yet."} Flight area, route, and imagery plan are not defined. No flight or telemetry is recorded today.` : "Physical drone inspection and aerial reconnaissance are scheduled for later mission phases."
       };
       const systems = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "drone_systems");
       if (systems) systems.fallback = [
         { name: "Physical inspection", status: day === 4 && isStepComplete("SOL04_DRONE_PHYSICAL_INSPECTION") ? "RECORDED" : "NOT RECORDED", details: "Use the physical Drone Section inspection." },
         { name: "Battery / motors / camera", status: "UNAVAILABLE", details: "No verified readings are implemented." },
-        { name: "Target reference", status: selectedTarget ? "SOL 3 SELECTION" : "UNAVAILABLE", details: selectedTarget?.name || "No selected target." }
+        { name: "Target reference", status: selectedTarget ? "OFFICIAL SOL 3 TARGET" : "UNAVAILABLE", details: selectedTargetLabel }
       ];
       const events = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "flight_events");
       if (events) events.fallback = [{ time: "SOL 4", severity: "INFO", message: "Grounded preparation only; no flight has occurred." }];
@@ -538,8 +541,12 @@ export class MissionControlScreenRenderer {
     });
     const active = content.panels?.find((panel: MissionControlScreenPanel) => panel.id === "active_objective");
     if (active) active.fallback = {
-      name: mission.primaryObjective,
-      description: mission.storyContext,
+      name: day === 4 ? selectedTargetLabel : mission.primaryObjective,
+      description: day === 4
+        ? selectedTarget
+          ? `${mission.primaryObjective} Official target ${selectedTarget.targetId} is the only Sol 4 target reference. Investigation: ${isStepComplete("SOL04_SELECTED_TARGET_INVESTIGATION") ? "complete" : "pending"}; terrain review: ${isStepComplete("SOL04_TERRAIN_DATA_REVIEW") ? "complete" : "pending"}; physical drone inspection: ${isStepComplete("SOL04_DRONE_PHYSICAL_INSPECTION") ? "complete" : "pending"}; Sol 5 plan: ${isStepComplete("SOL04_DRONE_MISSION_PLAN") ? "complete" : "pending"}. No flight occurs on Sol 4.`
+          : "Official Sol 3 target is missing or invalid. Target-dependent Sol 4 activities remain unresolved; no target has been substituted."
+        : mission.storyContext,
       status: state.replaceAll("_", " ").toUpperCase(),
       progressPercent: percent
     };

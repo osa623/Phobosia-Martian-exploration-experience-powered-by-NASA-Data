@@ -151,28 +151,82 @@ test('Sol 3 target catalogue screen references all nine existing image assets wi
   assert(mission.targetCatalogue.every(target => target.marsCoordinates === null && target.outpostDistance === null));
 });
 
-test('Sol 4 screen content follows the selected Sol 3 target and saved investigation state', () => {
+test('Sol 4 Mission Control and Research physical screens use the official target A/B/C reference', () => {
   const mission = require('../src/jsons/Missions/sol-03.json');
-  const beta = mission.targetCatalogue[1];
+  const fs = require('fs');
+  const path = require('path');
   const config = getScreenConfigForSol('missionControl', 4, require('../src/jsons/Screens/Sol_2/mission-control-screens.json'));
-  const renderer = new MissionControlScreenRenderer(config);
-  renderer.missionSol = 4;
-  renderer.missionState = { currentSol: 4, selectedSiteId: beta.targetId, completedStepIds: ['SOL04_DRONE_PHYSICAL_INSPECTION'], investigationRecords: [{ taskId: 'SOL04_SELECTED_TARGET_INVESTIGATION', rationale: 'Selected target record.', limitations: ['Coordinates unavailable.'] }] };
-  const screen = config.screens.find(item => item.screenId === 'MC_OBSERVATION_SITES');
-  const content = renderer.getMissionAwareContent(screen);
-  const gallery = content.panels.find(panel => panel.type === 'IMAGE_GALLERY');
-  assert.strictEqual(content.header.title, 'SELECTED TARGET INVESTIGATION');
-  assert(content.header.subtitle.includes(beta.name));
-  assert.deepStrictEqual(gallery.images.map(image => image.src).sort(), Object.values(beta.images).sort());
-  assert(!gallery.images.some(image => mission.targetCatalogue[0].images.color === image.src));
-
   const researchConfig = getScreenConfigForSol('research', 4, require('../src/jsons/Screens/Sol_2/research-zone-screens.json'));
-  const research = new ResearchScreenRenderer(researchConfig);
-  research.missionDay = 4;
-  research.missionState = { currentDay: 4, selectedSiteId: beta.targetId };
-  const researchScreen = researchConfig.screens.find(item => item.screenId === 'research_monitoring_system');
-  const researchContent = research.getMissionAwareContent(researchScreen);
-  assert(researchContent.header.subtitle.includes(beta.name));
+  const objectiveScreen = config.screens.find(item => item.meshName === 'MissionControl_ObjectivesScreen');
+  assert.deepStrictEqual(objectiveScreen.dimensionsMeters, { x: 0, y: 3.31, z: 2.64 });
+  const navScreen = config.screens.find(item => item.meshName === 'MissionControl_TerrainMapScreen');
+  assert.strictEqual(navScreen.screenId, 'MC_TERRAIN_MAP');
+  const observationScreen = config.screens.find(item => item.meshName === 'MissionControl_ObservationSitesScreen');
+  assert.strictEqual(observationScreen.screenId, 'MC_OBSERVATION_SITES');
+  const researchScreen = researchConfig.screens.find(item => item.meshName === 'ResearchMonitoring_SystemScreen');
+  assert.strictEqual(researchScreen.screenId, 'research_monitoring_system');
+  assert.strictEqual(researchScreen.rendererId, 'ResearchMonitoringSystemRenderer');
+
+  for (const target of mission.targetCatalogue) {
+    const officialRecord = { taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: [`TARGET:${target.targetId}`], rationale: 'Submitted Sol 3 target proposal.', limitations: ['No target-matched scientific measurements.'] };
+    const state = {
+      currentDay: 4,
+      currentSol: 4,
+      selectedSiteId: target.targetId,
+      completedStepIds: ['SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION'],
+      investigationRecords: [officialRecord, { taskId: 'SOL04_SELECTED_TARGET_INVESTIGATION', rationale: `Investigated ${target.targetId}.`, limitations: ['Coordinates unavailable.'] }, { taskId: 'SOL04_TERRAIN_DATA_REVIEW', rationale: `Reviewed terrain evidence for ${target.targetId}.`, limitations: ['No elevation or slope dataset available.'] }]
+    };
+    const renderer = new MissionControlScreenRenderer(config);
+    renderer.missionSol = 4;
+    renderer.missionState = state;
+    const observation = renderer.getMissionAwareContent(observationScreen);
+    const observationGallery = observation.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+    assert.strictEqual(observation.header.status, 'OFFICIAL SOL 3 TARGET');
+    assert(observation.header.subtitle.includes(target.name));
+    assert.deepStrictEqual(observationGallery.images.map(image => image.src).sort(), Object.values(target.images).sort());
+    assert(observation.panels.find(panel => panel.id === 'site_registry').fallback[0].name.includes(target.targetId));
+
+    const navigation = renderer.getMissionAwareContent(navScreen);
+    assert(navigation.header.title.includes('NAVIGATION'));
+    assert(navigation.header.subtitle.includes(target.name));
+    assert(navigation.header.status.includes(target.targetId));
+    const routeMessage = navigation.panels.find(panel => panel.id === 'route_summary').fallback.message;
+    assert(routeMessage.includes(target.targetId));
+    assert(routeMessage.includes('distance')); // explicitly unavailable; no route values are fabricated
+
+    const objectives = renderer.getMissionAwareContent(objectiveScreen);
+    const objectiveCard = objectives.panels.find(panel => panel.id === 'active_objective').fallback;
+    assert(objectiveCard.name.includes(target.name));
+    assert(objectiveCard.description.includes(target.targetId));
+    assert(objectiveCard.description.includes('physical drone inspection: complete'));
+    assert(objectives.panels.find(panel => panel.id === 'objective_checklist').fallback.some(item => item.label.includes('Drone') && item.completed === true));
+
+    const research = new ResearchScreenRenderer(researchConfig);
+    research.missionDay = 4;
+    research.missionState = state;
+    const researchContent = research.getMissionAwareContent(researchScreen);
+    const imageGallery = researchContent.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+    assert(researchContent.header.subtitle.includes(target.name));
+    assert.deepStrictEqual(imageGallery.images.map(image => image.src).sort(), Object.values(target.images).sort());
+    for (const image of imageGallery.images) assert(fs.existsSync(path.join(__dirname, '..', 'public', image.src.slice(1))), `Image should exist: ${image.src}`);
+    const targetRow = researchContent.panels.find(panel => panel.type === 'DATA_TABLE').rows[0];
+    assert(targetRow.record.includes(target.targetId));
+    assert.strictEqual(targetRow.status, 'Official target');
+    const workflow = researchContent.panels.find(panel => panel.type === 'WORKFLOW_GRAPH');
+    assert(workflow.stages[1].includes('RECORDED'));
+    assert(workflow.stages[2].includes('RECORDED'));
+    assert(researchContent.panels.find(panel => panel.type === 'DATA_TABLE').rows.some(row => row.record === 'Sol 4 terrain assessment'));
+    const unavailableStatus = researchContent.panels.find(panel => panel.type === 'HEALTH_GRID').subsystems;
+    assert.strictEqual(unavailableStatus.find(item => item.name === 'Elevation / slope').status, 'UNAVAILABLE');
+    assert(!imageGallery.images.some(image => Object.values(mission.targetCatalogue.find(candidate => candidate.targetId !== target.targetId).images).includes(image.src)));
+  }
+
+  const unresolved = new ResearchScreenRenderer(researchConfig);
+  unresolved.missionDay = 4;
+  unresolved.missionState = { currentDay: 4, selectedSiteId: mission.targetCatalogue[0].targetId, investigationRecords: [] };
+  const unresolvedContent = unresolved.getMissionAwareContent(researchScreen);
+  assert.deepStrictEqual(unresolvedContent.panels.find(panel => panel.type === 'IMAGE_GALLERY').images, [], 'A state ID without a submitted proposal must not select target imagery');
+  assert.strictEqual(unresolvedContent.header.subtitle, 'Official Sol 3 target unavailable');
 });
 
 console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');

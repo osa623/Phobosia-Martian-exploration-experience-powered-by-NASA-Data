@@ -122,3 +122,18 @@ Run timestamp: 2026-10-31 07:48:01 Asia/Colombo (2026-10-31 02:18:01 UTC)
 - Added progression checks for every Sol 3 and Sol 4 task, including next-instruction selection and completion state. Added comparison validation checks for two references (rejected) and all three references (accepted), plus Sol 3/Sol 4 task counts.
 - npm.cmd test: PASS (84/84). npm.cmd run typecheck: PASS. Sol 3/4 mission and navigation JSON parse: PASS.
 - Manual browser task walkthrough: NOT RUN in this validation session.
+
+Sol 4 target-dependent Mission Control and Research physical screens
+Run timestamp: 2026-10-31 08:09:56 Asia/Colombo (2026-10-31 02:39:56 UTC)
+- Confirmed Mission Control screen mappings: MC_OBJECTIVES -> MissionControl_ObjectivesScreen (existing transform dimensions x=0, y=3.31, z=2.64); MC_OBSERVATION_SITES -> MissionControl_ObservationSitesScreen; MC_TERRAIN_MAP -> MissionControl_TerrainMapScreen (the existing terrain/navigation display); MC_DRONE_OPERATIONS -> MissionControl_DroneOperationScreen (Sol 5 preparation display).
+- Confirmed LAB_RESEARCH_ANALYSIS_01 maps to research_monitoring_system -> ResearchMonitoring_SystemScreen / ResearchMonitoringSystemRenderer.
+- Mission Control and Research renderers now resolve selectedSiteId only when it matches the TARGET reference in the validated SOL03_SUBMIT_TARGET_RECORD. Missing/mismatched proposals show unresolved content and no target imagery.
+- Sol 4 Observation Sites shows the official target identity and only its three existing images. The Terrain/Navigation screen and Objectives screen show that same target; objectives also reflect Sol 4 progress and grounded drone preparation status.
+- Research Analysis now renders the selected target's existing grayscale, colour, and thermal image assets plus available profile/record status. Missing terrain, elevation, coordinates, and NASA observations remain explicitly unavailable. Research content refreshes through the existing mission-state renderer update.
+- Automated target-selection coverage exercises Targets A, B, and C, exact image-path mapping, no cross-target image mixing, saved investigation progress, unresolved-state behavior, and the Objectives screen transform. No physical screen JSON, schema, transform, object, or trigger was changed.
+- npm.cmd run typecheck: PASS. npm.cmd test: PASS (84/84). Manual in-browser inspection: NOT RUN.
+
+Sol 4 physical-screen target content final rerun
+Run timestamp: 2026-10-31 08:10:34 Asia/Colombo (2026-10-31 02:40:34 UTC)
+- Final Mission Control Navigation title assertion added for MC_TERRAIN_MAP.
+- npm.cmd run typecheck: PASS. npm.cmd test: PASS (84/84), including Targets A/B/C and unresolved target checks.
