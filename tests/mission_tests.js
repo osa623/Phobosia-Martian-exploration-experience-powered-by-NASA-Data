@@ -1,5 +1,5 @@
 /**
- * PHOBOSIA — Phase 2 & Phase 3 Automated Mission Logic & Progression Test Suite
+ * PHOBOSIA â€” Phase 2 & Phase 3 Automated Mission Logic & Progression Test Suite
  *
  * Validates:
  * - P2-001: Correct initial Day 1 state
@@ -39,10 +39,11 @@ global.localStorage = {
   clear: () => mockStorage.clear()
 };
 
-const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS } = require('../dist/MissionManager.js');
-const { MissionManager } = require('../dist/MissionManager.js');
+const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS, getMissionTaskProgressFor } = require('../dist/core/MissionManager.js');
+const { MissionManager } = require('../dist/core/MissionManager.js');
+const { resolveNextMissionNavigation, normalizeValidatedTaskIds } = require('../dist/systems/navigation/missionNavigation.js');
 const THREE = require('three');
-const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection } = require('../dist/Collision.js');
+const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight } = require('../dist/core/Collision.js');
 
 function completeSol2(mm) {
   const tasks = [
@@ -59,31 +60,85 @@ function completeSol2(mm) {
   assert.strictEqual(result.success, true, result.message);
 }
 
-function completeSol3(mm) {
-  const targetId = MASTER_TERRAIN_TARGETS[0].id;
+function completeSol3(mm, targetId = MASTER_TERRAIN_TARGETS[0].id) {
   const prepare = (taskId, evidenceReferences, extra = {}) => {
     const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'This is a planning record based on limited simulated metadata.', limitations: ['No external scientific measurements.'], procedureChecks: [`${taskId}:0`, `${taskId}:1`], ...extra });
     assert.strictEqual(result.success, true, result.message);
   };
   prepare('SOL03_MISSION_CONTEXT', ['SOL03-MISSION-CONTEXT']);
-  prepare('SOL03_OBSERVATION_SITE_REVIEW', [`TARGET:${targetId}`]);
+  prepare('SOL03_OBSERVATION_SITE_REVIEW', MASTER_TERRAIN_TARGETS.map(target => `TARGET:${target.id}`));
   prepare('SOL03_SYSTEM_CONSTRAINTS', ['SOL03-COMMS-SYSTEMS']);
   prepare('SOL03_SELECT_TARGET', [`TARGET:${targetId}`], { selectedTargetId: targetId, scientificQuestion: 'Which site profile merits a future observation?' });
   prepare('SOL03_SELECT_DATASET', ['DATASET:PHOBOSIA_TARGET_PROFILE_TRAINING'], { datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING' });
   const refs = mm.getInvestigationRecords().filter(r => r.taskId.startsWith('SOL03_')).map(r => r.id);
-  const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
+  const result = mm.submitInvestigation({ taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: refs, classification: 'proposal_submitted', rationale: 'A cautious training proposal with explicit limits.', limitations: ['Metadata only; not scientific observations.'], procedureChecks: [], selectedTargetId: targetId, datasetId: 'PHOBOSIA_TARGET_PROFILE_TRAINING', scientificQuestion: 'What should a future surface observation examine?' });
   assert.strictEqual(result.success, true, result.message);
 }
-const { ScreenRenderer } = require('../dist/ScreenRenderer.js');
-const { HabitatScreenRenderer } = require('../dist/HabitatScreenRenderer.js');
-const { EngineeringScreenRenderer } = require('../dist/EngineeringScreenRenderer.js');
-const { ResearchScreenRenderer } = require('../dist/ResearchScreenRenderer.js');
-const { MissionControlScreenRenderer } = require('../dist/MissionControlScreenRenderer.js');
-const { CentralHubScreenRenderer } = require('../dist/CentralHubScreenRenderer.js');
-const { AirlockScreenRenderer } = require('../dist/AirlockScreenRenderer.js');
-const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/ModuleLighting.js');
-const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/Day1Config.js');
-const { CameraPresentationManager } = require('../dist/CameraPresentation.js');
+
+function completeSol4(mm) {
+  const targetId = mm.getSelectedSiteId();
+  assert(targetId && MASTER_TERRAIN_TARGETS.some(target => target.id === targetId), 'Sol 3 selected target must persist into Sol 4');
+  const submit = (taskId, limitations = ['Target-specific coordinates, NASA products, and terrain measurements are unavailable.'], evidenceReferences = []) => {
+    const result = mm.submitInvestigation({ taskId, evidenceReferences, classification: 'insufficient_evidence', rationale: 'The available target record supports planning, with important evidence limits.', limitations, procedureChecks: taskId === 'SOL04_SUBMIT_PREPARATION_REPORT' ? [] : ['reviewed', 'limitations-recorded'], selectedTargetId: targetId, playerComment: 'Player assessment; not an independently verified finding.' });
+    assert.strictEqual(result.success, true, `${taskId}: ${result.message}`);
+  };
+  submit('SOL04_MISSION_CONTEXT');
+  submit('SOL04_SELECTED_TARGET_INVESTIGATION');
+  submit('SOL04_TERRAIN_DATA_REVIEW');
+  assert.strictEqual(mm.recordPhysicalDroneInspection('Visible presence checked; readings unavailable.'), true);
+  submit('SOL04_DRONE_MISSION_PLAN');
+  const refs = mm.getInvestigationRecords().filter(record => record.sol === 4).map(record => record.id);
+  submit('SOL04_SUBMIT_PREPARATION_REPORT', ['Terrain measurements and drone telemetry are unavailable.'], refs);
+}
+
+function completeSol5(mm) {
+  const targetId = mm.getSelectedSiteId();
+  assert(targetId, 'Sol 5 must inherit the official target');
+  assert.strictEqual(mm.confirmSol5Briefing().success, true);
+  assert.strictEqual(mm.startSol5Simulation().success, true);
+  const takeoff = { x: 10, y: 2, z: 15 };
+  const flight = { targetId, status: 'flying', takeoff, position: { x: 20, y: 3, z: 30 }, speedMps: 0.2, elapsedSeconds: 42,
+    totalDistanceM: 61.5, maxAltitudeAglM: 4.4, batteryPercent: 98.2, signalPercent: 94, cameraView: 'down', landed: false };
+  assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
+  assert.strictEqual(mm.markSol5TargetReached(targetId), true);
+  const { SOL5_EVIDENCE_ASSETS } = require('../dist/missions/sol-05/targetMapping.js');
+  const inspected = mm.completeSol5TargetInspection(targetId, SOL5_EVIDENCE_ASSETS[targetId]);
+  assert.strictEqual(inspected.success, true, inspected.message);
+  const reloadedAfterInspection = new MissionManager();
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().attemptStatus, 'aborted', 'Reload before landing aborts even after target inspection');
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().targetInspected, false, 'Inspection must be repeated on the new attempt');
+  assert.strictEqual(reloadedAfterInspection.getSol5Progress().images.length, 0, 'Incomplete attempt evidence state is cleared for re-inspection');
+  assert.strictEqual(reloadedAfterInspection.getSelectedSiteId(), targetId, 'Reload preserves the submitted target');
+  mm = reloadedAfterInspection;
+  assert.strictEqual(mm.startSol5Simulation().success, true);
+  assert.strictEqual(mm.markSol5TargetReached(targetId), true);
+  assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
+  assert.strictEqual(mm.completeSol5TargetInspection(targetId, SOL5_EVIDENCE_ASSETS[targetId]).success, true);
+  const landed = { ...flight, status: 'landed', position: takeoff, speedMps: 0, landed: true };
+  assert.strictEqual(mm.completeSol5Landing(landed).success, true);
+  assert.strictEqual(mm.isStepComplete('SOL05_AERIAL_RECONNAISSANCE'), true);
+  assert.strictEqual(mm.isStepComplete('SOL05_SAFE_LANDING'), true);
+  const review = mm.confirmSol5ImageReview();
+  assert.strictEqual(review.success, true, review.message);
+  const report = mm.submitSol5Report({ observedFeatures: 'Visible tonal variation in image frames.',
+    playerInterpretation: 'Possible surface texture differences; tentative.', uncertainties: 'Scale and feature identity remain uncertain.',
+    groundFollowUp: 'Verify the apparent texture from the ground during Sol 6.' });
+  assert.strictEqual(report.success, true, report.message);
+  assert.strictEqual(mm.getState().sol5.report.targetId, targetId);
+  assert(mm.getState().sol5.images.every(image => image.targetId === targetId));
+  return mm;
+}
+const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
+const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
+const { EngineeringScreenRenderer } = require('../dist/core/EngineeringScreenRenderer.js');
+const { ResearchScreenRenderer } = require('../dist/core/ResearchScreenRenderer.js');
+const { MissionControlScreenRenderer } = require('../dist/core/MissionControlScreenRenderer.js');
+const { CentralHubScreenRenderer } = require('../dist/core/CentralHubScreenRenderer.js');
+const { AirlockScreenRenderer } = require('../dist/core/AirlockScreenRenderer.js');
+const { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig, configureHabitatAreaLights, discoverHubLights, configureHubLights } = require('../dist/core/ModuleLighting.js');
+const { DAY1_TASKS, DAY1_ZONES, TRIGGER_TO_TASK_MAP, TRIGGER_TO_GROUP_MAP } = require('../dist/core/Day1Config.js');
+const { CameraPresentationManager } = require('../dist/core/CameraPresentation.js');
+const { getScreenConfigForSol } = require('../dist/core/ScreenConfigRegistry.js');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -92,16 +147,203 @@ function test(name, fn) {
   totalTests++;
   try {
     fn();
-    console.log(`  ✓ PASS: ${name}`);
+    console.log(`  âœ“ PASS: ${name}`);
     passedTests++;
   } catch (err) {
-    console.error(`  ✗ FAIL: ${name}`);
+    console.error(`  âœ— FAIL: ${name}`);
     console.error(err);
     process.exitCode = 1;
   }
 }
 
+test('Sol 1-4 routing covers all six physical-screen sections and preserves every screen association', () => {
+  const sections = { airlock: 'airlock-screen-data.json', centralHub: 'central-hub-screens.json', engineering: 'engineeringScreenData.json', habitat: 'habitatScreenData.json', missionControl: 'mission-control-screens.json', research: 'research-zone-screens.json' };
+  const signature = config => Array.isArray(config.screens)
+    ? config.screens.map(({ screenId, meshName, rendererId }) => ({ screenId, meshName, rendererId }))
+    : Object.entries(config.screens).map(([id, item]) => ({ id, physicalMesh: item.physicalMesh, geometry: item.geometry, orientation: item.orientation }));
+  for (const sol of [1, 2, 3, 4]) for (const [section, file] of Object.entries(sections)) {
+    const baseline = require(`../src/jsons/Screens/Sol_${sol < 3 ? sol : 2}/${file}`);
+    const selected = getScreenConfigForSol(section, sol, baseline);
+    assert.deepStrictEqual(signature(selected), signature(baseline), `Sol ${sol} ${section} must preserve physical screen bindings`);
+    assert.strictEqual(signature(selected).length, signature(baseline).length);
+  }
+  const legacy = require('../src/jsons/Screens/Sol_2/mission-control-screens.json');
+  for (const sol of [3, 4]) {
+    const selected = getScreenConfigForSol('missionControl', sol, legacy);
+    const renderer = new MissionControlScreenRenderer(selected);
+    renderer.missionSol = sol;
+    const overview = selected.screens.find(screen => screen.screenId === 'MC_OVERVIEW');
+    const content = renderer.getMissionAwareContent(overview);
+    assert(content.header.subtitle.includes(`SOL 0${sol}`));
+  }
+});
+
+test('Sol 3 target catalogue screen references all nine existing image assets without duplicating selection state', () => {
+  const mission = require('../src/jsons/Missions/sol-03.json');
+  const config = getScreenConfigForSol('missionControl', 3, require('../src/jsons/Screens/Sol_2/mission-control-screens.json'));
+  const screen = config.screens.find(item => item.screenId === 'MC_OBSERVATION_SITES');
+  const gallery = screen.content.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+  const expected = mission.targetCatalogue.flatMap(target => Object.values(target.images));
+  assert.deepStrictEqual(gallery.images.map(image => image.src).sort(), expected.sort());
+  assert(mission.targetCatalogue.every(target => target.marsCoordinates === null && target.outpostDistance === null));
+});
+
+test('Sol 4 Mission Control and Research physical screens use the official target A/B/C reference', () => {
+  const mission = require('../src/jsons/Missions/sol-03.json');
+  const fs = require('fs');
+  const path = require('path');
+  const config = getScreenConfigForSol('missionControl', 4, require('../src/jsons/Screens/Sol_2/mission-control-screens.json'));
+  const researchConfig = getScreenConfigForSol('research', 4, require('../src/jsons/Screens/Sol_2/research-zone-screens.json'));
+  const objectiveScreen = config.screens.find(item => item.meshName === 'MissionControl_ObjectivesScreen');
+  assert.deepStrictEqual(objectiveScreen.dimensionsMeters, { x: 0, y: 3.31, z: 2.64 });
+  const navScreen = config.screens.find(item => item.meshName === 'MissionControl_TerrainMapScreen');
+  assert.strictEqual(navScreen.screenId, 'MC_TERRAIN_MAP');
+  const observationScreen = config.screens.find(item => item.meshName === 'MissionControl_ObservationSitesScreen');
+  assert.strictEqual(observationScreen.screenId, 'MC_OBSERVATION_SITES');
+  const researchScreen = researchConfig.screens.find(item => item.meshName === 'ResearchMonitoring_SystemScreen');
+  assert.strictEqual(researchScreen.screenId, 'research_monitoring_system');
+  assert.strictEqual(researchScreen.rendererId, 'ResearchMonitoringSystemRenderer');
+
+  for (const target of mission.targetCatalogue) {
+    const officialRecord = { taskId: 'SOL03_SUBMIT_TARGET_RECORD', evidenceReferences: [`TARGET:${target.targetId}`], rationale: 'Submitted Sol 3 target proposal.', limitations: ['No target-matched scientific measurements.'] };
+    const state = {
+      currentDay: 4,
+      currentSol: 4,
+      selectedSiteId: target.targetId,
+      completedStepIds: ['SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION'],
+      investigationRecords: [officialRecord, { taskId: 'SOL04_SELECTED_TARGET_INVESTIGATION', rationale: `Investigated ${target.targetId}.`, limitations: ['Coordinates unavailable.'] }, { taskId: 'SOL04_TERRAIN_DATA_REVIEW', rationale: `Reviewed terrain evidence for ${target.targetId}.`, limitations: ['No elevation or slope dataset available.'] }]
+    };
+    const renderer = new MissionControlScreenRenderer(config);
+    renderer.missionSol = 4;
+    renderer.missionState = state;
+    const observation = renderer.getMissionAwareContent(observationScreen);
+    const observationGallery = observation.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+    assert.strictEqual(observation.header.status, 'OFFICIAL SOL 3 TARGET');
+    assert(observation.header.subtitle.includes(target.name));
+    assert.deepStrictEqual(observationGallery.images.map(image => image.src).sort(), Object.values(target.images).sort());
+    assert(observation.panels.find(panel => panel.id === 'site_registry').fallback[0].name.includes(target.targetId));
+
+    const navigation = renderer.getMissionAwareContent(navScreen);
+    assert(navigation.header.title.includes('NAVIGATION'));
+    assert(navigation.header.subtitle.includes(target.name));
+    assert(navigation.header.status.includes(target.targetId));
+    const routeMessage = navigation.panels.find(panel => panel.id === 'route_summary').fallback.message;
+    assert(routeMessage.includes(target.targetId));
+    assert(routeMessage.includes('distance')); // explicitly unavailable; no route values are fabricated
+
+    const objectives = renderer.getMissionAwareContent(objectiveScreen);
+    const objectiveCard = objectives.panels.find(panel => panel.id === 'active_objective').fallback;
+    assert(objectiveCard.name.includes(target.name));
+    assert(objectiveCard.description.includes(target.targetId));
+    assert(objectiveCard.description.includes('physical drone inspection: complete'));
+    assert(objectives.panels.find(panel => panel.id === 'objective_checklist').fallback.some(item => item.label.includes('Drone') && item.completed === true));
+
+    const research = new ResearchScreenRenderer(researchConfig);
+    research.missionDay = 4;
+    research.missionState = state;
+    const researchContent = research.getMissionAwareContent(researchScreen);
+    const imageGallery = researchContent.panels.find(panel => panel.type === 'IMAGE_GALLERY');
+    assert(researchContent.header.subtitle.includes(target.name));
+    assert.deepStrictEqual(imageGallery.images.map(image => image.src).sort(), Object.values(target.images).sort());
+    for (const image of imageGallery.images) assert(fs.existsSync(path.join(__dirname, '..', 'public', image.src.slice(1))), `Image should exist: ${image.src}`);
+    const targetRow = researchContent.panels.find(panel => panel.type === 'DATA_TABLE').rows[0];
+    assert(targetRow.record.includes(target.targetId));
+    assert.strictEqual(targetRow.status, 'Official target');
+    const workflow = researchContent.panels.find(panel => panel.type === 'WORKFLOW_GRAPH');
+    assert(workflow.stages[1].includes('RECORDED'));
+    assert(workflow.stages[2].includes('RECORDED'));
+    assert(researchContent.panels.find(panel => panel.type === 'DATA_TABLE').rows.some(row => row.record === 'Sol 4 terrain assessment'));
+    const unavailableStatus = researchContent.panels.find(panel => panel.type === 'HEALTH_GRID').subsystems;
+    assert.strictEqual(unavailableStatus.find(item => item.name === 'Elevation / slope').status, 'UNAVAILABLE');
+    assert(!imageGallery.images.some(image => Object.values(mission.targetCatalogue.find(candidate => candidate.targetId !== target.targetId).images).includes(image.src)));
+  }
+
+  const unresolved = new ResearchScreenRenderer(researchConfig);
+  unresolved.missionDay = 4;
+  unresolved.missionState = { currentDay: 4, selectedSiteId: mission.targetCatalogue[0].targetId, investigationRecords: [] };
+  const unresolvedContent = unresolved.getMissionAwareContent(researchScreen);
+  assert.deepStrictEqual(unresolvedContent.panels.find(panel => panel.type === 'IMAGE_GALLERY').images, [], 'A state ID without a submitted proposal must not select target imagery');
+  assert.strictEqual(unresolvedContent.header.subtitle, 'Official Sol 3 target unavailable');
+});
+
 console.log('=== PHOBOSIA PHASE 2 & PHASE 3 AUTOMATED MISSION TESTS ===\n');
+
+test('Mission progress counts unique mission tasks rather than saved steps from prior Sols', () => {
+  const sol2 = getMissionTaskProgressFor(2, ['D1_HAB_LIFE_SUPPORT', 'SOL02_HABITAT_STATUS', 'SOL02_HABITAT_STATUS']);
+  assert.deepStrictEqual(sol2, { completed: 1, total: 7, remaining: 6 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(3, []), { completed: 0, total: 6, remaining: 6 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']), { completed: 2, total: 6, remaining: 4 });
+  assert.deepStrictEqual(getMissionTaskProgressFor(4, []), { completed: 0, total: 6, remaining: 6 });
+  const sol4 = getMissionTaskProgressFor(4, ['SOL04_MISSION_CONTEXT']);
+  assert.deepStrictEqual(sol4, { completed: 1, total: 6, remaining: 5 });
+  const sol4Complete = getMissionTaskProgressFor(4, DAYS_CONFIG[4].steps.map(step => step.stepId));
+  assert.deepStrictEqual(sol4Complete, { completed: 6, total: 6, remaining: 0 });
+});
+
+test('Sol 2 and Sol 3 navigation instructions cover required JSON tasks and keep player names free of implementation IDs', () => {
+  for (const sol of [2, 3, 4]) {
+    const mission = require(`../src/jsons/Missions/sol-0${sol}.json`);
+    const navigation = require(`../src/jsons/Instructions/sol-0${sol}-navigation.json`);
+    const requiredIds = mission.missionCompletion.requiredTasks;
+    assert.deepStrictEqual(navigation.instructions.map(item => item.taskId).sort(), [...requiredIds].sort());
+    const serializedPlayerContent = JSON.stringify(navigation.instructions.map(({ taskId, ...content }) => content));
+    assert(!/(HAB_MONITOR_01|HAB_WATER_NUTRITION_01|Engineering_[A-Za-z_]+_Trigger|MC_[A-Z_]+_01|LAB_[A-Z_]+_01|_Display|Screen)/.test(serializedPlayerContent));
+  }
+});
+
+test('Navigation selects the next available task, respects dependencies, and maps only validated runtime aliases', () => {
+  const sol1Navigation = require('../src/jsons/Instructions/sol-01-navigation.json');
+  assert.deepStrictEqual(
+    sol1Navigation.instructions.map(item => item.taskId),
+    DAY1_TASKS.filter(task => task.required).map(task => task.taskId),
+    'Sol 1 demonstrations must have one instruction for every required task, in configured order'
+  );
+  const sol1Instruction = resolveNextMissionNavigation(1, []);
+  assert.strictEqual(sol1Instruction.taskId, 'D1_HAB_LIFE_SUPPORT');
+  assert.strictEqual(sol1Instruction.destinationName, 'Habitat Main Monitor');
+  const droneInstruction = resolveNextMissionNavigation(1, DAY1_TASKS.filter(task => task.taskId !== 'D1_DRONE_SECTION').map(task => task.taskId));
+  assert.strictEqual(droneInstruction.taskId, 'D1_DRONE_SECTION');
+  assert.strictEqual(droneInstruction.destinationName, 'Drone Section');
+  assert(droneInstruction.guidance.includes('physical entrance'));
+  assert(droneInstruction.activity.includes('Press E'));
+  const allSol1Tasks = DAY1_TASKS.filter(task => task.required).map(task => task.taskId);
+  assert.strictEqual(resolveNextMissionNavigation(1, allSol1Tasks).isCompletion, true);
+
+  assert.strictEqual(resolveNextMissionNavigation(2, []).taskId, 'SOL02_HABITAT_MAIN_STATUS');
+  assert.strictEqual(resolveNextMissionNavigation(3, []).taskId, 'SOL03_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT']).taskId, 'SOL03_OBSERVATION_SITE_REVIEW');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW']).taskId, 'SOL03_SYSTEM_CONSTRAINTS');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS']).taskId, 'SOL03_SELECT_TARGET');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET']).taskId, 'SOL03_DATASET_ANALYSIS');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET', 'SOL03_SELECT_DATASET']).taskId, 'SOL03_SUBMIT_TARGET_PROPOSAL');
+  assert.strictEqual(resolveNextMissionNavigation(3, ['SOL03_MISSION_CONTEXT', 'SOL03_OBSERVATION_SITE_REVIEW', 'SOL03_SYSTEM_CONSTRAINTS', 'SOL03_SELECT_TARGET', 'SOL03_SELECT_DATASET', 'SOL03_SUBMIT_TARGET_RECORD']).isCompletion, true);
+  assert.strictEqual(resolveNextMissionNavigation(4, []).taskId, 'SOL04_MISSION_CONTEXT');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT']).taskId, 'SOL04_SELECTED_TARGET_INVESTIGATION');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION']).taskId, 'SOL04_TERRAIN_DATA_REVIEW');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW']).taskId, 'SOL04_DRONE_PHYSICAL_INSPECTION');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION']).taskId, 'SOL04_DRONE_MISSION_PLAN');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION', 'SOL04_DRONE_MISSION_PLAN']).taskId, 'SOL04_SUBMIT_PREPARATION_REPORT');
+  assert.strictEqual(resolveNextMissionNavigation(4, ['SOL04_MISSION_CONTEXT', 'SOL04_SELECTED_TARGET_INVESTIGATION', 'SOL04_TERRAIN_DATA_REVIEW', 'SOL04_DRONE_PHYSICAL_INSPECTION', 'SOL04_DRONE_MISSION_PLAN', 'SOL04_SUBMIT_PREPARATION_REPORT']).isCompletion, true);
+  assert(normalizeValidatedTaskIds(3, ['SOL03_SELECT_DATASET']).includes('SOL03_DATASET_ANALYSIS'));
+  assert(normalizeValidatedTaskIds(4, ['SOL04_MISSION_CONTEXT']).includes('SOL04_MISSION_CONTEXT'), 'Sol 4 completion IDs must match their mission JSON IDs');
+  assert(!normalizeValidatedTaskIds(4, ['SOL04_MISSION_CONTEXT']).includes('MC_MAIN_01'), 'Physical trigger IDs must not replace Sol 4 task IDs');
+  assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS']).taskId, 'SOL02_WATER_NUTRITION', 'The combined Habitat review must advance directly to the next real Sol 2 task');
+  assert.strictEqual(resolveNextMissionNavigation(2, ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION']).taskId, 'SOL02_ENGINEERING_MONITORING');
+  const runtimeSol2Complete = ['SOL02_HABITAT_STATUS', 'SOL02_WATER_NUTRITION', 'SOL02_ENGINEERING_MONITORING', 'SOL02_POWER_REVIEW', 'SOL02_ENGINEERING_LIFESUPPORT', 'SOL02_DIAGNOSTICS', 'SOL02_READINESS_ASSESSMENT'];
+  assert.strictEqual(resolveNextMissionNavigation(2, runtimeSol2Complete).isCompletion, true);
+});
+
+test('A newly validated Sol 2 task refreshes the existing mission notification once; duplicates do not repeat it', () => {
+  mockStorage.clear();
+  mockStorage.set('phobosia_mission_progress_v4', JSON.stringify({ currentDay: 2, completedStepIds: [], completedIntroductionIds: [], investigationRecords: [] }));
+  const mm = new MissionManager();
+  assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), true);
+  const next = mm.getState().notification;
+  assert(next && next.includes('Habitat Water and Nutrition Station'));
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL02_WATER_NUTRITION');
+  assert.strictEqual(mm.completeStep('SOL02_HABITAT_STATUS'), false);
+  assert.strictEqual(mm.getState().notification, next);
+});
 
 // P2-001: Initial State
 test('Initial state is Day 1 with in_progress status', () => {
@@ -233,8 +475,8 @@ test('Sol 3 requires reviewed context, valid target and dataset references, and 
   assert.strictEqual(mm.getState().currentDay, 4);
 });
 
-// P2-008: Day 4 Life-Support Verification Lifecycle
-test('Day 4 Life-support verification records telemetry and advances to Day 5', () => {
+// Sol 4: Selected target investigation, physical drone inspection, preparation report, progression
+test('Sol 4 requires the Sol 3 target, physical drone inspection, and a valid preparation report before Sol 5', () => {
   mockStorage.clear();
   const mm = new MissionManager();
   mm.completeStep('DAY1_REVIEW_CONTROLS');
@@ -248,63 +490,105 @@ test('Day 4 Life-support verification records telemetry and advances to Day 5', 
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 4);
-  mm.handleContextEvent({ type: 'module_entered', module: 'Engineering' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'Engineering_LifeSupport_Trigger' });
-
+  const selected = mm.getSelectedSiteId();
+  assert.strictEqual(selected, MASTER_TERRAIN_TARGETS[0].id);
+  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
+  completeSol4(mm);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
-  const record = mm.getState().observationRecords.find(r => r.type === 'life_support_verification');
-  assert(record !== undefined);
+  assert(mm.getInvestigationRecords().some(record => record.taskId === 'SOL04_DRONE_PHYSICAL_INSPECTION'));
+  assert(mm.getInvestigationRecords().some(record => record.taskId === 'SOL04_SUBMIT_PREPARATION_REPORT'));
 
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
   assert.strictEqual(mm.getState().currentDay, 5);
 });
 
-// P3-001: Day 5 Route Planning & Advancement to Day 6
-test('Day 5 Route planning validates selection and advances to Day 6 in Phase 3', () => {
-  mockStorage.clear();
-  const mm = new MissionManager();
-  // Fast forward to Day 5
-  mm.completeStep('DAY1_REVIEW_CONTROLS');
-  mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
-  mm.completeStep('DAY1_INSPECT_BASE_AREAS');
-  mm.completeStep('DAY1_CONFIRM_ORIENTATION');
-  mm.advanceDay(true);
-  completeSol2(mm);
-  mm.advanceDay(true);
-  completeSol3(mm);
-  mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
-  mm.advanceDay(true);
+// Sol 5: Official-target manual reconnaissance, prepared evidence, landing, and report gates.
+test('Sol 5 requires the official Sol 3 target and validates inspection, prepared evidence, landing, review, and report for A/B/C', () => {
+  for (const target of MASTER_TERRAIN_TARGETS) {
+    mockStorage.clear();
+    let mm = new MissionManager();
+    mm.completeStep('DAY1_REVIEW_CONTROLS');
+    mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
+    mm.completeStep('DAY1_INSPECT_BASE_AREAS');
+    mm.completeStep('DAY1_CONFIRM_ORIENTATION');
+    mm.advanceDay(true);
+    completeSol2(mm);
+    mm.advanceDay(true);
+    completeSol3(mm, target.id);
+    mm.advanceDay(true);
+    completeSol4(mm);
+    mm.advanceDay(true);
+    assert.strictEqual(mm.getState().currentDay, 5);
+    assert.strictEqual(mm.getSelectedSiteId(), target.id);
+    assert.strictEqual(mm.getMissionTaskProgress().total, 6);
+    assert.strictEqual(resolveNextMissionNavigation(5, []).taskId, 'SOL05_PREFLIGHT_BRIEFING');
+    assert.strictEqual(mm.startSol5Simulation().success, false, 'Simulation cannot bypass the briefing confirmation');
+    assert.strictEqual(mm.canRestAndAdvance().canAdvance, false, 'Flight and report must remain incomplete');
+    assert.strictEqual(mm.confirmSol5Briefing().success, true);
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).taskId, 'SOL05_ACTIVATE_SIMULATION');
+    assert.strictEqual(mm.startSol5Simulation().success, true);
+    const { SOL5_EVIDENCE_ASSETS } = require('../dist/missions/sol-05/targetMapping.js');
+    assert.strictEqual(mm.completeStep('SOL05_AERIAL_RECONNAISSANCE'), false, 'Target survey cannot be completed before arrival and inspection');
+    assert.strictEqual(mm.completeSol5TargetInspection('WRONG_TARGET', SOL5_EVIDENCE_ASSETS[target.id]).success, false, 'Inspection must remain linked to official target');
+    assert.strictEqual(mm.completeSol5TargetInspection(target.id, []).success, false, 'Missing evidence must not be replaced by another target');
+    assert.strictEqual(mm.getSol5Progress().targetInspected, false);
+    let resumeSnapshot = { targetId: target.id, status: 'flying', takeoff: { x: 2, y: 3, z: 4 },
+      position: { x: 5, y: 6, z: 7 }, elapsedSeconds: 12, totalDistanceM: 19, maxAltitudeAglM: 4,
+      speedMps: 1, batteryPercent: 88, signalPercent: 96, cameraView: 'down', landed: false };
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    mm = new MissionManager();
+    assert.strictEqual(mm.getSol5Progress().attemptStatus, 'aborted', 'An active persisted attempt is recovered as aborted');
+    assert.strictEqual(mm.getSol5Progress().simulationActivated, false, 'Restart returns to the activation stage');
+    assert.strictEqual(mm.getSol5Progress().flight, null, 'Aborted mid-flight coordinates are cleared');
+    assert.strictEqual(mm.getSelectedSiteId(), target.id, 'Recovery preserves the authoritative Sol 3 target');
+    assert.strictEqual(mm.isStepComplete('SOL05_PREFLIGHT_BRIEFING'), true, 'Completed briefing remains complete');
+    assert.strictEqual(mm.isStepComplete('SOL05_ACTIVATE_SIMULATION'), false, 'Activation must be performed again');
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).taskId, 'SOL05_ACTIVATE_SIMULATION');
+    assert.strictEqual(mm.completeStep('SOL05_SAFE_LANDING'), false, 'Landing cannot be skipped after an abort');
 
-  assert.strictEqual(mm.getState().currentDay, 5);
-  mm.handleContextEvent({ type: 'module_entered', module: 'MissionControl' });
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'MC_NAVIGATION_01' });
+    assert.strictEqual(mm.startSol5Simulation().success, true, 'A new attempt can be activated from Mission Control');
+    assert.strictEqual(mm.markSol5TargetReached(target.id), true);
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    assert.strictEqual(mm.abortSol5SimulationAttempt(), true, 'Manual abandonment persists an aborted attempt');
+    assert.strictEqual(mm.getSol5Progress().targetReached, false);
+    assert.strictEqual(mm.getSol5Progress().targetInspected, false);
+    assert.strictEqual(mm.getSelectedSiteId(), target.id);
 
-  // Invalid target rejection
-  const badTarget = mm.selectRouteTarget('NON_EXISTENT_TARGET');
-  assert.strictEqual(badTarget, false);
-  assert.strictEqual(mm.getState().objectiveState, 'in_progress');
+    assert.strictEqual(mm.startSol5Simulation().success, true, 'Retry starts a fresh attempt');
+    assert.strictEqual(mm.getSol5Progress().flight, null, 'Retry does not resume previous mid-air coordinates');
+    assert.strictEqual(mm.markSol5TargetReached(target.id), true, 'The canonical target must be reached again');
+    resumeSnapshot = { ...resumeSnapshot, position: { ...resumeSnapshot.takeoff }, speedMps: 0.2 };
+    assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
+    assert.strictEqual(mm.completeSol5TargetInspection(target.id, SOL5_EVIDENCE_ASSETS[target.id]).success, true, 'Target inspection succeeds only after target approach and correct evidence');
+    assert.strictEqual(mm.completeSol5Landing({ ...resumeSnapshot, status: 'landed', position: { ...resumeSnapshot.takeoff }, speedMps: 0, landed: true }).success, true);
+    assert.strictEqual(mm.getSol5Progress().attemptStatus, 'completed');
+    const landedReload = new MissionManager();
+    assert.strictEqual(landedReload.getSol5Progress().attemptStatus, 'completed', 'Successful landing survives reload without becoming aborted');
+    assert.strictEqual(landedReload.startSol5Simulation().success, false, 'Completed attempt does not restart');
+    assert.strictEqual(landedReload.getSelectedSiteId(), target.id);
 
-  // Valid target selection
-  const goodTarget = mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
-  assert.strictEqual(goodTarget, true);
-  assert.strictEqual(mm.getState().selectedRouteTarget.id, 'TARGET_ALPHA_CRATER_RIM');
-  assert.strictEqual(mm.getState().objectiveState, 'completed');
-
-  // Phase 3 permits advancement to Day 6!
-  const adv = mm.advanceDay(true);
-  assert.strictEqual(adv.success, true);
-  assert.strictEqual(adv.newDay, 6);
-  assert.strictEqual(mm.getState().currentDay, 6);
+    const review = mm.confirmSol5ImageReview();
+    assert.strictEqual(review.success, true, review.message);
+    const report = mm.submitSol5Report({ observedFeatures: 'Visible tonal variation in image frames.',
+      playerInterpretation: 'Possible surface texture differences; tentative.', uncertainties: 'Scale and feature identity remain uncertain.',
+      groundFollowUp: 'Verify the apparent texture from the ground during Sol 6.' });
+    assert.strictEqual(report.success, true, report.message);
+    assert.strictEqual(mm.getState().sol5.report.targetId, target.id);
+    assert(mm.getState().sol5.images.every(image => image.targetId === target.id));
+    assert.strictEqual(mm.getMissionTaskProgress().completed, 6);
+    assert.strictEqual(mm.getMissionTaskProgress().remaining, 0);
+    assert.strictEqual(mm.canRestAndAdvance().canAdvance, true);
+    assert.strictEqual(resolveNextMissionNavigation(5, mm.getState().completedStepIds).isCompletion, true);
+    assert.strictEqual(mm.advanceDay(true).success, true, 'Validated Sol 5 may advance using the existing progression system');
+    assert.strictEqual(mm.getSelectedSiteId(), target.id, 'The official target remains unchanged after transition');
+    assert(mm.getSol5Progress().images.every(image => image.targetId === target.id), 'Target-specific evidence remains available for Sol 6');
+  }
 });
-
 // P3-002: Day 6 Geological Site Survey requires GeologicalSurveyRecord
 test('Day 6 Geological Site Survey validates steps and requires GeologicalSurveyRecord before rest', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 6
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -315,13 +599,9 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  mm = completeSol5(mm);
   mm.advanceDay(true);
 
   assert.strictEqual(mm.getState().currentDay, 6);
@@ -343,7 +623,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
     observedCategories: {
       surfaceTexture: 'Vesicular Basalt & Fractured Regolith',
       fragmentDistribution: 'Scattered Angular Clasts (< 5 cm)',
-      terrainShape: 'Low-Angle Talus Incline (8–12°)',
+      terrainShape: 'Low-Angle Talus Incline (8â€“12Â°)',
       dustCoverage: 'Thin Mantle (< 2 mm) with High Rock Exposure'
     },
     summary: 'Preliminary field survey at Crater Rim.'
@@ -366,7 +646,7 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
 // P3-003: Day 7 Surface Observation lifecycle & Airlock transition
 test('Day 7 Surface Observation validates airlock transit and saves SurfaceObservationRecord', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 7
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -377,13 +657,9 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  mm = completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -443,7 +719,7 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
 // P3-004: Day 8 Research Lab Analysis requires Day 7 source record & interpretation
 test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linked analysis', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward through Days 1 to 7
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -454,13 +730,9 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.advanceDay(true);
   completeSol3(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true);
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  mm = completeSol5(mm);
   mm.advanceDay(true);
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -529,7 +801,7 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
 // P3-005: Day 9 Drone Survey Lifecycle & Non-advancement beyond Day 9
 test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut controls, and strictly concludes Phase 3', () => {
   mockStorage.clear();
-  const mm = new MissionManager();
+  let mm = new MissionManager();
   // Fast forward to Day 9
   mm.completeStep('DAY1_REVIEW_CONTROLS');
   mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
@@ -540,13 +812,9 @@ test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut contro
   mm.advanceDay(true); // 3
   completeSol3(mm);
   mm.advanceDay(true); // 4
-  mm.completeStep('DAY4_REACH_RELEVANT_MODULE');
-  mm.completeStep('DAY4_INSPECT_LIFE_SUPPORT');
-  mm.completeStep('DAY4_RECORD_VERIFICATION');
+  completeSol4(mm);
   mm.advanceDay(true); // 5
-  mm.completeStep('DAY5_REACH_MISSION_CONTROL');
-  mm.completeStep('DAY5_REVIEW_MASTER_TERRAIN');
-  mm.selectRouteTarget('TARGET_ALPHA_CRATER_RIM');
+  mm = completeSol5(mm);
   mm.advanceDay(true); // 6
   mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
   mm.completeStep('D6_OBJ_02_REACH_TARGET');
@@ -703,6 +971,35 @@ test('STAB-005: buildHabitatColliderSection builds Collider_Section and sets vis
   assert.strictEqual(m2.visible, false, 'Collider_Section_01 mesh must have visible = false');
 });
 
+test('STAB-007: Drone Section collision retains barriers outside a clear entrance-to-drone walkway', () => {
+  const root = new THREE.Group();
+  const colliderSection = new THREE.Group();
+  colliderSection.name = 'Collider_Section02';
+  const walkwayWall = new THREE.Mesh(new THREE.BoxGeometry(3, 0.01, 1));
+  walkwayWall.position.set(-2, 0, 0);
+  const sideWall = new THREE.Mesh(new THREE.BoxGeometry(2, 0.01, 2));
+  sideWall.position.set(8, 0, 5);
+  colliderSection.add(walkwayWall, sideWall);
+  root.add(colliderSection);
+  const entrance = new THREE.Object3D();
+  entrance.name = 'DroneZone_Entrance_Trigger';
+  const drone = new THREE.Object3D();
+  drone.name = 'Drone';
+  drone.position.set(-5, 0, 0);
+  root.add(entrance, drone);
+
+  const colliders = buildDroneSectionColliders(root);
+  assert.strictEqual(colliders.length, 1, 'Only the proxy blocking the entrance-to-drone route should be cleared');
+  assert(colliders[0].getCenter(new THREE.Vector3()).x > 7, 'Unrelated side-wall collision must remain');
+});
+
+test('STAB-008: Drone movement uses the authored walkable floor height', () => {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 4));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -2.264;
+  assert(Math.abs(getSurfaceHeight(floor) - (-2.264)) < 0.001, 'World floor height should match the model instead of assuming y=0');
+});
+
 test('STAB-003: ScreenRenderer correctly matches screen identifiers across all outpost modules', () => {
   const sr = new ScreenRenderer();
 
@@ -746,7 +1043,7 @@ test('LIGHT-001: configureModuleLighting creates shadow-casting Sun for Terrain 
 });
 
 test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights for indoor modules', () => {
-  const modules = ['Habitat', 'Hub', 'MissionControl', 'Science', 'Engineering', 'Airlock'];
+  const modules = ['Habitat', 'Hub', 'MissionControl', 'Science', 'Engineering', 'Airlock', 'Drone'];
 
   for (const mod of modules) {
     const root = new THREE.Group();
@@ -761,6 +1058,17 @@ test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights f
       assert(spot.target, `${spot.name} must have a designated target`);
     }
   }
+  const droneRoot = new THREE.Group();
+  const droneFloorMaterial = new THREE.MeshStandardMaterial();
+  droneFloorMaterial.name = 'Floor';
+  const droneFloor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), droneFloorMaterial);
+  droneFloor.name = 'Floor';
+  droneRoot.add(droneFloor);
+  const droneLights = new THREE.Group();
+  configureModuleLighting(droneRoot, droneLights, 'Drone');
+  assert.strictEqual(droneLights.children.filter(child => child.isSpotLight).length, 3, 'Drone garage must receive three overhead key lights');
+  assert(getModuleHemisphereConfig('Drone').intensity > getModuleHemisphereConfig('Habitat').intensity, 'Drone garage ambient fill must lift its dark floor texture');
+  assert(droneFloorMaterial.emissiveIntensity > 0 && droneFloorMaterial.emissive.getHex() !== 0, 'Authored Floor material should get a subtle visibility lift');
 });
 
 test('LIGHT-003: configureMeshShadows correctly configures Terrain ground and structures', () => {
@@ -2103,6 +2411,7 @@ test('AIR-005: ScreenRenderer skips Airlock physical screens so they are solely 
 test('AT_D1_001: The player begins at the existing Habitat spawn', () => {
   const day1Config = DAYS_CONFIG[1];
   assert.strictEqual(day1Config.allowedModules[0], 'Habitat', 'Initial module must be Habitat');
+  assert(day1Config.allowedModules.includes('Drone'), 'The existing Drone Section should be visitable during Sol 1');
   assert.strictEqual(day1Config.id, 'DAY_01_OUTPOST_ORIENTATION');
 });
 
@@ -2240,7 +2549,7 @@ test('AT_D1_008: Removed Central Hub inspections remain interactive but do not c
   const res1 = mm.completeStep('D1_HUB_ENVIRONMENT_STATUS');
   assert.strictEqual(res1, false);
   assert.strictEqual(mm.isStepComplete('D1_HUB_ENVIRONMENT_STATUS'), false);
-  assert.strictEqual(mm.getCurrentMission().steps.length, 19);
+  assert.strictEqual(mm.getCurrentMission().steps.length, 20);
   assert(TRIGGER_TO_GROUP_MAP['Env_Status_Display'], 'Environment status trigger must remain configured');
   assert.strictEqual(TRIGGER_TO_TASK_MAP['Env_Status_Display'], undefined, 'Removed inspections must not map to a Sol 1 task');
 
@@ -2253,13 +2562,13 @@ test('AT_D1_009: Rest trigger is blocked while required Day 1 tasks remain incom
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Only complete 1 of 19 required tasks
+  // Only complete 1 of 20 required tasks
   mm.completeStep('D1_HAB_LIFE_SUPPORT');
 
   const check = mm.canRestAndAdvance();
   assert.strictEqual(check.canAdvance, false);
   assert.strictEqual(check.reason.includes('Complete the remaining outpost orientation tasks before resting'), true);
-  assert.strictEqual(check.reason.includes('18 of 19 tasks remaining'), true);
+  assert.strictEqual(check.reason.includes('19 of 20 tasks remaining'), true);
 
   const adv = mm.advanceDay();
   assert.strictEqual(adv.success, false);
@@ -2270,12 +2579,12 @@ test('AT_D1_010: Player rests after completing every required task, advancing to
   mockStorage.clear();
   const mm = new MissionManager();
 
-  // Complete all 19 required tasks
+  // Complete all 20 required tasks
   for (const t of DAY1_TASKS.filter(task => task.required)) {
     mm.completeStep(t.taskId);
   }
 
-  assert.strictEqual(mm.getState().completedStepIds.length, 19);
+  assert.strictEqual(mm.getState().completedStepIds.length, 20);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
 
   const check = mm.canRestAndAdvance();
@@ -2316,24 +2625,58 @@ test('AT_D1_011: Unresolved target fallback runs presentation without camera mot
   assert.strictEqual(manager.isPresentationActive(), false);
 });
 
-test('AT_D1_012: 19 required tasks are uniquely configured, mapped, and validated', () => {
-  assert.strictEqual(DAY1_TASKS.length, 19, 'Only required Sol 1 tasks should be defined');
+test('AT_D1_012: 20 required tasks are uniquely configured, mapped, and validated', () => {
+  assert.strictEqual(DAY1_TASKS.length, 20, 'Only required Sol 1 tasks should be defined');
   const taskSet = new Set(DAY1_TASKS.map(t => t.taskId));
-  assert.strictEqual(taskSet.size, 19, 'All task IDs must be unique');
+  assert.strictEqual(taskSet.size, 20, 'All task IDs must be unique');
 
   const day1Steps = DAYS_CONFIG[1].steps;
-  assert.strictEqual(day1Steps.length, 19, 'DAYS_CONFIG[1].steps must contain only required tasks');
+  assert.strictEqual(day1Steps.length, 20, 'DAYS_CONFIG[1].steps must contain only required tasks');
 
   // Verify all zones are accounted for
-  assert.strictEqual(DAY1_ZONES.length, 6, 'Must define all 6 outpost zones');
+  assert.strictEqual(DAY1_ZONES.length, 7, 'Must include the existing Drone Section alongside the 6 outpost zones');
   const zoneSet = new Set(DAY1_ZONES.map(z => z.zoneId));
-  assert.strictEqual(zoneSet.size, 6);
+  assert.strictEqual(zoneSet.size, 7);
   assert(zoneSet.has('HABITAT'));
   assert(zoneSet.has('CENTRAL_HUB'));
   assert(zoneSet.has('ENGINEERING_UNIT'));
   assert(zoneSet.has('RESEARCH_LAB'));
   assert(zoneSet.has('MISSION_CONTROL'));
   assert(zoneSet.has('AIRLOCK'));
+  assert(zoneSet.has('DRONE_SECTION'));
+});
+
+test('AT_D1_013: Drone Section task requires E on the existing drone inside the Drone module', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+  const progressBefore = mm.getMissionTaskProgress();
+  assert.strictEqual(progressBefore.total, 20);
+  assert.strictEqual(progressBefore.completed, 0);
+  assert.strictEqual(TRIGGER_TO_TASK_MAP['DroneZone_Entrance_Trigger'], undefined, 'Entering cannot validate the inspection task');
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false);
+  assert.strictEqual(mm.getCurrentNavigationInstruction().destinationName, 'Habitat Main Monitor');
+  const taskCard = mm.getMissionTaskCards().find(task => task.id === 'D1_DRONE_SECTION');
+  assert(taskCard, 'Drone Section must appear as a normal Sol 1 task card');
+  assert.strictEqual(taskCard.title, 'Drone Section');
+  assert.strictEqual(taskCard.status, 'available');
+  assert.strictEqual(taskCard.moduleName, 'Drone Section');
+  assert.strictEqual(taskCard.targetTrigger, 'Drone');
+
+  const wrongModule = mm.handleContextEvent({ type: 'trigger_interacted', module: 'Airlock', identifier: 'Drone' });
+  assert.strictEqual(wrongModule.handled, true);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false, 'An invalid module interaction must not complete the task');
+
+  const entered = mm.handleContextEvent({ type: 'module_entered', module: 'Drone' });
+  assert.strictEqual(entered.handled, false);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), false, 'Entering the module must not complete the task');
+
+  const inspected = mm.handleContextEvent({ type: 'trigger_interacted', module: 'Drone', identifier: 'Drone' });
+  assert.strictEqual(inspected.handled, true);
+  assert.strictEqual(mm.isStepComplete('D1_DRONE_SECTION'), true);
+  assert.strictEqual(mm.getMissionTaskProgress().completed, 1);
+  assert.strictEqual(mm.getMissionTaskProgress().remaining, 19);
+  assert.notStrictEqual(mm.getCurrentNavigationInstruction().taskId, 'D1_DRONE_SECTION');
+  assert.strictEqual(TRIGGER_TO_GROUP_MAP['Drone'].taskId, 'D1_DRONE_SECTION');
 });
 
 console.log(`\nResults: ${passedTests} / ${totalTests} tests passed.\n`);

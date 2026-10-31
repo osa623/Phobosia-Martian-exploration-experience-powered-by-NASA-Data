@@ -130,7 +130,8 @@
     "MISSION_CONTROL",
     "RESEARCH_LAB",
     "ENGINEERING_UNIT",
-    "AIRLOCK"
+    "AIRLOCK",
+    "DRONE_SECTION"
   ],
   "zones": [
     {
@@ -880,6 +881,44 @@
           "notes": "Inspecting the console must not automatically initiate airlock cycling or an exterior launch."
         }
       ]
+    },
+    {
+      "zoneId": "DRONE_SECTION",
+      "friendlyName": "Drone Section",
+      "description": "The existing outpost area containing its aerial observation drone.",
+      "entry": {
+        "triggerObjectName": "Drone_Section_Entrance_Trigger",
+        "resolution": "Reuse the existing Airlock entrance route. It transitions to Drone and uses DroneZone_Entrance_Trigger as the authored Drone Section arrival spawn.",
+        "playAtDay1Start": false,
+        "playOnlyOncePerDay": true
+      },
+      "introduction": {
+        "id": "INTRO_DRONE_SECTION",
+        "title": "Drone Section",
+        "description": "Enter the Drone Section and inspect the existing drone to familiarise yourself with the outpost's aerial observation equipment.",
+        "cameraPresentationId": "CAM_DRONE_SECTION_OVERVIEW",
+        "durationSeconds": 4,
+        "skipKey": "Enter",
+        "completionDoesNotCompleteZoneTasks": true
+      },
+      "interactionGroups": [
+        {
+          "id": "DRONE_PHYSICAL_INSPECTION",
+          "friendlyName": "Drone Section",
+          "description": "Inspect the existing drone in person.",
+          "triggerObjectName": "Drone",
+          "triggerResolution": "Use the Drone object already registered for physical interaction in the Drone Section GLB.",
+          "screenObjectNames": [],
+          "cameraPresentationId": "CAM_DRONE_PHYSICAL_INSPECTION",
+          "cameraFraming": "A short view of the existing drone from the inspection point.",
+          "cameraDurationSeconds": 3,
+          "interactionMode": "PhysicalInspect",
+          "taskId": "D1_DRONE_SECTION",
+          "completionCondition": "Complete the E-key inspection interaction while physically inside the Drone Section.",
+          "required": true,
+          "notes": "Entering the section alone must not complete this task. Do not spawn or duplicate a drone."
+        }
+      ]
     }
   ],
   "tasks": [
@@ -1079,6 +1118,15 @@
       "description": "Identify the Airlock Control Console and understand its general purpose.",
       "zoneId": "AIRLOCK",
       "interactionGroupId": "AIRLOCK_CONTROL_GROUP",
+      "required": true,
+      "completionEvent": "DAY1_TASK_COMPLETED"
+    },
+    {
+      "taskId": "D1_DRONE_SECTION",
+      "title": "Drone Section",
+      "description": "Proceed to the Drone Section, enter through its existing entrance, and inspect the drone to familiarise yourself with the outpost's aerial observation equipment.",
+      "zoneId": "DRONE_SECTION",
+      "interactionGroupId": "DRONE_PHYSICAL_INSPECTION",
       "required": true,
       "completionEvent": "DAY1_TASK_COMPLETED"
     }

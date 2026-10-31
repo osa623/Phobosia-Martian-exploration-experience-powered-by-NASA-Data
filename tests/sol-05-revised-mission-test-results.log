@@ -1,0 +1,51 @@
+﻿PHOBOSIA — SOL 5 Revised Mission Test Results
+Run date/time: 2026-10-31 18:40:38 Asia/Colombo
+Scope: Revised Sol 5 manual reconnaissance flow. Sol 1–4 source behavior was not changed.
+
+Automated verification
+- PASS — npm.cmd test: mission suite 84/84; Sol 2/3 investigation validations; physical screen suites; revised Sol 5 simulation and trigger-isolation checks.
+- PASS — npm.cmd run typecheck.
+- PASS — src/jsons/Missions/sol-05.json parses as JSON.
+- PASS — src/jsons/Instructions/sol-05-navigation.json parses as JSON and has task IDs aligned with Sol 5 mission completion tasks.
+
+Deep test scenarios A–K
+A. Target persistence/continuity — PASS (automated): Target A, B, and C flows use the Sol 3 canonical selection; in-flight refresh, post-inspection evidence refresh, and Sol 6 transition persistence are checked. Browser-level verification NOT RUN.
+B. Target evidence — PASS (automated): every mapped image path exists and belongs to its target_01/02/03 folder; missing/cross-target evidence is rejected. Actual browser image rendering BLOCKED.
+C. Drone movement — PASS (unit simulation): W/A/S/D/E/Q map to the intended axes, release yields zero input, Shift boosts each axis, diagonal speed remains capped, and obstacle rejection is tested. Physical keyboard/browser feel BLOCKED.
+D. Cameras — PASS (unit simulation): primary camera follows Drone_Object; all five views are attached, change orientation without translating the drone, and auxiliary cameras are removed on detach. Visual in-browser framing BLOCKED.
+E. Buildings and terrain collision — PASS (structural/unit): all eleven named terrain structure groups have mesh descendants; generated AABB collision and swept movement are tested synthetically. Flying around each production building and runtime collider fit BLOCKED.
+F. Target inspection — PASS (mission logic): wrong-target and empty-evidence submission are rejected; contextual E action resolves to inspect only within range, with no simultaneous ascent. Actual in-world E interaction BLOCKED.
+G. Landing — PASS (unit simulation/mission logic): inspection prerequisite, takeoff proximity, AGL, and speed conditions are validated. Actual flight return and E landing BLOCKED.
+H. Player restoration — BLOCKED: Mission Control return and control restoration could not be exercised in a live app.
+I. Mission progression/persistence — PASS (automated): inspection, landing, review, report, target association, and guarded Sol 6 progression validated for all three targets.
+J. Regression — PASS (automated): existing Sol 1–4 mission and physical screen regression suites passed; no Sol 1–4 implementation files were edited.
+K. Target highlight/path — PASS (unit simulation): reusable guide starts at the drone, follows movement, ends at the selected target, switches to takeoff on return, does not move the drone, and is cleaned up. Visual clarity and all three live-scene paths BLOCKED.
+
+Overall result: NOT FULLY VERIFIED. Automated checks passed, but the mandated end-to-end browser flight, in-world building collision, visual guidance, interaction, and player-restoration scenarios were not run because the Windows Computer Use native pipe was unavailable and no Playwright/Puppeteer installation is present. Do not treat blocked live-runtime items as passes.
+
+Asset note: mars_Terrain.glb contains Drone_Object as a transform-only anchor with no authored mesh beneath it. The camera and controller use that exact existing anchor; no duplicate drone was created.
+
+[2026-10-31 19:23:53 +05:30] SOL 5 helipad launch, target beacon, and Mars terrain collision update
+Automated/project checks:
+- npm run typecheck: PASS
+- npm test: PASS, including 84 existing mission/screen checks and Sol 5 checks.
+- Launch reference test: PASS; nested world transform of Drone_TakeoffPoint is preserved as launch/landing origin; drone camera starts 1 m above it for clearance. Old saved positions no longer override the helipad on a new activation.
+- Selected-target beacon scenarios A/B/C: PASS; only the canonical mapped object is highlighted, beacon follows parent/world transforms, inspection hides it, cleanup disposes it.
+- Collision generator unit test: PASS; solid terrain objects including arbitrary structures, rover, solar equipment, and rocks are covered; floors, takeoff marker, trigger, and master terrain surface are excluded.
+- mars_Terrain.glb geometry audit: PASS; 235 mesh objects parsed and 188 valid obstacle AABBs generated. Node could not decode embedded blob textures, which are not used by the bounds calculation.
+- Live browser view, each drone camera angle, and manual flight/landing: NOT RUN.
+
+Files changed for this update: src/core/Game.ts, src/core/Collision.ts, src/missions/sol-05/droneSimulation.ts, tests/sol5_tests.js.
+
+[2026-10-31 19:52:30 +05:30] SOL 5 attempt sequencing, abort recovery, helipad restart, and Drone_Zone collision
+A. Sequential objectives — PASS (automated): Activation, selected-target arrival, evidence inspection, validated landing, review, and report gates tested. Target A/B/C scenarios pass; direct task skipping is rejected.
+B. Abort/restart — PASS (automated state recovery): Persisted active attempts reload as aborted; activation and dependent in-flight steps clear, the Sol 3 target and completed briefing remain, and navigation returns to activation. Manual abort/retry and successful-landing persistence are covered.
+C. Restart initialization — PASS (automated): New attempts clear old flight coordinates and target/inspection state. The existing take-off reference and target mapping are reused.
+D. Browser lifecycle — NOT RUN live: pagehide/beforeunload handlers are registered and recovery is covered by persisted-state tests, but closing or refreshing a real browser session was not exercised.
+E. Drone_Zone collision — PASS (actual GLB geometry audit + tests): all 13 mesh descendants under Drone_Zone are excluded; 181 valid collider bounds remain across the rest of mars_Terrain. Terrain and other obstacles retain collision.
+F. Helipad placement — PASS (actual GLB geometry audit + unit test): Drone_TakeoffPoint mesh bounds resolve to [469.343, 0.526, -59.233]; the authored node origin is offset from the visible pad. Launch position now uses the transformed surface-bounds center and top, with the camera starting 1 m above for clearance. Terrain beneath pad is y=0 (0.526 m below pad top), within existing landing tolerance.
+G. Instructions — PASS: existing Sol 5 navigation instructions include manual flight, return/landing, abort/restart warning, and no internal scene object names. JSON syntax valid.
+H. Regression — PASS: npm run typecheck passed; npm test exited 0, including 84/84 mission checks and Sol 5 target/landing/collision tests. Sol 1–4 source files were not changed.
+I. In-world flight, all camera angles, actual page close/refresh, and E landing — NOT RUN live.
+
+Files changed for this update: src/core/Game.ts, src/core/MissionManager.ts, src/core/Collision.ts, src/missions/sol-05/droneSimulation.ts, src/missions/sol-05/components/Sol5MissionPanel.tsx, src/jsons/Instructions/sol-05-navigation.json, tests/mission_tests.js, tests/sol5_tests.js.

@@ -1,6 +1,6 @@
-import habitatData from "../jsons/Screens/habitatScreenData.json";
-import engineeringData from "../jsons/Screens/engineeringScreenData.json";
-import missionControlData from "../jsons/Screens/mission-control-screens.json";
+import habitatData from "../../jsons/Screens/Sol_2/habitatScreenData.json";
+import engineeringData from "../../jsons/Screens/Sol_2/engineeringScreenData.json";
+import missionControlData from "../../jsons/Screens/Sol_2/mission-control-screens.json";
 
 export type InvestigationClassification = "anomaly_detected" | "no_anomaly_detected" | "insufficient_evidence";
 
@@ -10,6 +10,11 @@ export interface InvestigationLogEntry {
   systemId: string;
   source: string;
   sourceType: "SIMULATED_GAME_DATA" | "PLAYER_MISSION_RECORD";
+  category: string;
+  description: string;
+  status: string;
+  severity: string;
+  recommendedFollowUp: string;
   observationTime: string;
   values: unknown;
   limitations: string[];
@@ -19,6 +24,7 @@ export interface InvestigationSystemDefinition {
   taskId: string;
   systemId: string;
   title: string;
+  location: string;
   displayObjects: string[];
   procedure: string[];
   logs: InvestigationLogEntry[];
@@ -35,12 +41,25 @@ function entry(
   values: unknown,
   limitations: string[] = []
 ): InvestigationLogEntry {
+  const record = values && typeof values === "object" ? values as Record<string, unknown> : {};
+  const statusValue = record.status ?? record.systemStatus ?? record.overallStatus ?? record.emergencyState ?? record.testStatus;
+  const categories: Record<string, string> = {
+    habitat_general_status: "Habitat operational status", habitat_life_support: "Life-support monitoring", habitat_emergency_status: "Emergency status",
+    habitat_water_nutrition: "Water and nutrition supply", engineering_monitoring: "Engineering monitoring", engineering_power_unit: "Power generation and distribution",
+    engineering_life_support: "Engineering life support", engineering_diagnostics: "Diagnostics", mission_context: "Mission context", mission_system_constraints: "Communications and operational constraints"
+  };
+  const category = categories[systemId] ?? "Mission system record";
   return {
     id,
     title,
     systemId,
-    source: `${sourceFile} → ${displayObject}.data`,
+    source: "PHOBOSIA simulated display record",
     sourceType: "SIMULATED_GAME_DATA",
+    category,
+    description: `This simulated snapshot records the values presented by the ${moduleLabel} ${category.toLowerCase()} display. The information is relevant to reviewing system readiness and identifying follow-up questions, but it is not a time-stamped service log or a certified fault report. Without timestamps, calibration metadata, and approved limits, it cannot establish a verified abnormal condition.`,
+    status: statusValue === undefined ? "Not supplied by source record" : String(statusValue),
+    severity: "Not supplied by source record",
+    recommendedFollowUp: "Compare the available readings with the approved procedure and request a time-stamped source record where one is missing. Do not infer a fault from missing data.",
     observationTime: "Not recorded in source configuration",
     values,
     limitations: [
@@ -53,14 +72,15 @@ function entry(
 
 const habitatScreens = habitatData.screens as Record<string, { data: unknown }>;
 const engineeringScreens = engineeringData.screens as Record<string, { data: unknown }>;
-const habitatSource = "src/jsons/Screens/habitatScreenData.json";
-const engineeringSource = "src/jsons/Screens/engineeringScreenData.json";
+const habitatSource = "Sol 2 Habitat display records";
+const engineeringSource = "Sol 2 Engineering display records";
 
 export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefinition> = {
   SOL02_HABITAT_STATUS: {
     taskId: "SOL02_HABITAT_STATUS",
     systemId: "habitat_general_status",
     title: "Habitat Status and Life Support",
+    location: "Habitat — Main Status and Life Support Consoles",
     displayObjects: ["Habitat_Main_Status_Display", "Habitat_LifeSupport_Display", "Habitat_Emergency_Status_Display"],
     procedure: [
       "Review the Habitat main status display.",
@@ -78,6 +98,7 @@ export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefin
     taskId: "SOL02_WATER_NUTRITION",
     systemId: "habitat_water_nutrition",
     title: "Water and Nutrition Systems",
+    location: "Habitat — Water and Nutrition Station",
     displayObjects: ["Habitat_WaterNutrition_Display"],
     procedure: [
       "Review the water and nutrition status snapshot.",
@@ -90,6 +111,7 @@ export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefin
     taskId: "SOL02_ENGINEERING_MONITORING",
     systemId: "engineering_monitoring",
     title: "Engineering Monitoring Records",
+    location: "Engineering Unit — Monitoring Console",
     displayObjects: ["MonitoringSection_Indicator_Screen", "MonitoringSection_Operational_Screen", "MonitoringSection_Screen"],
     procedure: [
       "Review the subsystem indicator snapshot.",
@@ -106,6 +128,7 @@ export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefin
     taskId: "SOL02_POWER_REVIEW",
     systemId: "engineering_power_unit",
     title: "Power Unit Investigation",
+    location: "Engineering Unit — Power Distribution Console",
     displayObjects: ["PowerUnitScreenMain", "PowerUnitScreenMain02", "PowerUnitScreen000", "PowerUnitScreen000.001"],
     procedure: [
       "Review the primary power status and identify its provenance.",
@@ -126,6 +149,7 @@ export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefin
     taskId: "SOL02_ENGINEERING_LIFESUPPORT",
     systemId: "engineering_life_support",
     title: "Engineering Life-Support Records",
+    location: "Engineering Unit — Life Support Console",
     displayObjects: ["LifeSupportUnitScreenMain04", "LifeSupportUnitScreenMain02.001", "LifeSupportUnitScreenMain03"],
     procedure: [
       "Review the Engineering environmental and gas-generation snapshot.",
@@ -143,6 +167,7 @@ export const SOL2_INVESTIGATION_SYSTEMS: Record<string, InvestigationSystemDefin
     taskId: "SOL02_DIAGNOSTICS",
     systemId: "engineering_diagnostics",
     title: "Engineering Diagnostics",
+    location: "Engineering Unit — Diagnostics Workbench",
     displayObjects: ["DiagnosticsWorkbenchScreen_01"],
     procedure: [
       "Review the diagnostic status and any available fault entries.",
@@ -186,7 +211,7 @@ export const SOL3_TRAINING_DATASETS: TrainingDataset[] = [
       "It contains no imagery, spectra, geology measurements, or independently verified accessibility data.",
       "It can support a training plan for what to observe, but cannot establish a scientific conclusion."
     ],
-    provenance: "src/core/MissionManager.ts → MASTER_TERRAIN_TARGETS",
+    provenance: "PHOBOSIA simulated mission target profiles",
     isSimulated: true
   }
 ];

@@ -1,0 +1,171 @@
+{
+  "sol": 1,
+  "missionId": "PHOBOSIA_SOL_01",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "D1_HAB_LIFE_SUPPORT",
+      "title": "Inspect Habitat Status",
+      "message": "Begin with the Habitat status displays.",
+      "guidance": "Review the existing life-support, general status, and emergency-status displays. This is an orientation review; do not infer readings that are not shown.",
+      "destination": { "name": "Habitat Main Monitor", "module": "Habitat", "section": "Status Displays" },
+      "activity": "Approach the existing Habitat monitor and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_HAB_WATER_NUTRITION",
+      "title": "Review Water and Nutrition",
+      "message": "Continue to the Habitat water and nutrition station.",
+      "guidance": "Review the existing water and nutrition display to learn where this outpost information is presented.",
+      "destination": { "name": "Habitat Water and Nutrition Station", "module": "Habitat", "section": "Water and Nutrition" },
+      "activity": "Approach the station and press E to inspect its existing display."
+    },
+    {
+      "taskId": "D1_HAB_WORKSTATION",
+      "title": "Use the Habitat Workstation",
+      "message": "Locate the crew workstation in the Habitat.",
+      "guidance": "Open or use the existing workstation interface and familiarise yourself with its role in the outpost.",
+      "destination": { "name": "Habitat Workstation", "module": "Habitat", "section": "Crew Workstation" },
+      "activity": "Approach the workstation and use its existing interaction."
+    },
+    {
+      "taskId": "D1_HAB_REST_INTRODUCTION",
+      "title": "Locate the Crew Rest Area",
+      "message": "Identify the crew rest area in the Habitat.",
+      "guidance": "Learn where the crew rests between Sols. Resting advances the mission day and remains subject to the required task checklist.",
+      "destination": { "name": "Habitat Rest Area", "module": "Habitat", "section": "Crew Rest Area" },
+      "activity": "Use the existing rest interaction to mark the orientation point; if tasks remain, return after completing them."
+    },
+    {
+      "taskId": "D1_ENG_MONITORING",
+      "title": "Inspect Engineering Monitoring",
+      "message": "Proceed to the Engineering monitoring section.",
+      "guidance": "Review the existing monitoring displays as one group and learn where engineering status information is presented.",
+      "destination": { "name": "Engineering Monitoring Section", "module": "Engineering Unit", "section": "Monitoring" },
+      "activity": "Approach the section interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_ENG_POWER",
+      "title": "Inspect Power Systems",
+      "message": "Continue to the Engineering power section.",
+      "guidance": "Review the existing power-system displays to familiarise yourself with the outpost's power information.",
+      "destination": { "name": "Engineering Power Section", "module": "Engineering Unit", "section": "Power Systems" },
+      "activity": "Approach the section interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_ENG_LIFE_SUPPORT",
+      "title": "Inspect Engineering Life Support",
+      "message": "Review the Engineering life-support section.",
+      "guidance": "Inspect the existing life-support displays and learn where engineering environmental-system information is presented.",
+      "destination": { "name": "Engineering Life Support Section", "module": "Engineering Unit", "section": "Life Support" },
+      "activity": "Approach the section interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_ENG_DIAGNOSTICS",
+      "title": "Inspect Diagnostics",
+      "message": "Continue to the Engineering diagnostics workbench.",
+      "guidance": "Review the existing diagnostics display and familiarise yourself with the workstation's purpose.",
+      "destination": { "name": "Engineering Diagnostics Workbench", "module": "Engineering Unit", "section": "Diagnostics" },
+      "activity": "Approach the workbench interaction point and press E to inspect the display."
+    },
+    {
+      "taskId": "D1_ENG_STORAGE",
+      "title": "Inspect Engineering Storage",
+      "message": "Review the Engineering storage information display.",
+      "guidance": "Locate the existing storage display and learn where storage information is presented.",
+      "destination": { "name": "Engineering Storage Section", "module": "Engineering Unit", "section": "Storage Information" },
+      "activity": "Approach the display interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_LAB_RESEARCH_MONITORING",
+      "title": "Inspect Research Monitoring",
+      "message": "Proceed to the Research Laboratory monitoring station.",
+      "guidance": "Review the existing research-monitoring display and familiarise yourself with its role in the laboratory.",
+      "destination": { "name": "Research Laboratory Monitoring Station", "module": "Research Laboratory", "section": "Research Monitoring" },
+      "activity": "Approach the station interaction point and press E to inspect the display."
+    },
+    {
+      "taskId": "D1_LAB_RESEARCH_ANALYSIS",
+      "title": "Inspect Research Analysis",
+      "message": "Continue to the Research Laboratory analysis station.",
+      "guidance": "Review the existing research-analysis display to learn where scientific analysis information is presented.",
+      "destination": { "name": "Research Laboratory Analysis Station", "module": "Research Laboratory", "section": "Research Analysis" },
+      "activity": "Approach the station interaction point and press E to inspect the display."
+    },
+    {
+      "taskId": "D1_LAB_SEED_INVENTORY",
+      "title": "Review Seed Inventory",
+      "message": "Locate the laboratory seed-storage inventory display.",
+      "guidance": "Inspect the existing inventory display and familiarise yourself with where seed-storage information is shown.",
+      "destination": { "name": "Research Laboratory Seed Storage", "module": "Research Laboratory", "section": "Seed Inventory" },
+      "activity": "Approach the display interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_LAB_WATER_NUTRITION",
+      "title": "Review Water and Nutrient Preparation",
+      "message": "Continue to the laboratory water and nutrient preparation display.",
+      "guidance": "Review the existing preparation display and learn where related laboratory information is presented.",
+      "destination": { "name": "Research Laboratory Water and Nutrition Station", "module": "Research Laboratory", "section": "Water and Nutrient Preparation" },
+      "activity": "Approach the display interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_LAB_WATER_QUALITY",
+      "title": "Inspect Water Quality",
+      "message": "Review the laboratory water-quality display.",
+      "guidance": "Inspect the existing water-quality display to learn where laboratory water information is presented.",
+      "destination": { "name": "Research Laboratory Water Quality Station", "module": "Research Laboratory", "section": "Water Quality" },
+      "activity": "Approach the display interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_LAB_CULTIVATION",
+      "title": "Inspect Cultivation Environment",
+      "message": "Proceed to the cultivation-environment display.",
+      "guidance": "Review the existing display and familiarise yourself with where cultivation-environment information is shown.",
+      "destination": { "name": "Research Laboratory Cultivation Area", "module": "Research Laboratory", "section": "Cultivation Environment" },
+      "activity": "Approach the display interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_MC_MAIN",
+      "title": "Review Mission Objectives",
+      "message": "Proceed to the Mission Control operations console.",
+      "guidance": "Review the existing mission-objective and outpost-status display group to understand the current operational context.",
+      "destination": { "name": "Mission Control Operations Console", "module": "Mission Control", "section": "Mission Objectives and Outpost Status" },
+      "activity": "Approach the console interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_MC_SYSTEMS",
+      "title": "Review Communications and Systems",
+      "message": "Continue to the Mission Control communications and systems displays.",
+      "guidance": "Review the existing display group and familiarise yourself with where communications and systems information is presented.",
+      "destination": { "name": "Mission Control Systems Console", "module": "Mission Control", "section": "Communications and Systems" },
+      "activity": "Approach the console interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_MC_NAVIGATION",
+      "title": "Review Terrain and Reconnaissance Systems",
+      "message": "Review the Mission Control terrain and reconnaissance displays.",
+      "guidance": "Inspect the existing terrain, observation-site, and drone-operation displays to familiarise yourself with the available planning interfaces.",
+      "destination": { "name": "Mission Control Navigation Console", "module": "Mission Control", "section": "Terrain and Reconnaissance" },
+      "activity": "Approach the console interaction point and press E to inspect the display group."
+    },
+    {
+      "taskId": "D1_AIRLOCK_CONTROL",
+      "title": "Inspect Airlock Controls",
+      "message": "Proceed to the Airlock control console.",
+      "guidance": "Identify the existing control console and learn its general purpose. This orientation interaction does not initiate an airlock cycle or exterior launch.",
+      "destination": { "name": "Airlock Control Console", "module": "Airlock", "section": "Airlock Controls" },
+      "activity": "Approach the console interaction point and press E to inspect it."
+    },
+    {
+      "taskId": "D1_DRONE_SECTION",
+      "title": "Drone Section",
+      "message": "Proceed to the Drone Section using the existing Airlock entrance.",
+      "guidance": "Enter through the physical entrance, then locate and inspect the existing drone. Entering the section alone does not complete this task.",
+      "destination": { "name": "Drone Section", "module": "Drone Section", "section": "Drone Inspection Area" },
+      "activity": "Press E while near the drone to complete the physical inspection."
+    }
+  ],
+  "completion": {
+    "title": "Sol 1 Required Activities Complete",
+    "message": "All required Sol 1 demonstrations are complete. Return to the Habitat Rest Area and use the existing rest interaction to conclude Sol 1."
+  }
+}

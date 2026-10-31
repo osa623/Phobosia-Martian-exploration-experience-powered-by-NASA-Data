@@ -108,11 +108,11 @@ function loadAirlockScreenData(): AirlockScreenDataRoot {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       return eval("require")("../src/jsons/Screens/airlock-screen-data.json");
     } catch {
-      return {
-        project: "PHOBOSIA",
-        zone: "AIRLOCK",
-        screens: []
-      };
+      try {
+        return eval("require")("../../src/jsons/Screens/airlock-screen-data.json");
+      } catch {
+        return { project: "PHOBOSIA", zone: "AIRLOCK", screens: [] };
+      }
     }
   }
 }
