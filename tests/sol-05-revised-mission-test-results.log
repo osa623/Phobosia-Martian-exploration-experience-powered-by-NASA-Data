@@ -49,3 +49,35 @@ H. Regression — PASS: npm run typecheck passed; npm test exited 0, including 8
 I. In-world flight, all camera angles, actual page close/refresh, and E landing — NOT RUN live.
 
 Files changed for this update: src/core/Game.ts, src/core/MissionManager.ts, src/core/Collision.ts, src/missions/sol-05/droneSimulation.ts, src/missions/sol-05/components/Sol5MissionPanel.tsx, src/jsons/Instructions/sol-05-navigation.json, tests/mission_tests.js, tests/sol5_tests.js.
+
+[2026-11-01 07:17:09 +05:30] SOL 5 exact landing-pad validation and L-key completion
+A. Landing object mapping — PASS (production GLB audit): the user-identified existing Drone_TakeoffPoint is a mesh under Scene and serves as both launch and landing reference. Its world bounds are X 464.503–474.184 m, Z -63.822–-54.643 m, with flat surface Y 0.526 m; no trigger was added or moved.
+B. Exact pad validation — PASS (automated helper test): world-transformed pad footprint boundaries are accepted; positions just outside the footprint and above the existing landing height limit are rejected. Runtime E landing still applies the existing target-inspection, distance, AGL, and speed checks.
+C. Completion gating — PASS (automated mission test): touchdown without trigger validation does not complete SOL05_SAFE_LANDING; validated L confirmation completes it once. The same task backs mission objective SOL05_OBJ_06.
+D. Prompt and key — PASS (automated instruction assertion/code review): the exact “COMPLETE MISSION / Press L to complete the mission” prompt is shown only for a landed, inspected, evidence-loaded drone inside the pad bounds. L is ignored for completion outside that state and repeated keydown is ignored.
+E. Respawn — PASS (code path reviewed): after L saves the successful landing, drone controls/camera are deactivated and the player returns to the existing MC_NAVIGATION_01 marker. Live respawn interaction NOT RUN.
+F. Abort/restart — PASS (automated mission regression): an attempt left active before L remains subject to the existing abort/restart recovery; successful L records completed state. Browser close/refresh interaction NOT RUN.
+G. Checks — PASS: npm run typecheck; npm test (exit 0, including 84/84 mission checks and Sol 5 landing-boundary/task-gate checks).
+H. Live gameplay — NOT RUN: the computer-use native pipe was unavailable, so real-time flight, prompt visibility, L-key input, and physical return to Mission Control were not exercised in a browser.
+
+Files changed for this update: src/core/EventBus.ts, src/core/Game.ts, src/core/MissionManager.ts, src/missions/sol-05/droneSimulation.ts, src/missions/sol-05/components/Sol5MissionPanel.tsx, src/missions/sol-05/taskDefinitions.ts, src/components/game/GameViewport.tsx, src/app/os-preview/page.tsx, src/jsons/Missions/sol-05.json, src/jsons/Instructions/sol-05-navigation.json, tests/mission_tests.js, tests/sol5_tests.js.
+
+[2026-11-01 07:37:02 +05:30] SOL 5 landing beacon and G-key completion update
+A. Production pad/beacon position — PASS (mars_Terrain.glb parsed): existing Drone_TakeoffPoint is parented under Scene. Its transformed bounds are X 464.503–474.184 m, Y 0.526 m, Z -63.822–-54.643 m. The beacon anchors at the bounds center/top [469.343, 0.526, -59.233], with a 64 m beam. No world coordinates were hardcoded.
+B. Beacon lifecycle — PASS (automated): it starts hidden, can be shown for return flight, uses a high-visibility beam/crown and downward-view pad ring, has depth testing disabled for visibility, and disposes cleanly. It is created outside the terrain collider tree; no collision proxies are added.
+C. Mission phase — PASS (code path + tests): selected-target beacon hides after evidence inspection; return guidance switches toward base and the landing beacon becomes visible. Abort and successful completion hide/dispose it.
+D. Landing and G completion — PASS (automated/unit + mission test): exact transformed pad footprint and existing landing thresholds remain required; the prompt needs landed state, official target inspection, and loaded evidence. Only a non-repeat G key while that predicate is valid completes the existing SOL05_SAFE_LANDING step backing SOL05_OBJ_06. E alone leaves the task pending.
+E. Instructions — PASS (JSON/test assertion): Sol 5 instructions describe following the return beacon and the exact “Press G to complete the mission” wording. No active Sol 5 landing instruction uses L.
+F. Checks — PASS: npm run typecheck; npm test (exit 0, including 84/84 mission checks, pad validation, beacon lifecycle, and G-gated landing task).
+G. Live visual/camera/flight/G-key/Mission Control respawn checks — NOT RUN: the computer-use native pipe was unavailable. Static geometry and behavior tests do not replace the in-browser pass.
+
+Files changed for this update: src/core/Game.ts, src/missions/sol-05/droneSimulation.ts, src/components/game/GameViewport.tsx, src/core/MissionManager.ts, src/missions/sol-05/taskDefinitions.ts, src/missions/sol-05/components/Sol5MissionPanel.tsx, src/jsons/Missions/sol-05.json, src/jsons/Instructions/sol-05-navigation.json, tests/mission_tests.js, tests/sol5_tests.js.
+
+[2026-11-01 07:50:13 +05:30] SOL 5 landing prompt and L-key completion correction
+A. Prompt timing/text — PASS (automated source assertion): the on-screen prompt now appears only after target inspection/evidence are complete and the stable drone is inside the existing pad footprint at landing height; it displays “Press L key to land”.
+B. L-key flow — PASS (typecheck and code path): L revalidates the pad and safety conditions, lands the drone, completes the existing SOL05_SAFE_LANDING task backing SOL05_OBJ_06, persists through the existing mission manager, then returns to MC_NAVIGATION_01. Repeat keydown is ignored.
+C. E/G behavior — PASS (source/instruction checks): E no longer lands at base, G is no longer used in the active Sol 5 landing flow, and the existing red beacon implementation is unchanged.
+D. Automated checks — PASS: npm run typecheck and npm test (exit 0; mission, Sol 5, screen, trigger, and audio suites).
+E. Live in-browser flight, prompt timing, L input, and respawn — NOT RUN: browser interaction was unavailable in this run, so this still needs an in-game confirmation.
+
+Files changed for this correction: src/core/Game.ts, src/components/game/GameViewport.tsx, src/missions/sol-05/taskDefinitions.ts, src/missions/sol-05/components/Sol5MissionPanel.tsx, src/jsons/Missions/sol-05.json, src/jsons/Instructions/sol-05-navigation.json, tests/sol5_tests.js, tests/mission_tests.js.

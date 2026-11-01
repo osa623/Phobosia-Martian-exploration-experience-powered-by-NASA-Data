@@ -43,6 +43,7 @@ export function Sol5MissionPanel({ game, state }: { game: Game | null; state: Ga
         <li>• Launch and landing reference: the designated drone pad.</li>
         <li>• Fly manually; selected-target outline and direct path provide visual guidance, not a safe corridor.</li>
         <li>• Controls: W/A/S/D move, E ascend or interact in range, Q descend, Shift boost, mouse look.</li>
+        <li>• Landing: follow the large return beacon. At the stable landing point, press L when the landing prompt appears to complete the objective and return to Mission Control.</li>
         <li>• Views: 1 front, 2 rear, 3 left, 4 right, 5 downward.</li>
         <li>• Target inspection loads existing mission-provided images. No capture button or live photo metadata is used.</li>
       </ul>
