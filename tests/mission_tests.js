@@ -154,7 +154,10 @@ function completeSol6(mm) {
   assert.strictEqual(mm.isStepComplete('SOL06_REMOVE_EVA_SUIT'), true, 'Airlock suit removal completes its task');
   assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_TRANSFER_SAMPLE', 'After suit removal, the next task is sample transfer');
   assert.strictEqual(mm.transferSol6Sample().success, true);
-  assert(mm.saveSol6Analysis({ visualAppearance: 'Player-authored visual description.', grainSizeOrTexture: 'Not instrument measured.', colourDescription: 'Player-authored colour note.', supportedIndicators: 'No laboratory indicators are configured.', limitationsAndUncertainty: 'No chemical or biological dataset is available.', playerInterpretation: 'Tentative player interpretation only.' }));
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_ANALYSE_SAMPLE', 'Sample receipt advances directly to preliminary analysis');
+  const analysis = mm.saveSol6Analysis({ visualAppearance: 'Player-authored visual description.', grainSizeOrTexture: 'Not instrument measured.', colourDescription: 'Player-authored colour note.', supportedIndicators: 'No laboratory indicators are configured.', limitationsAndUncertainty: 'No chemical or biological dataset is available.', playerInterpretation: 'Tentative player interpretation only.', reportUncertainty: '' });
+  assert(analysis, 'Panel analysis fields save even while its separate report field is empty');
+  assert.strictEqual(Object.hasOwn(analysis, 'reportUncertainty'), false, 'Unrelated report input is not stored in the analysis record');
   const experiment = mm.startSol6Cultivation();
   assert(experiment && experiment.status === 'IN_PROGRESS' && experiment.result === null);
   assert.strictEqual(mm.submitSol6Report('Physical composition, field coordinates and laboratory measurements are not independently verified.').success, true);

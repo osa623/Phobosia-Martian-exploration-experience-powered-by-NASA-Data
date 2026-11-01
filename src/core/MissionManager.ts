@@ -1222,8 +1222,16 @@ export class MissionManager {
   public saveSol6Analysis(input: Omit<Sol6AnalysisRecord, "id" | "sampleId" | "simulated" | "timestamp">): Sol6AnalysisRecord | null {
     const sample = this.state.sol6.sample;
     if (this.state.currentDay !== 6 || !sample?.transferred || !this.isStepComplete("SOL06_TRANSFER_SAMPLE")) return null;
-    if (!Object.values(input).every(value => value.trim().length >= 3)) return null;
-    const record: Sol6AnalysisRecord = { ...input, id: this.state.sol6.analysis?.id ?? `SOL06_ANALYSIS_${Date.now()}`, sampleId: sample.sampleId, simulated: true, timestamp: this.state.sol6.analysis?.timestamp ?? new Date().toISOString() };
+    const analysisFields = {
+      visualAppearance: input.visualAppearance,
+      grainSizeOrTexture: input.grainSizeOrTexture,
+      colourDescription: input.colourDescription,
+      supportedIndicators: input.supportedIndicators,
+      limitationsAndUncertainty: input.limitationsAndUncertainty,
+      playerInterpretation: input.playerInterpretation
+    };
+    if (!Object.values(analysisFields).every(value => value.trim().length >= 3)) return null;
+    const record: Sol6AnalysisRecord = { ...analysisFields, id: this.state.sol6.analysis?.id ?? `SOL06_ANALYSIS_${Date.now()}`, sampleId: sample.sampleId, simulated: true, timestamp: this.state.sol6.analysis?.timestamp ?? new Date().toISOString() };
     this.state.sol6.analysis = record;
     this.completeSol6Step("SOL06_ANALYSE_SAMPLE", { type: "geological_survey", sourceIdentifier: sample.targetId, summary: record.visualAppearance, details: { sampleId: sample.sampleId, texture: record.grainSizeOrTexture, colour: record.colourDescription, interpretation: record.playerInterpretation, limitations: record.limitationsAndUncertainty, simulated: true } });
     this.emit();
