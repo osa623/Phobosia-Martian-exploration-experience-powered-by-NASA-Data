@@ -42,6 +42,7 @@ const mockState: GameState = {
   droneModeActive: false,
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
   sol5DroneActive: false,
+  sol5LandingPromptActive: false,
   sol5Telemetry: null,
   sol5Images: [],
   sol5Flight: null,

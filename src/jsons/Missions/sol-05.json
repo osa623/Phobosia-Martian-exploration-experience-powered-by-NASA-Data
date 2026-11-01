@@ -34,7 +34,7 @@
     { "taskId": "SOL05_PREFLIGHT_BRIEFING", "title": "Complete Drone Flight Operations Briefing", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Review and confirm the target-dependent manual-flight briefing." },
     { "taskId": "SOL05_ACTIVATE_SIMULATION", "title": "Activate Drone Reconnaissance Simulation", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Activate the existing Drone_Object simulation after prerequisites validate.", "requiresCompletedTasks": ["SOL05_PREFLIGHT_BRIEFING"] },
     { "taskId": "SOL05_AERIAL_RECONNAISSANCE", "title": "Inspect the Officially Selected Target", "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "mandatory": true, "objective": "Manually fly to and inspect the official target, then load only its existing evidence assets.", "requiresCompletedTasks": ["SOL05_ACTIVATE_SIMULATION"] },
-    { "taskId": "SOL05_SAFE_LANDING", "title": "Return and Safely Land the Drone", "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "mandatory": true, "objective": "Manually return to the launch pad, validate landing with E, then press G to return to Mission Control Navigation.", "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"] },
+    { "taskId": "SOL05_SAFE_LANDING", "title": "Return and Safely Land the Drone", "interfaceId": "DRONE_RECONNAISSANCE_SIMULATION", "mandatory": true, "objective": "Follow the return beacon. At the stable landing point, press L when prompted to land, complete the landing objective, and return to Mission Control Navigation.", "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"] },
     { "taskId": "SOL05_REVIEW_IMAGES", "title": "Review Target-Specific Evidence", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Review the mission-provided imagery linked to the official target.", "requiresCompletedTasks": ["SOL05_SAFE_LANDING"] },
     { "taskId": "SOL05_SUBMIT_REPORT", "title": "Submit Sol 5 Aerial Reconnaissance Report", "interfaceId": "MISSION_CONTROL_NAVIGATION", "triggerId": "MC_NAVIGATION_01", "mandatory": true, "objective": "Submit a target-linked report with observations, interpretation, uncertainty, and Sol 6 follow-up.", "requiresCompletedTasks": ["SOL05_REVIEW_IMAGES"] }
   ],
@@ -88,12 +88,12 @@
     {
       "id": "SOL05_OBJ_06",
       "title": "Return and Land the Drone",
-      "description": "After target inspection, manually return to the original take-off point and confirm a validated landing with E.",
+      "description": "After target inspection, follow the return beacon and descend onto the existing landing pad. When the on-pad prompt appears, press L to land and complete this objective.",
       "zone": "Mars Terrain",
       "type": "drone_landing",
       "required": true,
       "landingPoint": "Drone_TakeoffPoint",
-      "completionCondition": "The inspected drone reaches the verified take-off point, satisfies landing conditions, and enters the landed state after E confirmation."
+      "completionCondition": "The inspected drone reaches the transformed landing pad within the configured height and speed limits, and the player presses L while the on-pad landing prompt is valid."
     },
     {
       "id": "SOL05_OBJ_07",

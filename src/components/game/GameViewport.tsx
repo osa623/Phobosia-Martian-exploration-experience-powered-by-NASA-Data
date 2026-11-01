@@ -55,6 +55,7 @@ const initialState: GameState = {
   droneModeActive: false,
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
   sol5DroneActive: false,
+  sol5LandingPromptActive: false,
   sol5Telemetry: null,
   sol5Images: [],
   sol5Flight: null,
@@ -850,14 +851,16 @@ export function GameViewport() {
               <div className="[font-size:9px] [color:#c1d8df]">TARGET BEARING {state.sol5Telemetry.targetBearingDegrees.toFixed(0)}°</div>
             </div>
             <div className="[display:flex] [flex-wrap:wrap] [align-items:center] [justify-content:space-between] [gap:12px] [border:1px_solid_#32596f] [background:rgba(5,_14,_20,_0.91)] [padding:10px_14px] [pointer-events:auto]">
-              <div className="[max-width:650px] [line-height:1.65] [color:#9cb8c2]">{state.sol5Telemetry.status === "LANDED" ? "LANDING VALIDATED · Press G to complete the landing sequence and return to Mission Control Navigation." : <>W/S forward/back · A/D lateral · E ascend or context action · Q descend · Shift boost · mouse look · 1 front · 2 rear · 3 left · 4 right · 5 down · Esc abort<br/>VIEW {state.sol5Telemetry.cameraView.toUpperCase()} · PREPARED EVIDENCE {state.sol5Telemetry.evidenceCount} · BOUNDARY {state.sol5Telemetry.boundaryStatus} · *SIMULATED LINK</>}</div>
+              <div className="[max-width:650px] [line-height:1.65] [color:#9cb8c2]">{state.sol5Telemetry.status === "LANDED" ? "LANDING VALIDATED · Mission complete; returning to Mission Control." : <>W/S forward/back · A/D lateral · E ascend · Q descend · Shift boost · mouse look · 1 front · 2 rear · 3 left · 4 right · 5 down · Esc abort<br/>VIEW {state.sol5Telemetry.cameraView.toUpperCase()} · PREPARED EVIDENCE {state.sol5Telemetry.evidenceCount} · BOUNDARY {state.sol5Telemetry.boundaryStatus} · *SIMULATED LINK</>}</div>
               <div className="[display:flex] [flex-wrap:wrap] [gap:6px]">
-                {state.sol5Telemetry.status === "LANDED" ? <span className="rounded border border-[#42624c] px-3 py-1 text-[10px] text-[#9dd1b3]">PRESS G · RETURN TO MISSION CONTROL</span> : <>{(["front", "rear", "left", "right", "down"] as const).map((view, index) => <button key={view} onClick={() => game.current?.setSol5Camera(view)} className="rounded border border-[#355766] px-2 py-1 text-[9px] text-[#bde1e8] hover:bg-[#142a34]">{index + 1} {view.toUpperCase()}</button>)}<button onClick={() => game.current?.abortSol5Flight()} className="rounded border border-[#704337] px-3 py-1 text-[9px] text-[#e6b99c] hover:bg-[#271b16]">ABORT · ESC</button></>}
+                {state.sol5Telemetry.status === "LANDED" ? <button onClick={() => game.current?.abortSol5Flight()} className="rounded border border-[#704337] px-3 py-1 text-[9px] text-[#e6b99c] hover:bg-[#271b16]">ABORT · ESC</button> : <>{(["front", "rear", "left", "right", "down"] as const).map((view, index) => <button key={view} onClick={() => game.current?.setSol5Camera(view)} className="rounded border border-[#355766] px-2 py-1 text-[9px] text-[#bde1e8] hover:bg-[#142a34]">{index + 1} {view.toUpperCase()}</button>)}<button onClick={() => game.current?.abortSol5Flight()} className="rounded border border-[#704337] px-3 py-1 text-[9px] text-[#e6b99c] hover:bg-[#271b16]">ABORT · ESC</button></>}
               </div>
               <div className="w-full text-right text-[10px] text-[#e6b27e]">{state.sol5Telemetry.warning ?? state.sol5Message ?? "Mission systems nominal within simulated limits."}</div>
             </div>
           </div>
         )}
+
+        {state.sol5LandingPromptActive && <div className="[position:fixed] [left:50%] [bottom:115px] [z-index:30] [transform:translateX(-50%)] [border:1px_solid_#55cde8] [background:rgba(5,_14,_20,_0.96)] [padding:12px_22px] [text-align:center] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [pointer-events:none]" role="status" aria-live="polite"><div className="font-kdam-thmor-pro [font-size:16px] [font-weight:bold] [letter-spacing:0.12em] [color:#55cde8]">LAND DRONE</div><div className="font-dm-sans [margin-top:4px] [font-size:13px] [color:#f1f7f9]">Press L key to land</div></div>}
 
         {/* 11. REST / DAY ADVANCE FEEDBACK MODAL */}
         {state.restFeedback && (
