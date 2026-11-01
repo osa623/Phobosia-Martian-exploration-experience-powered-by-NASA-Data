@@ -6,17 +6,20 @@ import sol03Navigation from "../../jsons/Instructions/sol-03-navigation.json";
 import sol04Navigation from "../../jsons/Instructions/sol-04-navigation.json";
 import sol05Mission from "../../jsons/Missions/sol-05.json";
 import sol05Navigation from "../../jsons/Instructions/sol-05-navigation.json";
+import sol06Mission from "../../jsons/Missions/sol-06.json";
+import sol06Navigation from "../../jsons/Instructions/sol-06-navigation.json";
 import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
-  5: { mission: sol05Mission, navigation: sol05Navigation }
+  5: { mission: sol05Mission, navigation: sol05Navigation },
+  6: { mission: sol06Mission, navigation: sol06Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -61,6 +64,18 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL05_ACTIVATE_SIMULATION: "MC_NAVIGATION_01",
   SOL05_REVIEW_IMAGES: "MC_NAVIGATION_01",
   SOL05_SUBMIT_REPORT: "MC_NAVIGATION_01"
+  ,SOL06_REVIEW_MISSION_BRIEFING: "MC_NAVIGATION_01",
+  SOL06_PREPARE_FIELD_EQUIPMENT: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_ACTIVATE_EVA_SESSION: "Mars_Observation_Preparation_Trigger",
+  SOL06_REACH_SELECTED_TARGET: "TARGET_SCENE_OBJECT",
+  SOL06_COMPLETE_FIELD_OBSERVATIONS: "TARGET_SCENE_OBJECT",
+  SOL06_COLLECT_SOIL_SAMPLE: "TARGET_SCENE_OBJECT",
+  SOL06_RETURN_TO_AIRLOCK: "Spwaning_Position",
+  SOL06_REMOVE_EVA_SUIT: "Mars_Observation_Preparation_Trigger",
+  SOL06_TRANSFER_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_ANALYSE_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_START_CULTIVATION_EXPERIMENT: "LAB_CULTIVATION_01",
+  SOL06_SUBMIT_INVESTIGATION_REPORT: "MC_NAVIGATION_01"
 };
 
 export interface ResolvedMissionNavigation {
@@ -119,7 +134,7 @@ export function resolveNextMissionNavigation(sol: number, validatedRuntimeTaskId
   const tasks = source.mission.tasks.filter(task => task.mandatory && requiredIds.has(task.taskId));
   const available = tasks.find(task =>
     !completed.has(task.taskId) &&
-    (task.requiresCompletedTasks ?? []).every(required => completed.has(required))
+    (("requiresCompletedTasks" in task ? task.requiresCompletedTasks : undefined) ?? []).every((required: string) => completed.has(required))
   );
 
   if (!available) {

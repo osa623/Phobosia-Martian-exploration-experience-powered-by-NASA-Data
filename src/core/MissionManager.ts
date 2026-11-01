@@ -11,6 +11,8 @@ import { SOL3_DATASET_IDS } from "../missions/sol-03/taskDefinitions";
 import { resolveNextMissionNavigation } from "../systems/navigation/missionNavigation";
 import sol03Mission from "../jsons/Missions/sol-03.json";
 import { SOL5_TASKS } from "../missions/sol-05/taskDefinitions";
+import { SOL06_TASKS, type Sol6AnalysisRecord, type Sol6CultivationExperiment, type Sol6FieldObservation, type Sol6Report, type Sol6SampleRecord } from "../missions/SOL_06/taskDefinitions";
+import sol06Mission from "../jsons/Missions/sol-06.json";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -54,6 +56,7 @@ const TRIGGER_GUIDANCE: Record<string, { moduleName: string; sectionName: string
   LAB_RESEARCH_ANALYSIS_01: { moduleName: "Research Laboratory", sectionName: "Analysis Station", interfaceName: "Research Analysis" },
   LAB_RESEARCH_MONITORING_01: { moduleName: "Research Laboratory", sectionName: "Monitoring Station", interfaceName: "Research Monitoring" },
   Airlock_Control_Console_Trigger: { moduleName: "Airlock", sectionName: "Control Console", interfaceName: "Airlock Control Console" },
+  Spwaning_Position: { moduleName: "Mars Terrain", sectionName: "Airlock Return Entrance", interfaceName: "Existing Airlock Return Transition" },
   HAB_REST_01: { moduleName: "Habitat", sectionName: "Rest Area", interfaceName: "Habitat Rest Area" },
   Drone: { moduleName: "Drone Section", sectionName: "Drone Inspection Area", interfaceName: "Physical Drone Inspection" }
 };
@@ -266,7 +269,22 @@ export interface MissionProgressState {
   investigationRecords: InvestigationRecord[];
   selectedSiteId: string | null;
   sol5: Sol5MissionProgress;
+  sol6: Sol6MissionProgress;
 }
+
+export interface Sol6MissionProgress {
+  equipmentPrepared: boolean;
+  evaActive: boolean;
+  targetReached: boolean;
+  fieldObservations: Sol6FieldObservation[];
+  sample: Sol6SampleRecord | null;
+  analysis: Sol6AnalysisRecord | null;
+  cultivation: Sol6CultivationExperiment | null;
+  report: Sol6Report | null;
+}
+
+const createInitialSol6Progress = (): Sol6MissionProgress => ({ equipmentPrepared: false, evaActive: false, targetReached: false, fieldObservations: [], sample: null, analysis: null, cultivation: null, report: null });
+const sol6Steps = SOL06_TASKS.map(task => ({ stepId: task.stepId, label: task.label, description: task.description, targetTrigger: "targetTrigger" in task ? task.targetTrigger : undefined, targetModule: "targetModule" in task ? task.targetModule : undefined, requiresCompletedTasks: [...("requiresCompletedTasks" in task ? task.requiresCompletedTasks ?? [] : [])], completed: false }));
 
 export interface InvestigationRecord {
   id: string; missionId: string; sol: number; taskId: string; triggerId: string; systemId: string;
@@ -396,18 +414,13 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   },  6: {
     day: 6,
     id: "DAY_06_GEOLOGICAL_SITE_SURVEY",
-    title: "Geological Site Survey",
-    storyContext: "Field Survey Phase. Utilizing the Day 5 route plan for an outdoor geological site survey on the Martian surface.",
-    briefing: "Mission Control has prepared your survey sortie using the Day 5 route plan. Exit through the Airlock to the Mars master terrain, navigate to the designated survey target area, inspect surface characteristics, and log the preliminary geological record.",
-    primaryObjective: "Navigate to the designated terrain survey area, inspect geological characteristics, and save preliminary field survey record.",
-    steps: [
-      { stepId: "D6_OBJ_01_REVIEW_TARGET", label: "Review survey target", description: "Review geological survey target at Mission Control navigation console.", targetTrigger: "MC_NAVIGATION_01", completed: false },
-      { stepId: "D6_OBJ_02_REACH_TARGET", label: "Reach survey area", description: "Exit via Airlock and reach designated survey area on Mars terrain.", targetModule: "Terrain", completed: false },
-      { stepId: "D6_OBJ_03_INSPECT_SURFACE", label: "Inspect surface", description: "Perform geological observation scan of surface characteristics.", completed: false },
-      { stepId: "D6_OBJ_04_SAVE_RECORD", label: "Save geological record", description: "Save preliminary GeologicalSurveyRecord to telemetry.", completed: false }
-    ],
-    allowedModules: ["MissionControl", "Hub", "Habitat", "Airlock", "Terrain"],
-    completionFeedback: "Preliminary geological record registered. Field survey complete. Return to Habitat rest area to conclude Day 6."
+    title: sol06Mission.title,
+    storyContext: "Continue on foot to the official Sol 3 target, document field observations, secure a provenance-linked sample, return through the Airlock, and begin laboratory analysis.",
+    briefing: sol06Mission.description,
+    primaryObjective: "Complete the target-linked field investigation, sample transfer and analysis, start the pending Sol 8 cultivation experiment, and submit the Sol 6 report.",
+    steps: sol6Steps,
+    allowedModules: ["MissionControl", "Hub", "Habitat", "Airlock", "Terrain", "Science"],
+    completionFeedback: "Sol 6 surface investigation report validated. Cultivation results remain pending for Sol 8. Return to Habitat Rest Area to conclude Sol 6."
   },
   7: {
     day: 7,
@@ -470,8 +483,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 5 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 5
+  const total = day >= 2 && day <= 6 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 6
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -481,6 +494,7 @@ export class MissionManager {
   private state: MissionProgressState;
   private listeners = new Set<(state: Readonly<MissionProgressState>) => void>();
   private isAdvancingDay = false;
+  private sol6ValidatedMutation = false;
 
   constructor() {
     this.state = this.loadState();
@@ -501,6 +515,9 @@ export class MissionManager {
             const rawSol5 = parsed.sol5 && typeof parsed.sol5 === "object"
               ? { ...createInitialSol5Progress(), ...(parsed.sol5 as Partial<Sol5MissionProgress>) }
               : createInitialSol5Progress();
+            const rawSol6 = parsed.sol6 && typeof parsed.sol6 === "object"
+              ? { ...createInitialSol6Progress(), ...(parsed.sol6 as Partial<Sol6MissionProgress>) }
+              : createInitialSol6Progress();
             const landedSuccessfully = Boolean(rawSol5.flight?.landed && rawSol5.flight.status === "landed");
             const rawAttemptStatus = (parsed.sol5 as Partial<Sol5MissionProgress> | undefined)?.attemptStatus;
             const interruptedAttempt = parsed.currentDay === 5 && !landedSuccessfully && (
@@ -549,7 +566,8 @@ export class MissionManager {
               droneSurvey: (parsed.droneSurvey as DroneSurveyRecord) ?? null,
               investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : [],
               selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []),
-              sol5
+              sol5,
+              sol6: rawSol6
             };
           }
         }
@@ -574,7 +592,8 @@ export class MissionManager {
       droneSurvey: null,
       investigationRecords: [],
       selectedSiteId: null,
-      sol5: createInitialSol5Progress()
+      sol5: createInitialSol5Progress(),
+      sol6: createInitialSol6Progress()
     };
   }
 
@@ -833,7 +852,7 @@ export class MissionManager {
         const group = DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.interactionGroups.find(item => item.id === task.interactionGroupId);
         return [{ ...step, targetTrigger: group?.triggerObjectName ?? undefined, targetModule: DAY1_ZONES.find(zone => zone.zoneId === task.zoneId)?.moduleName }];
       }).filter(group => group.length > 0);
-    } else if (currentDay === 2 || currentDay === 3 || currentDay === 4 || currentDay === 5) {
+    } else if (currentDay === 2 || currentDay === 3 || currentDay === 4 || currentDay === 5 || currentDay === 6) {
       groups = mission.steps.map(step => [step]);
     } else {
       // The Sol 4–9 definitions describe one primary mission outcome; their
@@ -883,7 +902,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 5) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 6) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1046,7 +1065,9 @@ export class MissionManager {
 
     if (!stepDef) return false;
 
-    if (this.state.currentDay === 5 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
+    if (this.state.currentDay === 6 && !this.sol6ValidatedMutation) return false;
+
+    if ((this.state.currentDay === 5 || this.state.currentDay === 6) && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
       return false;
     }
     if (this.state.currentDay === 5) {
@@ -1084,6 +1105,149 @@ export class MissionManager {
       return true;
     }
     return false;
+  }
+
+  private completeSol6Step(stepId: string, record?: Partial<ObservationRecord>): boolean {
+    this.sol6ValidatedMutation = true;
+    try { return this.completeStep(stepId, record); }
+    finally { this.sol6ValidatedMutation = false; }
+  }
+
+  public getSol6Progress(): Readonly<Sol6MissionProgress> { return this.state.sol6; }
+
+  public confirmSol6Briefing(): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId();
+    const sol4 = this.state.investigationRecords.find(record => record.taskId === "SOL04_SUBMIT_PREPARATION_REPORT");
+    const sol5 = this.state.sol5.report;
+    if (this.state.currentDay !== 6) return { success: false, message: "The Sol 6 briefing is unavailable outside Sol 6." };
+    if (!targetId || !sol4?.evidenceReferences.includes(`TARGET:${targetId}`) || !sol5 || sol5.targetId !== targetId) return { success: false, message: "Sol 6 is blocked: a valid Sol 3 target and matching Sol 4 and Sol 5 records are required." };
+    this.completeSol6Step("SOL06_REVIEW_MISSION_BRIEFING");
+    return { success: true, message: `Briefing confirmed for the official Sol 3 target (${targetId}).` };
+  }
+
+  public prepareSol6Equipment(): { success: boolean; message: string } {
+    if (this.state.currentDay !== 6 || !this.isStepComplete("SOL06_REVIEW_MISSION_BRIEFING")) return { success: false, message: "Review the Sol 6 briefing first." };
+    this.state.sol6.equipmentPrepared = true;
+    this.completeSol6Step("SOL06_PREPARE_FIELD_EQUIPMENT");
+    if (this.state.sol6.evaActive) this.completeSol6Step("SOL06_ACTIVATE_EVA_SESSION");
+    return { success: true, message: "Available sample-handling workflow reviewed. Hardware-specific capabilities remain unverified." };
+  }
+
+  public markSol6EVAActivated(active: boolean): boolean {
+    if (this.state.currentDay !== 6) return false;
+    this.state.sol6.evaActive = active;
+    if (active && this.isStepComplete("SOL06_PREPARE_FIELD_EQUIPMENT")) return this.completeSol6Step("SOL06_ACTIVATE_EVA_SESSION");
+    if (!active) {
+      // This method is called by the existing Airlock preparation/removal
+      // interaction. Retry the return validation here as a recovery path in
+      // case a transition event was missed during the Terrain -> Airlock load.
+      if (!this.isStepComplete("SOL06_RETURN_TO_AIRLOCK")) this.markSol6AirlockReturned();
+      if (this.isStepComplete("SOL06_RETURN_TO_AIRLOCK")) return this.completeSol6Step("SOL06_REMOVE_EVA_SUIT");
+    }
+    return false;
+  }
+
+  public markSol6TargetReached(targetId: string): boolean {
+    if (this.state.currentDay !== 6 || targetId !== this.getSelectedSiteId() || !this.isStepComplete("SOL06_ACTIVATE_EVA_SESSION")) return false;
+    this.state.sol6.targetReached = true;
+    return this.completeSol6Step("SOL06_REACH_SELECTED_TARGET");
+  }
+
+  public saveSol6FieldObservation(input: { targetId: string; locationReference: string; category: string; observation: string; interpretation: string; uncertainty: string }): Sol6FieldObservation | null {
+    if (this.state.currentDay !== 6 || !this.state.sol6.targetReached || input.targetId !== this.getSelectedSiteId() || !this.isStepComplete("SOL06_REACH_SELECTED_TARGET")) return null;
+    if (![input.locationReference, input.category, input.observation, input.interpretation, input.uncertainty].every(value => value.trim().length >= 3)) return null;
+    const existing = this.state.sol6.fieldObservations.find(record => record.targetId === input.targetId);
+    const record: Sol6FieldObservation = { id: existing?.id ?? `SOL06_OBS_${Date.now()}`, targetId: input.targetId, sol: 6, timestamp: existing?.timestamp ?? new Date().toISOString(), locationReference: input.locationReference.trim(), observationCategory: input.category.trim(), observationDescription: input.observation.trim(), playerInterpretation: input.interpretation.trim(), evidenceReferences: [`TARGET:${input.targetId}`, "PHOBOSIA_SCENE_VISUAL_OBSERVATION"], uncertainty: input.uncertainty.trim(), simulated: true };
+    this.state.sol6.fieldObservations = [record];
+    this.state.geologicalSurvey = {
+      id: record.id, day: 6, targetId: record.targetId, source: "PHOBOSIA simulated field observation",
+      observedCategories: { surfaceTexture: record.observationDescription, fragmentDistribution: "Not separately quantified in this observation", terrainShape: "Not measured in this observation", dustCoverage: "Not measured in this observation", followUpInterest: record.playerInterpretation },
+      summary: record.observationDescription, isSimulated: true, saved: true, routePlanReference: null, missionTimestamp: record.timestamp
+    };
+    this.completeSol6Step("SOL06_COMPLETE_FIELD_OBSERVATIONS", { type: "geological_survey", sourceIdentifier: input.targetId, summary: record.observationDescription, details: { category: record.observationCategory, interpretation: record.playerInterpretation, uncertainty: record.uncertainty, simulated: true } });
+    this.emit();
+    return record;
+  }
+
+  public collectSol6Sample(locationReference: string, containerReference: string): Sol6SampleRecord | null {
+    const targetId = this.getSelectedSiteId();
+    if (this.state.currentDay !== 6 || !targetId || !this.state.sol6.fieldObservations.length || !locationReference.trim() || !containerReference.trim()) return null;
+    const sample: Sol6SampleRecord = this.state.sol6.sample ?? { sampleId: `PHO-SOL06-${Date.now().toString(36).toUpperCase()}`, targetId, collectionSol: 6, collectionLocationReference: locationReference.trim(), sampleType: "soil_regolith", containerReference: containerReference.trim(), collectionStatus: "COLLECTED_AND_SECURED", sealingStatus: "SECURED", transferred: false };
+    if (sample.targetId !== targetId) return null;
+    this.state.sol6.sample = sample;
+    this.completeSol6Step("SOL06_COLLECT_SOIL_SAMPLE", { type: "geological_survey", sourceIdentifier: targetId, summary: `Simulated regolith sample ${sample.sampleId} recorded and secured.`, details: { sampleId: sample.sampleId, sampleType: sample.sampleType, collectionStatus: sample.collectionStatus } });
+    this.emit();
+    return sample;
+  }
+
+  public markSol6AirlockReturned(): boolean {
+    const sample = this.state.sol6.sample;
+    const targetId = this.getSelectedSiteId();
+    const hasValidSecuredSample = Boolean(
+      sample &&
+      targetId &&
+      sample.targetId === targetId &&
+      sample.collectionStatus === "COLLECTED_AND_SECURED" &&
+      sample.sealingStatus === "SECURED" &&
+      sample.sampleId.trim() &&
+      sample.containerReference.trim() &&
+      this.state.sol6.targetReached &&
+      this.state.sol6.fieldObservations.some(record => record.targetId === targetId)
+    );
+    if (this.state.currentDay !== 6 || !hasValidSecuredSample) return false;
+
+    // A previous save or interrupted transition may contain the validated sample
+    // record without its task ID. Reconcile that durable evidence on Airlock entry
+    // so the task list can advance instead of asking the player to collect again.
+    if (!this.isStepComplete("SOL06_COLLECT_SOIL_SAMPLE")) {
+      this.completeSol6Step("SOL06_COLLECT_SOIL_SAMPLE", {
+        type: "geological_survey",
+        sourceIdentifier: sample!.targetId,
+        summary: `Simulated regolith sample ${sample!.sampleId} recorded and secured.`,
+        details: { sampleId: sample!.sampleId, sampleType: sample!.sampleType, collectionStatus: sample!.collectionStatus, reconciledOnAirlockReturn: true }
+      });
+    }
+    if (!this.isStepComplete("SOL06_COLLECT_SOIL_SAMPLE")) return false;
+    return this.completeSol6Step("SOL06_RETURN_TO_AIRLOCK");
+  }
+
+  public transferSol6Sample(): { success: boolean; message: string } {
+    const sample = this.state.sol6.sample;
+    if (this.state.currentDay !== 6 || !sample || !this.isStepComplete("SOL06_REMOVE_EVA_SUIT")) return { success: false, message: "Return to the Airlock, remove the suit, and retain the secured sample first." };
+    sample.transferred = true;
+    this.completeSol6Step("SOL06_TRANSFER_SAMPLE", { type: "geological_survey", sourceIdentifier: sample.targetId, summary: `Sample ${sample.sampleId} received for preliminary analysis.`, details: { sampleId: sample.sampleId, provenanceTargetId: sample.targetId } });
+    return { success: true, message: `Sample ${sample.sampleId} receipt recorded.` };
+  }
+
+  public saveSol6Analysis(input: Omit<Sol6AnalysisRecord, "id" | "sampleId" | "simulated" | "timestamp">): Sol6AnalysisRecord | null {
+    const sample = this.state.sol6.sample;
+    if (this.state.currentDay !== 6 || !sample?.transferred || !this.isStepComplete("SOL06_TRANSFER_SAMPLE")) return null;
+    if (!Object.values(input).every(value => value.trim().length >= 3)) return null;
+    const record: Sol6AnalysisRecord = { ...input, id: this.state.sol6.analysis?.id ?? `SOL06_ANALYSIS_${Date.now()}`, sampleId: sample.sampleId, simulated: true, timestamp: this.state.sol6.analysis?.timestamp ?? new Date().toISOString() };
+    this.state.sol6.analysis = record;
+    this.completeSol6Step("SOL06_ANALYSE_SAMPLE", { type: "geological_survey", sourceIdentifier: sample.targetId, summary: record.visualAppearance, details: { sampleId: sample.sampleId, texture: record.grainSizeOrTexture, colour: record.colourDescription, interpretation: record.playerInterpretation, limitations: record.limitationsAndUncertainty, simulated: true } });
+    this.emit();
+    return record;
+  }
+
+  public startSol6Cultivation(): Sol6CultivationExperiment | null {
+    const sample = this.state.sol6.sample;
+    if (this.state.currentDay !== 6 || !sample || !this.state.sol6.analysis || !this.isStepComplete("SOL06_ANALYSE_SAMPLE")) return null;
+    const experiment = this.state.sol6.cultivation ?? { id: `SOL06_CULTIVATION_${Date.now()}`, sampleId: sample.sampleId, unitReference: "LAB_CULTIVATION_01" as const, startSol: 6 as const, expectedResultSol: 8 as const, status: "IN_PROGRESS" as const, result: null };
+    this.state.sol6.cultivation = experiment;
+    this.completeSol6Step("SOL06_START_CULTIVATION_EXPERIMENT", { type: "geological_survey", sourceIdentifier: sample.targetId, summary: `Cultivation experiment ${experiment.id} started; result pending until Sol 8.`, details: { sampleId: sample.sampleId, status: experiment.status, expectedResultSol: 8 } });
+    this.emit();
+    return experiment;
+  }
+
+  public submitSol6Report(uncertainty: string): { success: boolean; message: string } {
+    const targetId = this.getSelectedSiteId(); const sample = this.state.sol6.sample; const analysis = this.state.sol6.analysis; const cultivation = this.state.sol6.cultivation;
+    if (this.state.currentDay !== 6 || !targetId || !sample || sample.targetId !== targetId || !analysis || analysis.sampleId !== sample.sampleId || !cultivation || cultivation.sampleId !== sample.sampleId || cultivation.result !== null || !uncertainty.trim()) return { success: false, message: "The report requires the official target, matching sample and analysis records, pending cultivation status, and stated uncertainty." };
+    const report: Sol6Report = { id: "PHOBOSIA_SOL_06_REPORT", targetId, sampleId: sample.sampleId, submittedAt: new Date().toISOString(), observationIds: this.state.sol6.fieldObservations.map(record => record.id), analysisId: analysis.id, cultivationExperimentId: cultivation.id, cultivationStatus: "IN_PROGRESS", uncertainty: uncertainty.trim() };
+    this.state.sol6.report = report;
+    this.completeSol6Step("SOL06_SUBMIT_INVESTIGATION_REPORT", { type: "geological_survey", sourceIdentifier: targetId, summary: `Sol 6 field report submitted for ${targetId}; cultivation remains pending until Sol 8.`, details: { sampleId: sample.sampleId, analysisId: analysis.id, experimentId: cultivation.id, cultivationStatus: cultivation.status } });
+    this.emit();
+    return { success: true, message: "Sol 6 report validated. Cultivation remains in progress; no Sol 8 result is available yet." };
   }
 
   /**
@@ -1134,13 +1298,8 @@ export class MissionManager {
 
     // Day 6
     if (day === 6) {
-      if (event.type === "trigger_interacted" && (event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")) {
-        this.completeStep("D6_OBJ_01_REVIEW_TARGET");
-        return { handled: true, feedback: "Day 6 Survey Target verified on navigation console." };
-      }
       if (event.type === "module_entered" && event.module === "Terrain") {
-        this.completeStep("D6_OBJ_02_REACH_TARGET");
-        return { handled: true, feedback: "Entered Martian surface. Navigate toward survey area." };
+        return { handled: true, feedback: this.isStepComplete("SOL06_ACTIVATE_EVA_SESSION") ? "EVA active. Walk to the official Sol 3 selected target." : "Sol 6 surface work requires the validated briefing, equipment preparation, and active EVA suit." };
       }
     }
 
@@ -1202,6 +1361,9 @@ export class MissionManager {
     summary: string;
   }): GeologicalSurveyRecord | null {
     if (this.state.currentDay !== 6) return null;
+    // Legacy entry point retained for later-day record compatibility. Sol 6
+    // completion now requires the target-linked observation/sample workflow.
+    if (this.state.sol6.fieldObservations.length === 0) return null;
 
     const record: GeologicalSurveyRecord = {
       id: `REC_D6_GEOLOGY_${Date.now()}`,
@@ -1443,6 +1605,9 @@ export class MissionManager {
         reason: "Cannot rest yet. Geological survey record has not been confirmed and saved."
       };
     }
+    if (this.state.currentDay === 6 && (!this.state.sol6.report || !this.state.sol6.cultivation || this.state.sol6.cultivation.result !== null)) {
+      return { canAdvance: false, reason: "Sol 6 requires the validated field report and a persisted cultivation experiment whose result remains pending for Sol 8." };
+    }
 
     if (this.state.currentDay === 7 && !this.state.surfaceObservation) {
       return {
@@ -1558,7 +1723,8 @@ export class MissionManager {
       droneSurvey: null,
       investigationRecords: [],
       selectedSiteId: null,
-      sol5: createInitialSol5Progress()
+      sol5: createInitialSol5Progress(),
+      sol6: createInitialSol6Progress()
     };
     this.emit();
   }

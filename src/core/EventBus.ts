@@ -53,6 +53,12 @@ export interface GameState {
   primaryObjective: string;
   controlHint: string;
   isOutdoorTerrain: boolean;
+  evaSuitActive: boolean;
+  evaMovementState: "IDLE" | "WALKING" | "RUNNING";
+  evaOxygenPercent: number;
+  evaBatteryPercent: number;
+  evaHeadingDegrees: number;
+  evaTerrainElevation: number | null;
   showRoutePlanning: boolean;
   selectedRouteTargetId: string | null;
   notification: string | null;

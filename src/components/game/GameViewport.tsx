@@ -10,6 +10,7 @@ import {
   PREDEFINED_INTERPRETATIONS,
   type TerrainRouteTarget
 } from "@/core/MissionManager";
+import { Sol6FieldCapture } from "@/missions/SOL_06/components/Sol6FieldCapture";
 
 const initialState: GameState = {
   ready: false,
@@ -35,6 +36,12 @@ const initialState: GameState = {
   primaryObjective: "Explore the outpost, inspect the required systems and consoles across all modules, and complete the 19-task orientation checklist.",
   controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock",
   isOutdoorTerrain: false,
+  evaSuitActive: false,
+  evaMovementState: "IDLE",
+  evaOxygenPercent: 100,
+  evaBatteryPercent: 100,
+  evaHeadingDegrees: 0,
+  evaTerrainElevation: null,
   showRoutePlanning: false,
   selectedRouteTargetId: null,
   notification: null,
@@ -124,6 +131,9 @@ export function GameViewport() {
     !state.showCinematicOverlay &&
     !state.showOSDesktop &&
     !state.cameraPresentation;
+  const compassPoints = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const compassIndex = Math.round(state.evaHeadingDegrees / 45) % compassPoints.length;
+  const compassDirection = compassPoints[compassIndex];
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
@@ -132,37 +142,76 @@ export function GameViewport() {
         activeModule={state.module}
         onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
       />  */}
-      {/* 1. OUTDOOR FIRST-PERSON ASTRONAUT HELMET HUD (Outdoor only, hidden in FPV & modals) */}
-      {state.isOutdoorTerrain && !state.transition && !state.droneModeActive && !state.sol5DroneActive && (
-        <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:5] [box-shadow:inset_0_0_120px_40px_rgba(0,_0,_0,_0.75),_inset_0_0_40px_rgba(10,_25,_35,_0.6)]" aria-hidden="true">
-          <div className="[position:absolute] [inset:0] [border-radius:40px] [border:1px_solid_rgba(85,_205,_232,_0.15)] [box-shadow:inset_0_0_60px_rgba(0,_0,_0,_0.85)]" />
-          <div className="[position:absolute] [top:0] [left:0] [right:0] [height:25%] [background:linear-gradient(180deg,_rgba(85,_205,_232,_0.04)_0%,_transparent_100%)]" />
-          <div className="[position:absolute] [top:24px] [right:28px] [display:flex] [flex-direction:column] [gap:5px] [text-align:right] text-[12px] font-mono [color:#8bb1c4] [letter-spacing:0.08em] [text-shadow:0_1px_4px_#000]">
-            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
-              <span className="h-[6px] w-[6px] rounded-full bg-[#44d788] shadow-[0_0_8px_#44d788]" />
-              <span>HELMET COMM: UHF-HUB1 ONLINE</span>
-            </div>
-            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
-              <span>SUIT: 0.38 bar · 21.0% O2 · NOMINAL</span>
-            </div>
-            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:6px]">
-              <span>CORE TEMP: 21.4 °C · BATTERY: 94%</span>
-            </div>
-            <div className="[color:#e88747] [font-size:10px] [font-weight:bold] [letter-spacing:0.12em] [margin-top:2px]">SIMULATED SUIT TELEMETRY</div>
+      {/* EVA visor frame and edge-positioned telemetry, based on the supplied Mars helmet reference. */}
+      {state.evaSuitActive && !state.transition && !state.droneModeActive && !state.sol5DroneActive && !state.panel && !state.showOSDesktop && !state.showCinematicOverlay && (
+        <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:20] [overflow:hidden]" aria-label="EVA helmet visor and suit HUD">
+          <div className="[position:absolute] [inset:0] [background:radial-gradient(ellipse_at_center,_transparent_59%,_rgba(4,_7,_10,_0.12)_76%,_rgba(2,_4,_6,_0.48)_100%)]" />
+          {state.isOutdoorTerrain && <div className="[position:absolute] [inset:0] [background:radial-gradient(ellipse_at_center,_rgba(151,_78,_42,_0.035)_22%,_rgba(129,_69,_42,_0.08)_72%,_rgba(93,_48,_30,_0.17)_100%)] [mix-blend-mode:soft-light]" />}
+          {state.isOutdoorTerrain && <svg className="[position:absolute] [inset:0] [height:100%] [width:100%] [opacity:0.2]" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true"><g fill="#d79a70">{Array.from({ length: 42 }, (_, i) => <circle key={i} cx={(i * 193 + 71) % 1000} cy={(i * 137 + 43) % 600} r={i % 7 === 0 ? 1.4 : 0.7} opacity={i % 4 === 0 ? 0.24 : 0.12} />)}</g></svg>}
+          <svg className="[position:absolute] [inset:0] [h-full] [w-full]" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="eva-helmet-metal" x1="0" y1="0" x2="0.8" y2="1"><stop offset="0" stopColor="#090d11"/><stop offset="0.34" stopColor="#37434a"/><stop offset="0.62" stopColor="#101519"/><stop offset="1" stopColor="#080b0e"/></linearGradient>
+              <linearGradient id="eva-visor-cyan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#52cfff" stopOpacity="0.45"/><stop offset="0.5" stopColor="#9cefff" stopOpacity="0.96"/><stop offset="1" stopColor="#52cfff" stopOpacity="0.45"/></linearGradient>
+            </defs>
+            <path fill="url(#eva-helmet-metal)" fillRule="evenodd" d="M0 0H1000V600H0Z M30 106 C42 54 92 18 167 28 C300 45 374 65 500 61 C626 65 700 45 833 28 C908 18 958 54 970 106 L995 477 C1000 536 971 568 916 577 C855 588 794 557 738 552 C652 568 591 572 500 568 C409 572 348 568 262 552 C206 557 145 588 84 577 C29 568 0 536 5 477 Z" />
+            <path d="M30 106 C42 54 92 18 167 28 C300 45 374 65 500 61 C626 65 700 45 833 28 C908 18 958 54 970 106 L995 477 C1000 536 971 568 916 577 C855 588 794 557 738 552 C652 568 591 572 500 568 C409 572 348 568 262 552 C206 557 145 588 84 577 C29 568 0 536 5 477 Z" fill="none" stroke="url(#eva-visor-cyan)" strokeWidth="2.2" opacity="0.88" />
+            <path d="M45 112 C58 68 101 39 170 47 C304 62 384 80 500 77 C616 80 696 62 830 47 C899 39 942 68 955 112 L978 474 C981 514 956 540 911 547 C854 557 795 533 739 528 C650 544 589 548 500 545 C411 548 350 544 261 528 C205 533 146 557 89 547 C44 540 19 514 22 474 Z" fill="none" stroke="#b9eaf3" strokeWidth="1" opacity="0.24" />
+            <path d="M195 31 C292 45 380 59 500 55 C620 59 708 45 805 31 M265 563 Q500 582 735 563" fill="none" stroke="#6adfff" strokeWidth="2" opacity="0.58" />
+            <path d="M0 0H1000V26 Q780 45 500 40 Q220 45 0 26Z M0 574 Q150 594 265 573 L300 600 H0Z M1000 574 Q850 594 735 573 L700 600 H1000Z" fill="#080b0e" opacity="0.72" />
+          </svg>
+
+          <section className="[position:absolute] [top:6%] [left:5%] [width:220px] [clip-path:polygon(8%_0,100%_0,100%_76%,86%_100%,0_82%,0_18%)] [border:1px_solid_rgba(85,_205,_232,_0.72)] [background:linear-gradient(115deg,_rgba(8,_25,_36,_0.84),_rgba(14,_27,_36,_0.63))] [padding:12px_20px_14px_18px] [color:#d9f5fa] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [align-items:center] [gap:12px]"><div className="[display:grid] [height:40px] [width:40px] [place-items:center] [border-radius:9999px] [border:2px_solid_#71ddfa] [color:#81e7ff] [font-size:17px] [font-weight:bold]">O₂</div><div><div className="[font-size:10px] [letter-spacing:0.12em] [color:#aee7f1]">OXYGEN · SIM</div><div className="[font-size:22px] [font-weight:bold]">{state.evaOxygenPercent.toFixed(1)}%</div></div></div>
+            <div className="[margin-top:8px] [height:6px] [overflow:hidden] [border-radius:9999px] [background-color:#1e293b]"><div className="[height:100%] [background-color:#8ceaff]" style={{ width: `${state.evaOxygenPercent}%` }} /></div>
+            {state.evaOxygenPercent <= 20 && <div className="[margin-top:5px] [font-size:9px] [font-weight:bold] [color:#ffb16d]">{state.evaOxygenPercent <= 0 ? "OXYGEN DEPLETED" : "LOW OXYGEN RESERVE"}</div>}
+          </section>
+
+          <section className="[position:absolute] [top:6%] [right:5%] [width:220px] [clip-path:polygon(0_0,92%_0,100%_18%,100%_82%,14%_100%,0_76%)] [border:1px_solid_rgba(85,_205,_232,_0.72)] [background:linear-gradient(245deg,_rgba(8,_25,_36,_0.84),_rgba(14,_27,_36,_0.63))] [padding:12px_18px_14px_20px] [color:#d9f5fa] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [align-items:center] [justify-content:flex-end] [gap:12px]"><div className="[text-align:right]"><div className="[font-size:10px] [letter-spacing:0.12em] [color:#aee7f1]">SUIT POWER · SIM</div><div className="[font-size:22px] [font-weight:bold]">{state.evaBatteryPercent.toFixed(1)}%</div></div><div className="[display:grid] [height:40px] [width:40px] [place-items:center] [font-size:30px] [color:#82e8ff]">ϟ</div></div>
+            <div className="[margin-top:8px] [height:6px] [overflow:hidden] [border-radius:9999px] [background-color:#1e293b]"><div className="[height:100%] [background-color:#8ceaff]" style={{ width: `${state.evaBatteryPercent}%` }} /></div>
+            {state.evaBatteryPercent <= 20 && <div className="[margin-top:5px] [text-align:right] [font-size:9px] [font-weight:bold] [color:#ffb16d]">{state.evaBatteryPercent <= 0 ? "SUIT POWER DEPLETED" : "LOW SUIT POWER"}</div>}
+          </section>
+
+          <div className="[position:absolute] [top:7%] [left:50%] [width:min(440px,36vw)] [transform:translateX(-50%)] [border-bottom:1px_solid_rgba(116,_216,_239,_0.48)] [background:linear-gradient(180deg,_rgba(6,_18,_24,_0.58),_transparent)] [padding:5px_14px_12px] [color:#bdeef8] text-[10px] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [justify-content:space-between] [gap:12px]">{compassPoints.map((point, index) => <span key={point} className={index === compassIndex ? "[color:#ffffff] [font-weight:bold] [text-shadow:0_0_8px_#67dfff]" : "[color:#8abac8]"}>{point}</span>)}</div>
+            <div className="[margin-top:4px] [text-align:center] [color:#73e2ff]">▲ {compassDirection} · {String(state.evaHeadingDegrees).padStart(3, "0")}°</div>
           </div>
-          <div className="[position:absolute] [bottom:24px] [left:50%] [transform:translateX(-50%)] text-[12px] font-mono [color:#7ba2b5] [letter-spacing:0.14em] [padding:4px_14px] [background:rgba(8,_18,_24,_0.7)] [border:1px_solid_rgba(85,_205,_232,_0.2)] [border-radius:2px]">
-            <span>285° WNW · MARS TERRAIN SURVEY SECTOR</span>
+
+          <section className="[position:absolute] [top:29%] [right:5%] [min-width:150px] [border:1px_solid_rgba(92,_211,_239,_0.62)] [border-radius:10px_2px_10px_2px] [background:rgba(7,_21,_29,_0.68)] [padding:10px_12px] [color:#d4f2f7] text-[10px] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[margin-bottom:8px] [font-weight:bold] [letter-spacing:0.12em] [color:#81e7ff]">ENVIRONMENT</div>
+            <div className="[display:flex] [justify-content:space-between] [gap:20px]"><span>TEMP</span><span>NO FEED</span></div>
+            <div className="[margin-top:4px] [display:flex] [justify-content:space-between] [gap:20px]"><span>TERRAIN Y</span><span>{state.evaTerrainElevation === null ? "—" : `${state.evaTerrainElevation.toFixed(1)} m`}</span></div>
+            <div className="[margin-top:4px] [display:flex] [justify-content:space-between] [gap:20px]"><span>WIND</span><span>NO FEED</span></div>
+            <div className="[margin-top:8px] [text-align:right] [font-size:8px] [color:#e1ae7d]">SCENE DATA ONLY</div>
+          </section>
+
+          <section className="[position:absolute] [top:47%] [left:5%] [border:1px_solid_rgba(92,_211,_239,_0.58)] [border-radius:2px_14px_2px_14px] [background:rgba(7,_21,_29,_0.68)] [padding:10px_14px] [color:#d4f2f7] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [align-items:center] [gap:12px]"><span className="[font-size:30px] [color:#8cef91]">⬡</span><div><div className="[font-size:9px] [letter-spacing:0.1em]">SUIT STATUS</div><div className="[font-size:14px] [font-weight:bold] [color:#8cef91]">OPERATIONAL</div><div className="[font-size:8px] [color:#9fbcc4]">PREPARATION CONFIRMED</div></div></div>
+          </section>
+
+          <section className="[position:absolute] [bottom:9%] [left:5%] [min-width:190px] [border:1px_solid_rgba(92,_211,_239,_0.58)] [border-radius:16px_2px_2px_16px] [background:rgba(7,_21,_29,_0.66)] [padding:8px_14px] [color:#d4f2f7] font-mono [text-shadow:0_1px_4px_#000]">
+            <div className="[display:flex] [align-items:center] [gap:12px]"><svg viewBox="0 0 32 32" className="[height:36px] [width:36px] [color:#82e8ff]" aria-hidden="true"><path d="M18 2 7 18h8l-1 12 11-17h-8z" fill="currentColor"/></svg><div><div className="[font-size:9px] [letter-spacing:0.1em]">MOVEMENT</div><div className="[font-size:15px] [font-weight:bold] [color:#8cef91]">{state.evaMovementState === "IDLE" ? "STATIONARY" : state.evaMovementState}</div></div></div>
+          </section>
+
+          <section className="[position:absolute] [right:5%] [bottom:7%] [display:grid] [height:128px] [width:128px] [place-items:center] [border:1px_solid_rgba(69,_207,_242,_0.78)] [border-radius:50%] [background:radial-gradient(circle,_rgba(17,_57,_70,_0.35),_rgba(4,_15,_20,_0.72))] [color:#a9edfa] [box-shadow:0_0_18px_rgba(59,_198,_235,_0.22)]" aria-label={`Local orientation display, heading ${compassDirection}`}>
+            <div className="[position:absolute] [height:96px] [width:96px] [border-radius:9999px] [border:1px_solid_rgba(73,_197,_227,_0.42)]"/><div className="[position:absolute] [height:64px] [width:64px] [border-radius:9999px] [border:1px_solid_rgba(73,_197,_227,_0.3)]"/>
+            <span className="[position:absolute] [top:8px] [font-size:8px]">N</span><span className="[font-size:9px] [color:#72e6ff]">▲</span><div className="[position:absolute] [bottom:-18px] [font-size:8px] [letter-spacing:0.12em]">LOCAL ORIENTATION</div>
+          </section>
+
+          <div className="[position:absolute] [bottom:1.8%] [left:50%] [transform:translateX(-50%)] [text-align:center] [text-shadow:0_1px_5px_#000]">
+            <div className="font-kdam-thmor-pro [font-size:16px] [font-weight:bold] [letter-spacing:0.14em] [color:#9deeff]">PHOBOSIA</div>
+            <div className="[font-size:8px] [letter-spacing:0.24em] [color:#b9eaf3]">MARS EXPLORATION</div>
           </div>
         </div>
       )}
 
       {/* 2. PERSISTENT IN-GAME HUD */}
-      <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:10]">
-        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
-        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
+      <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:30]">
+        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
+        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
-        {!state.droneModeActive && !state.sol5DroneActive && (
+        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && (
           <div className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
             <div className="[display:flex] [align-items:center] [gap:6px] text-[15px] font-kdam-thmor-pro font-bold [letter-spacing:0.12em] [color:#e88747]">
               <span className="[width:6px] [height:6px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8] [animation:pulse_2s_infinite_ease-in-out]" />
@@ -186,7 +235,7 @@ export function GameViewport() {
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && (
           <section className="[position:absolute] [top:72px] [right:24px] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
@@ -208,13 +257,13 @@ export function GameViewport() {
 
         {/* Event Notification Toast */}
         {state.notification && state.notification !== state.navigationInstruction?.notification && (
-          <div className="[position:absolute] [top:24px] [left:50%] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
+          <div className="[position:absolute] [top:24px] [left:50%] [z-index:30] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
             <div className="text-[10px] font-bold font-mono [color:#44d788] [letter-spacing:0.14em]">MISSION EVENT</div>
             <div className="[font-size:13px] [color:#eaf2f4]">{state.notification}</div>
           </div>
         )}
 
-        {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
 
         {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 
@@ -388,6 +437,13 @@ export function GameViewport() {
         {state.showGeologicalForm && (
           <div className="[position:fixed] [inset:0] [background:rgba(4,_8,_12,_0.78)] [backdrop-filter:blur(6px)] [display:grid] [place-items:center] [pointer-events:auto] [z-index:30]">
             <section className="[background:#091722] [border:1px_solid_#477287] [box-shadow:0_16px_60px_rgba(0,_0,_0,_0.95)] [padding:28px_32px] [max-width:min(600px,_92vw)] [width:100%] [max-width:min(840px,_94vw)]">
+              {state.missionDay === 6 ? <Sol6FieldCapture
+                targetName={MASTER_TERRAIN_TARGETS.find(target => target.id === game.current?.missionManager.getSelectedSiteId())?.name ?? null}
+                observationDone={game.current?.missionManager.isStepComplete("SOL06_COMPLETE_FIELD_OBSERVATIONS") ?? false}
+                onObservation={data => game.current?.submitSol6FieldObservation(data)}
+                onSample={container => game.current?.collectSol6Sample(container)}
+                onCancel={() => game.current?.closeGeologicalForm()}
+              /> : <>
               <div>
                 <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">OUTDOOR SURFACE SCIENCE · SOL 06</span>
                 <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">Geological Field Observation</h2>
@@ -481,6 +537,7 @@ export function GameViewport() {
                   Confirm & Save Geological Record
                 </button>
               </div>
+              </>}
             </section>
           </div>
         )}
