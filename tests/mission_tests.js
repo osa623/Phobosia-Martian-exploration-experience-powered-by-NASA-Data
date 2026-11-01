@@ -115,7 +115,9 @@ function completeSol5(mm) {
   assert.strictEqual(mm.saveSol5FlightSnapshot(flight), true);
   assert.strictEqual(mm.completeSol5TargetInspection(targetId, SOL5_EVIDENCE_ASSETS[targetId]).success, true);
   const landed = { ...flight, status: 'landed', position: takeoff, speedMps: 0, landed: true };
-  assert.strictEqual(mm.completeSol5Landing(landed).success, true);
+  assert.strictEqual(mm.completeSol5Landing(landed, false).success, false, 'Landing task cannot complete without explicit landing-trigger validation');
+  assert.strictEqual(mm.isStepComplete('SOL05_SAFE_LANDING'), false, 'Touchdown alone leaves the landing task pending for player confirmation');
+  assert.strictEqual(mm.completeSol5Landing(landed, true).success, true, 'Validated L-key landing confirmation completes the landing task');
   assert.strictEqual(mm.isStepComplete('SOL05_AERIAL_RECONNAISSANCE'), true);
   assert.strictEqual(mm.isStepComplete('SOL05_SAFE_LANDING'), true);
   const review = mm.confirmSol5ImageReview();
@@ -561,7 +563,7 @@ test('Sol 5 requires the official Sol 3 target and validates inspection, prepare
     resumeSnapshot = { ...resumeSnapshot, position: { ...resumeSnapshot.takeoff }, speedMps: 0.2 };
     assert.strictEqual(mm.saveSol5FlightSnapshot(resumeSnapshot), true);
     assert.strictEqual(mm.completeSol5TargetInspection(target.id, SOL5_EVIDENCE_ASSETS[target.id]).success, true, 'Target inspection succeeds only after target approach and correct evidence');
-    assert.strictEqual(mm.completeSol5Landing({ ...resumeSnapshot, status: 'landed', position: { ...resumeSnapshot.takeoff }, speedMps: 0, landed: true }).success, true);
+    assert.strictEqual(mm.completeSol5Landing({ ...resumeSnapshot, status: 'landed', position: { ...resumeSnapshot.takeoff }, speedMps: 0, landed: true }, true).success, true);
     assert.strictEqual(mm.getSol5Progress().attemptStatus, 'completed');
     const landedReload = new MissionManager();
     assert.strictEqual(landedReload.getSol5Progress().attemptStatus, 'completed', 'Successful landing survives reload without becoming aborted');

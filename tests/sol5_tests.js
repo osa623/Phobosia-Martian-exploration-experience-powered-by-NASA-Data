@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const THREE = require('three');
-const { SOL5_LIMITS, attachDroneCamera, detachDroneCamera, createDroneCameraRig, detachDroneCameraRig, orientDroneCameraRig, createDroneFlightState, getSol5TakeoffPosition, droneControlsFromKeys, stepDroneFlight, altitudeAgl, canLand, resolveSol5EAction, createSol5Guidance, updateSol5Guidance, disposeSol5Guidance, createSol5TargetBeacon, updateSol5TargetBeacon, disposeSol5TargetBeacon } = require('../dist/missions/sol-05/droneSimulation.js');
+const { SOL5_LIMITS, attachDroneCamera, detachDroneCamera, createDroneCameraRig, detachDroneCameraRig, orientDroneCameraRig, createDroneFlightState, getSol5TakeoffPosition, isInsideSol5LandingTrigger, droneControlsFromKeys, stepDroneFlight, altitudeAgl, canLand, resolveSol5EAction, createSol5Guidance, updateSol5Guidance, disposeSol5Guidance, createSol5TargetBeacon, updateSol5TargetBeacon, disposeSol5TargetBeacon, createSol5LandingBeacon, setSol5LandingBeaconVisible, disposeSol5LandingBeacon } = require('../dist/missions/sol-05/droneSimulation.js');
 const { resolveSol5Target, SOL5_SCENE_TARGETS, SOL5_EVIDENCE_ASSETS } = require('../dist/missions/sol-05/targetMapping.js');
 const { buildTerrainBuildingColliders, segmentHitsAnyBox } = require('../dist/core/Collision.js');
 const registry = [
@@ -84,14 +84,25 @@ test('Revised Sol 5 mission and instructions use manual inspection, contextual E
   const instructions = JSON.parse(fs.readFileSync('src/jsons/Instructions/sol-05-navigation.json', 'utf8'));
   assert.deepStrictEqual(instructions.instructions.map(task => task.taskId), mission.missionCompletion.requiredTasks);
   assert(mission.tasks.some(task => task.taskId === 'SOL05_AERIAL_RECONNAISSANCE' && /inspect/i.test(task.title)));
+  const landingObjective = mission.objectives.find(objective => objective.id === 'SOL05_OBJ_06');
+  assert(landingObjective, 'The existing Sol 5 landing objective ID remains registered');
+  assert.strictEqual(landingObjective.landingPoint, 'Drone_TakeoffPoint');
+  assert(/presses? L/i.test(landingObjective.completionCondition), 'The existing landing objective now requires L at the validated landing point');
   assert(mission.droneConfiguration.controls.Shift);
   assert.strictEqual(mission.droneConfiguration.evidenceReview.presentAsLiveDroneCapture, false);
   const instructionText = JSON.stringify(instructions);
   assert(/close|refresh/i.test(instructionText) && /abort/i.test(instructionText) && /launch pad/i.test(instructionText), 'Instructions explain that leaving before landing aborts and a retry starts at the pad');
+  assert(/Press L key to land/i.test(instructionText), 'Landing instructions explain the L-key landing interaction');
   assert(!instructionText.includes('Drone_Object') && !instructionText.includes('Drone_TakeoffPoint'), 'Player-facing instructions do not expose internal scene object names');
   const copy = JSON.stringify([mission, instructions]).toLowerCase();
   assert(!copy.includes('capture at least five'));
-  assert(!copy.includes('press l'));
+  assert(copy.includes('press l key to land'), 'The player-facing landing confirmation uses L at the landing point');
+  assert(!copy.includes('press g to complete the mission'), 'The superseded G-key completion instruction is absent');
+  const gameSource = fs.readFileSync('src/core/Game.ts', 'utf8');
+  const viewportSource = fs.readFileSync('src/components/game/GameViewport.tsx', 'utf8');
+  assert(gameSource.includes('e.code === "KeyL"') && gameSource.includes('this.requestSol5Landing()) this.finishSol5LandingAndReturn()'), 'L at the ready pad validates landing, completes the objective, and returns to Mission Control');
+  assert(gameSource.includes('this.isSol5LandingApproachReady()') && gameSource.includes('isInsideSol5LandingTrigger(flight.position, this.sol5TakeoffNode)'), 'The on-screen landing prompt is gated to the actual landing pad and existing safety checks');
+  assert(viewportSource.includes('Press L key to land'), 'The contextual prompt displays the requested L-key instruction');
   assert(copy.includes('pre-prepared') || copy.includes('pre_prepared'));
 });
 
@@ -257,6 +268,43 @@ test('Landing checks require target inspection, takeoff proximity, low AGL, and 
   assert.strictEqual(canLand(fast, 2, true).ok, false, 'Moving landing attempts are rejected');
   const far = createDroneFlightState(takeoff, new THREE.Vector3(50, 0, 50)); far.position.copy(takeoff).add(new THREE.Vector3(2, 0.5, 0));
   assert.strictEqual(canLand(far, 2, true).ok, false, 'Landing outside the authored pad tolerance is rejected');
+});
+
+test('Landing trigger validation uses the exact transformed pad footprint and authored surface height', () => {
+  const root = new THREE.Group(); root.position.set(30, 4, -12);
+  const parent = new THREE.Group(); parent.position.set(5, 2, 8); root.add(parent);
+  const geometry = new THREE.BoxGeometry(10, 0.2, 8); geometry.translate(2, 0, -1);
+  const pad = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial()); pad.name = 'Drone_TakeoffPoint'; pad.position.set(3, 1, 2); parent.add(pad);
+  root.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(pad);
+  const surface = getSol5TakeoffPosition(pad);
+  assert(isInsideSol5LandingTrigger(surface, pad), 'The transformed pad center/top is inside the exact landing footprint');
+  assert(isInsideSol5LandingTrigger(new THREE.Vector3(bounds.min.x, surface.y, surface.z), pad), 'The exact authored footprint boundary is accepted');
+  assert(!isInsideSol5LandingTrigger(new THREE.Vector3(bounds.min.x - 0.001, surface.y, surface.z), pad), 'Landing beside the pad is rejected');
+  assert(!isInsideSol5LandingTrigger(new THREE.Vector3(surface.x, surface.y + SOL5_LIMITS.landingMaxAglM + 0.01, surface.z), pad), 'Hovering above the configured landing height is rejected');
+});
+
+test('Landing beacon anchors to the transformed existing pad, stays hidden until return phase, and disposes cleanly', () => {
+  const scene = new THREE.Group(); scene.position.set(30, 4, -12);
+  const terrain = new THREE.Group(); scene.add(terrain);
+  const parent = new THREE.Group(); parent.position.set(5, 2, 8); terrain.add(parent);
+  const geometry = new THREE.BoxGeometry(10, 0.2, 8); geometry.translate(2, 0, -1);
+  const pad = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial()); pad.name = 'Drone_TakeoffPoint'; pad.position.set(3, 1, 2); parent.add(pad);
+  scene.updateWorldMatrix(true, true);
+  const beacon = createSol5LandingBeacon(scene, pad);
+  const expected = getSol5TakeoffPosition(pad);
+  assert.strictEqual(beacon.group.parent, scene, 'Beacon is a scene visual and is not added to the terrain collision tree');
+  assert(beacon.group.position.distanceTo(expected) < 1e-8, 'Beacon origin matches the actual transformed pad surface point');
+  assert.strictEqual(beacon.group.visible, false, 'Landing beacon starts hidden before the return phase');
+  assert(beacon.beam.visible && beacon.crown.visible && beacon.padRing.visible, 'Beam, crown, and top-down pad ring are rendered');
+  assert.strictEqual(beacon.beam.material.depthTest, false, 'Beam remains visible against terrain and structures');
+  assert.strictEqual(beacon.padRing.material.depthTest, false, 'Pad marker remains visible from the downward camera view');
+  setSol5LandingBeaconVisible(beacon, true);
+  assert.strictEqual(beacon.group.visible, true, 'Beacon can be shown for return-to-base');
+  setSol5LandingBeaconVisible(beacon, false);
+  assert.strictEqual(beacon.group.visible, false, 'Beacon can be hidden after abort or completion');
+  disposeSol5LandingBeacon(beacon);
+  assert.strictEqual(beacon.group.parent, null, 'Beacon is removed without duplicate lifecycle residue');
 });
 
 test('Holographic guidance follows the drone, points to the selected target or return point, and does not move the drone', () => {

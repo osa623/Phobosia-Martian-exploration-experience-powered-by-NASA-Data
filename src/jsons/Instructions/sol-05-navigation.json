@@ -33,9 +33,9 @@
       "taskId": "SOL05_SAFE_LANDING",
       "title": "Return and Safely Land the Drone",
       "message": "After inspection, follow the return guide to the designated launch pad.",
-      "guidance": "Fly the drone back manually. Press E within the landing area only when horizontal distance, terrain-relative altitude, and speed checks pass. After the landing is validated, press G to finish the landing sequence and return to the Mission Control Navigation station. Invalid landing attempts are rejected; the drone is not teleported.",
+      "guidance": "Follow the return-to-base guidance and the large beacon marking the landing point. Fly back manually and descend onto the landing point. When the on-pad prompt appears, press L to land, complete the objective, and return to Mission Control. Landing elsewhere, hovering, or arriving too quickly will not qualify.",
       "destination": { "name": "Designated Drone Launch Pad", "module": "Mars Terrain", "section": "Drone Landing Area" },
-      "activity": "E validates the landing; then press G to return to the existing Mission Control Navigation spawn point and continue the remaining Sol 5 tasks.",
+      "activity": "At the landing point, wait until the Press L key to land prompt appears, then press L. The drone lands, the landing objective completes, and the player returns to Mission Control.",
       "requiresCompletedTasks": ["SOL05_AERIAL_RECONNAISSANCE"]
     },
     {
