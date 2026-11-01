@@ -76,7 +76,7 @@ const TASK_VIEW_NAMES: Record<string, string> = {
   SOL05_PREFLIGHT_BRIEFING: "Sol 5 preflight briefing and target validation",
   SOL05_ACTIVATE_SIMULATION: "Drone simulation activation",
   SOL05_AERIAL_RECONNAISSANCE: "Manual flight to and inspection of the selected target",
-  SOL05_SAFE_LANDING: "Validated takeoff-point landing",
+  SOL05_SAFE_LANDING: "Player-confirmed landing on the designated pad",
   SOL05_REVIEW_IMAGES: "Review target-linked mission-provided imagery",
   SOL05_SUBMIT_REPORT: "Aerial reconnaissance report"
 };
@@ -388,8 +388,8 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     id: "DAY_05_DRONE_AERIAL_RECONNAISSANCE",
     title: "Drone-Based Aerial Reconnaissance",
     storyContext: "Manually fly the existing drone from Drone_TakeoffPoint to inspect the target submitted during Sol 3, review its prepared evidence, and return safely.",
-    briefing: "At Mission Control, confirm the target-specific briefing and controls. Fly from Drone_TakeoffPoint to the official target using the visual guide, press E in the valid inspection area to load mission-provided evidence, then return and confirm a safe landing with E. Review the evidence and submit the report.",
-    primaryObjective: "Manually inspect the official target, review its prepared evidence, return to Drone_TakeoffPoint, and complete a validated landing and report.",
+    briefing: "At Mission Control, confirm the target-specific briefing and controls. Fly from the designated pad to the official target using the visual guide, press E in the valid inspection area to load mission-provided evidence, then follow the return guide and large beacon to the pad. Press E to land; when the on-pad completion prompt appears, press G to complete the landing objective and return to Mission Control. Review the evidence and submit the report.",
+    primaryObjective: "Manually inspect the official target, review its prepared evidence, follow the landing beacon to the designated pad, and press G to confirm the landing before submitting the report.",
     steps: SOL5_TASKS.map(task => ({ ...task, completed: false })),
     allowedModules: ["MissionControl", "Hub", "Habitat", "Terrain", "Drone"],
     completionFeedback: "Sol 5 reconnaissance report submitted. Return to Habitat Rest Area to begin the next mission day."
@@ -774,11 +774,11 @@ export class MissionManager {
     return { success: true, message: `Inspection validated for ${officialTargetId}. Mission-provided evidence is ready for review at Mission Control after landing.` };
   }
 
-  public completeSol5Landing(snapshot: Sol5FlightSnapshot): { success: boolean; message: string } {
+  public completeSol5Landing(snapshot: Sol5FlightSnapshot, landingTriggerValidated: boolean): { success: boolean; message: string } {
     const targetId = this.getSelectedSiteId();
     const landingOffset = Math.hypot(snapshot.position.x - snapshot.takeoff.x, snapshot.position.z - snapshot.takeoff.z);
     const landingHeightOffset = Math.abs(snapshot.position.y - snapshot.takeoff.y);
-    if (this.state.currentDay !== 5 || this.state.sol5.attemptStatus !== "active" || !targetId || snapshot.targetId !== targetId || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded || !this.state.sol5.images.length ||
+    if (!landingTriggerValidated || this.state.currentDay !== 5 || this.state.sol5.attemptStatus !== "active" || !targetId || snapshot.targetId !== targetId || !this.state.sol5.targetInspected || !this.state.sol5.evidenceLoaded || !this.state.sol5.images.length ||
       !snapshot.landed || snapshot.status !== "landed" || snapshot.speedMps > 0.4 || landingOffset > 1.25 || landingHeightOffset > 1.25) {
       return { success: false, message: "Landing cannot complete: inspect the official target and load its evidence before a valid landing." };
     }

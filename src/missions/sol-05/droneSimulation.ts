@@ -6,9 +6,9 @@ export const SOL5_LIMITS = {
   operationalBoundaryM: 1500,
   targetInspectionRadiusM: 12,
   landingInteractionRadiusM: 4,
-  maxSpeedMps: 5,
+  maxSpeedMps: 20,
   speedBoostMultiplier: 1.6,
-  accelerationMps2: 3.5,
+  accelerationMps2: 5.5,
   configuredBatteryPercent: 100,
   simulatedBatteryDrainPercentPerMinute: 1.2,
   landingRadiusM: 1.25,
@@ -120,6 +120,17 @@ export function getSol5TakeoffPosition(takeoffPoint: THREE.Object3D): THREE.Vect
   return takeoffPoint.getWorldPosition(new THREE.Vector3());
 }
 
+/** Test the drone against the transformed X/Z footprint and authored landing height of the existing pad. */
+export function isInsideSol5LandingTrigger(position: THREE.Vector3, trigger: THREE.Object3D): boolean {
+  trigger.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(trigger);
+  if (bounds.isEmpty() || ![bounds.min.x, bounds.min.y, bounds.min.z, bounds.max.x, bounds.max.y, bounds.max.z].every(Number.isFinite)) return false;
+  const surface = getSol5TakeoffPosition(trigger);
+  return position.x >= bounds.min.x && position.x <= bounds.max.x &&
+    position.z >= bounds.min.z && position.z <= bounds.max.z &&
+    Math.abs(position.y - surface.y) <= SOL5_LIMITS.landingMaxAglM;
+}
+
 export function altitudeAgl(position: THREE.Vector3, groundY: number): number { return Math.max(0, position.y - groundY); }
 
 export function stepDroneFlight(
@@ -209,6 +220,70 @@ export interface Sol5TargetBeacon {
   beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshBasicMaterial>;
   crown: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   light: THREE.PointLight;
+}
+
+export interface Sol5LandingBeacon {
+  group: THREE.Group;
+  beam: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshStandardMaterial>;
+  crown: THREE.Mesh<THREE.SphereGeometry, THREE.MeshStandardMaterial>;
+  padRing: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
+  light: THREE.PointLight;
+}
+
+/** A scene-only, non-colliding beacon anchored once to the transformed landing-pad surface. */
+export function createSol5LandingBeacon(scene: THREE.Object3D, landingTrigger: THREE.Object3D): Sol5LandingBeacon {
+  const group = new THREE.Group();
+  group.name = "SOL5_Runtime_Landing_Beacon";
+  group.position.copy(getSol5TakeoffPosition(landingTrigger));
+
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.7, 1.9, 64, 12, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xff321d, emissive: 0xff210f, emissiveIntensity: 2.2, transparent: true, opacity: 0.76, depthTest: false, depthWrite: false, side: THREE.DoubleSide })
+  );
+  beam.name = "SOL5_Landing_Beacon_Beam";
+  beam.position.y = 32;
+  beam.renderOrder = 1000;
+  group.add(beam);
+
+  const crown = new THREE.Mesh(
+    new THREE.SphereGeometry(2.2, 14, 10),
+    new THREE.MeshStandardMaterial({ color: 0xff5a28, emissive: 0xff3c16, emissiveIntensity: 2.8, depthTest: false, depthWrite: false })
+  );
+  crown.name = "SOL5_Landing_Beacon_Crown";
+  crown.position.y = 64;
+  crown.renderOrder = 1001;
+  group.add(crown);
+
+  const padRing = new THREE.Mesh(
+    new THREE.RingGeometry(3.2, 4.2, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff5a28, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, side: THREE.DoubleSide })
+  );
+  padRing.name = "SOL5_Landing_Beacon_Pad_Ring";
+  padRing.rotation.x = -Math.PI / 2;
+  padRing.position.y = 0.06;
+  padRing.renderOrder = 1002;
+  group.add(padRing);
+
+  const light = new THREE.PointLight(0xff3b20, 85, 220, 1.35);
+  light.name = "SOL5_Landing_Beacon_Light";
+  light.position.y = 64;
+  group.add(light);
+
+  group.visible = false;
+  scene.add(group);
+  return { group, beam, crown, padRing, light };
+}
+
+export function setSol5LandingBeaconVisible(beacon: Sol5LandingBeacon | undefined, visible: boolean): void {
+  if (beacon) beacon.group.visible = visible;
+}
+
+export function disposeSol5LandingBeacon(beacon: Sol5LandingBeacon | undefined): void {
+  if (!beacon) return;
+  beacon.group.removeFromParent();
+  beacon.beam.geometry.dispose(); beacon.beam.material.dispose();
+  beacon.crown.geometry.dispose(); beacon.crown.material.dispose();
+  beacon.padRing.geometry.dispose(); beacon.padRing.material.dispose();
 }
 
 /** A lightweight, non-colliding visual beacon positioned from the selected scene object's world bounds. */

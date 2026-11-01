@@ -78,6 +78,7 @@ export interface GameState {
   droneModeActive: boolean;
   droneTelemetry: DroneTelemetryData;
   sol5DroneActive: boolean;
+  sol5LandingPromptActive: boolean;
   sol5Telemetry: Sol5DroneTelemetryData | null;
   sol5Images: Sol5ImageRecord[];
   sol5Flight: Sol5FlightSnapshot | null;
