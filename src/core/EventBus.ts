@@ -82,6 +82,9 @@ export interface GameState {
   showDroneConsoleModal: boolean;
 
   droneModeActive: boolean;
+  roverActive: boolean;
+  roverSpeed: number;
+  roverView: "FIRST PERSON" | "THIRD PERSON";
   droneTelemetry: DroneTelemetryData;
   sol5DroneActive: boolean;
   sol5LandingPromptActive: boolean;

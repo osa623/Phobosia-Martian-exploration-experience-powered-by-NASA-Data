@@ -60,6 +60,9 @@ const initialState: GameState = {
   showDroneConsoleModal: false,
 
   droneModeActive: false,
+  roverActive: false,
+  roverSpeed: 0,
+  roverView: "FIRST PERSON",
   droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
   sol5DroneActive: false,
   sol5LandingPromptActive: false,
@@ -263,7 +266,8 @@ export function GameViewport() {
           </div>
         )}
 
-        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
+        {!state.droneModeActive && !state.sol5DroneActive && !state.roverActive && !state.evaSuitActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
+        {state.roverActive && <section aria-label="Terrain Rover controls" className="[position:fixed] [left:24px] [bottom:24px] [z-index:22] [min-width:230px] [border:1px_solid_rgba(85,_205,_232,_0.35)] [background:rgba(5,_13,_20,_0.88)] [padding:12px_15px] [color:#d8e8ee] font-mono [box-shadow:0_8px_28px_rgba(0,_0,_0,_0.35)]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.2em]">TERRAIN ROVER</div><div className="[margin-top:6px] [font-size:18px]">{Math.abs(state.roverSpeed).toFixed(1)} <span className="[font-size:10px] [color:#91aab4]">M/S</span></div><div className="[margin-top:3px] [font-size:10px] [color:#c99a66]">{state.roverView} VIEW</div><div className="[margin-top:8px] [font-size:10px] [color:#91aab4]">W/S DRIVE · A/D STEER · SPACE BRAKE<br/>C CAMERA · R EXIT · E EXIT WHEN STOPPED</div></section>}
 
         {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 

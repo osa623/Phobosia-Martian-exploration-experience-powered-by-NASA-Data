@@ -58,8 +58,10 @@ export function buildInteriorColliders(
 }
 
 /** Static coarse AABBs for solid mesh objects across mars_Terrain, including buildings, vehicles and rocks. */
-export function buildTerrainBuildingColliders(root: THREE.Object3D): THREE.Box3[] {
-  const skipped = /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
+export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false): THREE.Box3[] {
+  const skipped = excludeRocks
+    ? /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky|rock|rover/i
+    : /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
   const colliders: THREE.Box3[] = [];
   root.updateWorldMatrix(true, true);
   root.traverse(object => {
