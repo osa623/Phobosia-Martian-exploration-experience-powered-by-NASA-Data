@@ -9,17 +9,20 @@ import sol05Navigation from "../../jsons/Instructions/sol-05-navigation.json";
 import sol06Mission from "../../jsons/Missions/sol-06.json";
 import sol06Navigation from "../../jsons/Instructions/sol-06-navigation.json";
 import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
+import sol07Mission from "../../jsons/Missions/sol-07.json";
+import sol07Navigation from "../../jsons/Instructions/sol-07-navigation.json";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
   5: { mission: sol05Mission, navigation: sol05Navigation },
-  6: { mission: sol06Mission, navigation: sol06Navigation }
+  6: { mission: sol06Mission, navigation: sol06Navigation },
+  7: { mission: sol07Mission, navigation: sol07Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -75,7 +78,14 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL06_TRANSFER_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
   SOL06_ANALYSE_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
   SOL06_START_CULTIVATION_EXPERIMENT: "LAB_CULTIVATION_01",
-  SOL06_SUBMIT_INVESTIGATION_REPORT: "MC_NAVIGATION_01"
+  SOL06_SUBMIT_INVESTIGATION_REPORT: "MC_NAVIGATION_01",
+  SOL07_HABITAT_STORM_ALERT: "HAB_MONITOR_01",
+  SOL07_MISSION_CONTROL_SYSTEMS: "MC_SYSTEMS_01",
+  SOL07_CENTRAL_HUB_STATUS: "Module_Status_Display",
+  SOL07_VERIFY_EVA_LOCKDOWN: "Airlock_Control_Console_Trigger",
+  SOL07_RESEARCH_POWER: "LAB_RESEARCH_MONITORING_01",
+  SOL07_ENGINEERING_POWER: "Engineering_PowerUnit_Trigger",
+  SOL07_SUBMIT_STORM_REPORT: "MC_NAVIGATION_01"
 };
 
 export interface ResolvedMissionNavigation {

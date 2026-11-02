@@ -231,7 +231,7 @@ export function GameViewport() {
             </div>
             <div className="[margin-top:6px] text-[11px] font-mono [color:#87a4af]">
               {state.completedStepCount} / {state.totalStepCount} {"TASKS COMPLETED"}
-              {state.objectiveState === "completed" && (
+              {state.objectiveState === "completed" && state.totalStepCount > 0 && state.completedStepCount >= state.totalStepCount && (
                 <span className="[color:#44d788] [font-weight:bold]"> — OBJECTIVE VALIDATED (REST IN HABITAT)</span>
               )}
             </div>

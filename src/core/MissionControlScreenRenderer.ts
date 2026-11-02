@@ -26,6 +26,7 @@ import { reprojectPlanarUVs } from "./Collision";
 import { DAYS_CONFIG, getMissionTaskProgressFor, type MissionDayNumber } from "./MissionManager";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import sol03Mission from "../jsons/Missions/sol-03.json";
+import { drawSol07Banner } from "../missions/sol-07/Sol07ScreenRenderer";
 
 export interface MissionControlScreenPanel {
   id?: string;
@@ -379,6 +380,7 @@ export class MissionControlScreenRenderer {
     this.drawFooter(ctx, width, height, content.footer?.left || "OPERATIONAL TELEMETRY");
 
     // Outer cybernetic border brackets
+    if (this.missionSol === 7) drawSol07Banner(ctx, width, height, "SOL 7 · SYSTEMS ASSESSMENT", "Review system, communications and navigation screens; classify telemetry and limits.");
     this.drawBrackets(ctx, width, height, "#E5A04B");
   }
 

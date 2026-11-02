@@ -23,6 +23,7 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { drawSol07Banner } from "../missions/sol-07/Sol07ScreenRenderer";
 
 export interface EngineeringScreenData {
   moduleId: string;
@@ -332,6 +333,8 @@ export class EngineeringScreenRenderer {
         this.renderMonitoringOperationalScreen(ctx, data, width, height, this.missionDay, app);
         break;
     }
+
+    if (this.missionDay === 7) drawSol07Banner(ctx, width, height, "SOL 7 · READ-ONLY POWER ASSESSMENT", "Legacy unit telemetry is gameplay simulation; classify any reported value. No repairs.");
 
     // Outer physical bezel border & corner brackets
     ctx.strokeStyle = app.accent || "#45B8E8";

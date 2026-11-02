@@ -13,6 +13,7 @@ import sol03Mission from "../jsons/Missions/sol-03.json";
 import { SOL5_TASKS } from "../missions/sol-05/taskDefinitions";
 import { SOL06_TASKS, type Sol6AnalysisRecord, type Sol6CultivationExperiment, type Sol6FieldObservation, type Sol6Report, type Sol6SampleRecord } from "../missions/SOL_06/taskDefinitions";
 import sol06Mission from "../jsons/Missions/sol-06.json";
+import { SOL07_TASKS, createInitialSol7Progress, type Sol7Progress, type Sol7TaskId, type Sol7PowerAssessment } from "../missions/sol-07/taskDefinitions";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -270,6 +271,7 @@ export interface MissionProgressState {
   selectedSiteId: string | null;
   sol5: Sol5MissionProgress;
   sol6: Sol6MissionProgress;
+  sol7: Sol7Progress;
 }
 
 export interface Sol6MissionProgress {
@@ -424,19 +426,14 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   },
   7: {
     day: 7,
-    id: "DAY_07_SURFACE_OBSERVATION",
-    title: "Surface Observation",
-    storyContext: "Field Observation Phase. Focused outdoor surface feature inspection for tomorrow's lab analysis.",
-    briefing: "Mission Control requests a focused observation of a surface feature. Proceed through the Airlock to the terrain, perform the surface scan at the designated site, and save the observation record for Day 8 laboratory analysis.",
-    primaryObjective: "Exit through Airlock, perform surface scan at designated observation site, and save surface record for lab analysis.",
-    steps: [
-      { stepId: "D7_OBJ_01_REVIEW_TASK", label: "Review observation task", description: "Review Day 7 surface observation objectives.", completed: false },
-      { stepId: "D7_OBJ_02_USE_AIRLOCK", label: "Exit through Airlock", description: "Transit through Airlock to outdoor terrain.", targetModule: "Terrain", completed: false },
-      { stepId: "D7_OBJ_03_PERFORM_SCAN", label: "Perform surface scan", description: "Conduct focused surface observation scan on Mars terrain.", completed: false },
-      { stepId: "D7_OBJ_04_SAVE_OBSERVATION", label: "Save observation record", description: "Confirm and save SurfaceObservationRecord for lab analysis.", completed: false }
-    ],
-    allowedModules: ["Habitat", "Hub", "Airlock", "Terrain"],
-    completionFeedback: "Surface observation recorded and transferred to Research Lab. Return to Habitat rest area to conclude Day 7."
+    id: "PHOBOSIA_SOL_07_DUST_STORM_ASSESSMENT",
+    title: "Dust Storm Emergency Assessment",
+    storyContext: "A gameplay-simulated dust storm has activated the outpost emergency assessment. Outdoor access is temporarily restricted through the shared EVA policy.",
+    briefing: "Complete Tasks 1–6 in order using existing unit screens, then submit the impact report in Engineering. Outdoor access remains restricted until report validation.",
+    primaryObjective: "Assess storm safety, outpost systems, EVA lockdown, science power and Engineering power; submit the final impact report.",
+    steps: SOL07_TASKS.map(task => ({ stepId: task.stepId, label: task.label, description: task.description, targetTrigger: task.targetTrigger, requiresCompletedTasks: task.stepId === "SOL07_SUBMIT_STORM_REPORT" ? SOL07_TASKS.slice(0, 6).map(item => item.stepId) : undefined, completed: false })),
+    allowedModules: ["Habitat", "MissionControl", "Hub", "Airlock", "Science", "Engineering"],
+    completionFeedback: "Sol 7 storm assessment validated. Post-storm power assessment saved for Sol 8. Sol 8 has not been started."
   },
   8: {
     day: 8,
@@ -483,8 +480,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 6 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 6
+  const total = day >= 2 && day <= 7 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 7
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -550,9 +547,19 @@ export class MissionManager {
                 ? validEvidenceState || !oldSol5StepIds.has(id)
                 : !retryableSol5StepIds.has(id))
               : [];
+            const sol7 = parsed.sol7 && typeof parsed.sol7 === "object"
+              ? { ...createInitialSol7Progress(), ...(parsed.sol7 as Partial<Sol7Progress>) }
+              : createInitialSol7Progress();
+            const sol7TasksActuallyComplete = SOL07_TASKS.every(task => completedStepIds.includes(task.stepId))
+              && sol7.report?.validated === true;
+            // Older Sol 7 saves could inherit a completed flag from the prior surface objective.
+            // Keep the badge and mission state aligned with the seven assessment tasks/report.
+            const objectiveState = parsed.currentDay === 7 && parsed.objectiveState === "completed" && !sol7TasksActuallyComplete
+              ? "in_progress"
+              : parsed.objectiveState ?? "not_started";
             return {
               currentDay: parsed.currentDay as MissionDayNumber,
-              objectiveState: parsed.objectiveState ?? "not_started",
+              objectiveState,
               completedStepIds,
               completedIntroductionIds: Array.isArray(parsed.completedIntroductionIds) ? parsed.completedIntroductionIds : [],
               observationRecords: Array.isArray(parsed.observationRecords) ? parsed.observationRecords : [],
@@ -567,7 +574,8 @@ export class MissionManager {
               investigationRecords: Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords : [],
               selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []),
               sol5,
-              sol6: rawSol6
+              sol6: rawSol6,
+              sol7
             };
           }
         }
@@ -593,7 +601,8 @@ export class MissionManager {
       investigationRecords: [],
       selectedSiteId: null,
       sol5: createInitialSol5Progress(),
-      sol6: createInitialSol6Progress()
+      sol6: createInitialSol6Progress(),
+      sol7: createInitialSol7Progress()
     };
   }
 
@@ -608,6 +617,63 @@ export class MissionManager {
 
   public getState(): Readonly<MissionProgressState> {
     return this.state;
+  }
+
+  public getSol7Progress(): Readonly<Sol7Progress> { return this.state.sol7; }
+  public getSol7PostStormPowerAssessment(): Readonly<Sol7PowerAssessment> | null {
+    return this.state.sol7.report?.validated ? this.state.sol7.powerAssessment : null;
+  }
+
+  public recordSol7ScreenReview(screenTriggerId: string, notes: string): boolean {
+    if (this.state.currentDay !== 7 || this.state.sol7.stormEnded) return false;
+    const requirements: Record<string, { task: Sol7TaskId; screens: string[] }> = {
+      MC_SYSTEMS_01: { task: "SOL07_MISSION_CONTROL_SYSTEMS", screens: ["MC_SYSTEMS_01", "MC_NAVIGATION_01"] },
+      MC_NAVIGATION_01: { task: "SOL07_MISSION_CONTROL_SYSTEMS", screens: ["MC_SYSTEMS_01", "MC_NAVIGATION_01"] },
+      LAB_RESEARCH_MONITORING_01: { task: "SOL07_RESEARCH_POWER", screens: ["LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"] },
+      LAB_CULTIVATION_01: { task: "SOL07_RESEARCH_POWER", screens: ["LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"] }
+    };
+    const mapping = requirements[screenTriggerId];
+    if (!mapping || notes.trim().length < 8) return false;
+    const order = SOL07_TASKS.findIndex(task => task.stepId === mapping.task);
+    if (order > 0 && !this.state.completedStepIds.includes(SOL07_TASKS[order - 1].stepId)) return false;
+    if (!this.state.sol7.reviewedScreens.includes(screenTriggerId)) this.state.sol7.reviewedScreens.push(screenTriggerId);
+    this.state.sol7.screenReviewNotes[screenTriggerId] = notes.trim();
+    const allReviewed = mapping.screens.every(id => this.state.sol7.reviewedScreens.includes(id));
+    if (allReviewed) this.recordSol7Assessment(mapping.task, `${mapping.screens.map(id => `${id}: ${this.state.sol7.screenReviewNotes[id]}`).join("; ")}. Telemetry provenance and unavailable values retained.`);
+    else this.emit();
+    return allReviewed;
+  }
+
+  public recordSol7Assessment(taskId: Sol7TaskId, notes = "Reviewed available screen information; source data limitations were retained."): boolean {
+    if (this.state.currentDay !== 7 || this.state.sol7.stormEnded || !SOL07_TASKS.some(task => task.stepId === taskId) || taskId === "SOL07_SUBMIT_STORM_REPORT") return false;
+    const index = SOL07_TASKS.findIndex(task => task.stepId === taskId);
+    if (index > 0 && !this.state.completedStepIds.includes(SOL07_TASKS[index - 1].stepId)) return false;
+    if (taskId === "SOL07_HABITAT_STORM_ALERT") this.state.sol7.alertAcknowledged = true;
+    this.state.sol7.assessments[taskId] = { status: taskId === "SOL07_VERIFY_EVA_LOCKDOWN" ? "verified" : "reviewed", recordedAt: new Date().toISOString(), notes };
+    const completed = this.completeStep(taskId);
+    if (!completed && !this.state.completedStepIds.includes(taskId)) return false;
+    this.emit();
+    return true;
+  }
+
+  public recordSol7PowerAssessment(input: Sol7PowerAssessment): boolean {
+    if (this.state.currentDay !== 7 || !this.state.completedStepIds.includes("SOL07_RESEARCH_POWER") || this.state.sol7.stormEnded) return false;
+    if (Object.values(input).some(value => !/^(source-backed|existing telemetry|unavailable|gameplay simulation):/i.test(value.trim()))) return false;
+    this.state.sol7.powerAssessment = { ...input };
+    return this.recordSol7Assessment("SOL07_ENGINEERING_POWER", "Existing Engineering power unit reviewed. Gameplay-only telemetry is identified as simulated; values without source data remain unavailable.");
+  }
+
+  public submitSol7Report(): { success: boolean; message: string } {
+    if (this.state.currentDay !== 7 || this.state.sol7.stormEnded) return { success: false, message: "Sol 7 report is unavailable." };
+    const required = SOL07_TASKS.slice(0, 6).map(task => task.stepId);
+    if (!required.every(id => this.state.completedStepIds.includes(id))) return { success: false, message: "Complete Tasks 1–6 before submitting the report." };
+    if (!this.state.sol7.alertAcknowledged || !this.state.sol7.powerAssessment) return { success: false, message: "Storm alert acknowledgement and Engineering power assessment are required." };
+    this.state.sol7.report = { submittedAt: new Date().toISOString(), validated: true, taskIds: required };
+    this.state.sol7.stormEnded = true;
+    this.completeStep("SOL07_SUBMIT_STORM_REPORT");
+    this.state.notification = "Sol 7 impact report validated. Storm shutdown complete; Sol 8 has not started.";
+    this.emit();
+    return { success: true, message: "Report validated. Storm shutdown complete; Sol 8 has not started." };
   }
 
   public subscribe(listener: (state: Readonly<MissionProgressState>) => void): () => void {
@@ -643,11 +709,6 @@ export class MissionManager {
       this.state.dayBriefingSeen = true;
       if (this.state.objectiveState === "not_started") {
         this.state.objectiveState = "in_progress";
-      }
-
-      // Day 7: reviewing briefing satisfies D7_OBJ_01_REVIEW_TASK
-      if (this.state.currentDay === 7) {
-        this.completeStep("D7_OBJ_01_REVIEW_TASK");
       }
 
       this.emit();
@@ -902,7 +963,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 6) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 7) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1311,13 +1372,7 @@ export class MissionManager {
       }
     }
 
-    // Day 7
-    if (day === 7) {
-      if (event.type === "module_entered" && event.module === "Terrain") {
-        this.completeStep("D7_OBJ_02_USE_AIRLOCK");
-        return { handled: true, feedback: "Airlock transit complete. Approach designated observation area." };
-      }
-    }
+    // Sol 7 outdoor access is controlled by the shared EVA policy while the storm is active.
 
     // Day 8
     if (day === 8) {
@@ -1418,38 +1473,7 @@ export class MissionManager {
     followUpQuestion: string;
     summary: string;
   }): SurfaceObservationRecord | null {
-    if (this.state.currentDay !== 7) return null;
-
-    const record: SurfaceObservationRecord = {
-      id: `REC_D7_SURFACE_${Date.now()}`,
-      day: 7,
-      targetId: data.targetId,
-      source: "PHOBOSIA simulated surface observation",
-      observedCategories: data.observedCategories,
-      followUpQuestion: data.followUpQuestion,
-      summary: data.summary,
-      isSimulated: true,
-      saved: true,
-      missionTimestamp: new Date().toISOString(),
-      relatedGeologicalSurveyId: this.state.geologicalSurvey?.id ?? null
-    };
-
-    this.state.surfaceObservation = record;
-    this.completeStep("D7_OBJ_03_PERFORM_SCAN");
-    this.completeStep("D7_OBJ_04_SAVE_OBSERVATION", {
-      type: "surface_observation",
-      sourceIdentifier: data.targetId,
-      summary: data.summary,
-      details: {
-        pattern: data.observedCategories.surfacePattern,
-        appearance: data.observedCategories.surfaceMaterialAppearance,
-        profile: data.observedCategories.terrainProfile,
-        question: data.followUpQuestion
-      }
-    });
-
-    this.emit();
-    return record;
+    return null;
   }
 
   /**
@@ -1617,11 +1641,8 @@ export class MissionManager {
       return { canAdvance: false, reason: "Sol 6 requires the validated field report and a persisted cultivation experiment whose result remains pending for Sol 8." };
     }
 
-    if (this.state.currentDay === 7 && !this.state.surfaceObservation) {
-      return {
-        canAdvance: false,
-        reason: "Cannot rest yet. Surface observation record has not been saved for lab analysis."
-      };
+    if (this.state.currentDay === 7 && (!this.state.sol7.report?.validated || !this.state.sol7.stormEnded || !this.state.sol7.powerAssessment)) {
+      return { canAdvance: false, reason: "Sol 7 requires the validated impact report, storm shutdown and persisted post-storm power assessment before resting." };
     }
 
     if (this.state.currentDay === 8) {
@@ -1732,7 +1753,8 @@ export class MissionManager {
       investigationRecords: [],
       selectedSiteId: null,
       sol5: createInitialSol5Progress(),
-      sol6: createInitialSol6Progress()
+      sol6: createInitialSol6Progress(),
+      sol7: createInitialSol7Progress()
     };
     this.emit();
   }

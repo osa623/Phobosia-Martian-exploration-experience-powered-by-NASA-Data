@@ -26,6 +26,7 @@ import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
 import { type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import sol03Mission from "../jsons/Missions/sol-03.json";
+import { drawSol07Banner } from "../missions/sol-07/Sol07ScreenRenderer";
 
 export interface ResearchScreenPanel {
   id?: string;
@@ -151,6 +152,7 @@ function loadResearchScreenData(): ResearchScreenDataRoot {
 const rawResearchDataJson = loadResearchScreenData();
 
 export class ResearchScreenRenderer {
+  private sol6Cultivation: { sampleId: string; status: string } | null = null;
   private rawConfig: ResearchScreenDataRoot;
   private screensMap = new Map<string, ResearchScreenItem>();
   private activeBindings: ResearchScreenBinding[] = [];
@@ -334,6 +336,7 @@ export class ResearchScreenRenderer {
     }
     if (missionState) this.missionState = missionState;
     this.selectSolConfig(this.missionDay);
+    this.sol6Cultivation = missionState?.sol6?.cultivation ?? null;
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
@@ -397,6 +400,8 @@ export class ResearchScreenRenderer {
 
     // Footer with mandatory disclaimer
     this.drawFooter(ctx, width, height, content.footer?.leftText || "RESEARCH TELEMETRY");
+
+    if (this.missionDay === 7) drawSol07Banner(ctx, width, height, "SOL 7 · SCIENCE POWER REVIEW", `Sol 6 experiment preserved · ${this.sol6Cultivation?.status ?? "status unavailable"} · ${this.sol6Cultivation?.sampleId ?? "sample unavailable"}`);
 
     // Outer cybernetic border brackets
     this.drawBrackets(ctx, width, height, "#36C5E8");

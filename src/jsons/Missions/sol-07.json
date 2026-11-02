@@ -1,0 +1,33 @@
+{
+  "missionId": "PHOBOSIA_SOL_07",
+  "sol": 7,
+  "title": "Dust Storm Emergency Assessment",
+  "subtitle": "Outpost Systems Review and Validated Storm Shutdown",
+  "missionType": "isolated_dust_storm_emergency_assessment",
+  "description": "A gameplay-simulated dust storm requires a safety review, systems assessment and validated impact report. Outdoor access is temporarily restricted through the shared EVA policy until the report is accepted.",
+  "status": "available",
+  "prerequisites": ["PHOBOSIA_SOL_06"],
+  "missionZones": ["Habitat", "Mission Control", "Central Hub", "Airlock", "Research Lab", "Engineering Unit"],
+  "interfaces": [
+    {"interfaceId":"SOL07_HABITAT_ALERT","triggerId":"HAB_MONITOR_01","location":"Existing Habitat physical status screen","resolution":"Use the currently configured Habitat screen trigger and mesh."},
+    {"interfaceId":"SOL07_MISSION_CONTROL","triggerId":"MC_SYSTEMS_01","location":"Existing Mission Control systems screen","resolution":"Use the existing communications and systems console."},
+    {"interfaceId":"SOL07_CENTRAL_HUB","triggerId":"Module_Status_Display","location":"Existing Central Hub status screen","resolution":"Use the mapped Module Status Display."},
+    {"interfaceId":"SOL07_AIRLOCK","triggerId":"Airlock_Control_Console_Trigger","location":"Existing Airlock control console","resolution":"Verify the existing shared EVA access block; do not create another access system."},
+    {"interfaceId":"SOL07_RESEARCH","triggerId":"LAB_RESEARCH_MONITORING_01","location":"Existing Research Lab monitoring screen","resolution":"Review existing research/cultivation status and preserve the Sol 6 experiment."},
+    {"interfaceId":"SOL07_ENGINEERING","triggerId":"Engineering_PowerUnit_Trigger","location":"Existing Engineering power unit front-end","resolution":"Use the currently mapped power-unit screens and report values as source-backed, existing telemetry, unavailable, or gameplay simulation."},
+    {"interfaceId":"SOL07_REPORT","triggerId":"MC_NAVIGATION_01","location":"Existing Mission Control navigation/report interface","resolution":"Reuse the existing report interface after Tasks 1–6 validate; no new report trigger is introduced."}
+  ],
+  "tasks": [
+    {"taskId":"SOL07_HABITAT_STORM_ALERT","title":"Habitat: Dust Storm Alert","interfaceId":"SOL07_HABITAT_ALERT","mandatory":true,"objective":"Review the safety notice, temporary outdoor restriction and acknowledge the alert."},
+    {"taskId":"SOL07_MISSION_CONTROL_SYSTEMS","title":"Mission Control: Systems Assessment","interfaceId":"SOL07_MISSION_CONTROL","mandatory":true,"requiresCompletedTasks":["SOL07_HABITAT_STORM_ALERT"],"objective":"Review power generation/reserve, communications, navigation and warnings; distinguish source-backed, existing telemetry, unavailable and simulated values."},
+    {"taskId":"SOL07_CENTRAL_HUB_STATUS","title":"Central Hub: Outpost Status","interfaceId":"SOL07_CENTRAL_HUB","mandatory":true,"requiresCompletedTasks":["SOL07_MISSION_CONTROL_SYSTEMS"],"objective":"Record section state and available distribution status without changing distribution."},
+    {"taskId":"SOL07_VERIFY_EVA_LOCKDOWN","title":"Airlock: EVA Lockdown","interfaceId":"SOL07_AIRLOCK","mandatory":true,"requiresCompletedTasks":["SOL07_CENTRAL_HUB_STATUS"],"objective":"Verify that outdoor access is restricted through the global EVA/access-control policy."},
+    {"taskId":"SOL07_RESEARCH_POWER","title":"Research Lab: Science Power","interfaceId":"SOL07_RESEARCH","mandatory":true,"requiresCompletedTasks":["SOL07_VERIFY_EVA_LOCKDOWN"],"objective":"Review science/cultivation power and the existing Sol 6 experiment without changing its sample, provenance or status."},
+    {"taskId":"SOL07_ENGINEERING_POWER","title":"Engineering: Power Assessment","interfaceId":"SOL07_ENGINEERING","mandatory":true,"requiresCompletedTasks":["SOL07_RESEARCH_POWER"],"objective":"Read the existing power unit and record output, reserve, duration, panels A/B, outdoor line, distribution, life-support and science/cultivation availability. Mark simulated values."},
+    {"taskId":"SOL07_SUBMIT_STORM_REPORT","title":"Engineering: Report and Storm Shutdown","interfaceId":"SOL07_REPORT","mandatory":true,"requiresCompletedTasks":["SOL07_HABITAT_STORM_ALERT","SOL07_MISSION_CONTROL_SYSTEMS","SOL07_CENTRAL_HUB_STATUS","SOL07_VERIFY_EVA_LOCKDOWN","SOL07_RESEARCH_POWER","SOL07_ENGINEERING_POWER"],"objective":"Validate and submit the Tasks 1–6 impact report. Successful validation fades Sol 7 audio, restores captured lights, ends storm, restores existing EVA rules and persists the post-storm power assessment. Do not start Sol 8."}
+  ],
+  "missionCompletion": {"requiredTasks":["SOL07_HABITAT_STORM_ALERT","SOL07_MISSION_CONTROL_SYSTEMS","SOL07_CENTRAL_HUB_STATUS","SOL07_VERIFY_EVA_LOCKDOWN","SOL07_RESEARCH_POWER","SOL07_ENGINEERING_POWER","SOL07_SUBMIT_STORM_REPORT"],"completionMessage":"Sol 7 storm assessment validated. Sol 8 remains inactive until the existing rest/progression flow advances."},
+  "storm": {"start":"Existing Sol 7 lifecycle start only","sounds":{"warningBeep":"/assets/sounds/sol7Sounds/warningBeepTone.MP3","ambience":"/assets/sounds/sol7Sounds/sandStormSound.MP3"},"outdoorRestriction":"Use global EVA/access-control route checks; do not replace suit rules.","lights":"Capture exact original properties before restrained red flicker; restore on report success and interrupted cleanup."},
+  "reservedSol8Repairs": {"inspectOnly":true,"triggers":["Solar panel A repair trigger","Solar panel B repair trigger","Outdoor main solar power line repair trigger"],"resolution":"Mappings not verified; do not interact or modify."},
+  "preservation": {"sols1to6":"unchanged","sol6Cultivation":"preserve same sample, provenance and IN_PROGRESS status","missionProgression":"No Sol 8 auto-start","nasaData":"No external measurements asserted; telemetry is labeled by provenance."}
+}

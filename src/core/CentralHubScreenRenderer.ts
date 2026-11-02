@@ -18,6 +18,7 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { drawSol07Banner } from "../missions/sol-07/Sol07ScreenRenderer";
 
 export interface CentralHubScreenPanel {
   id?: string;
@@ -327,6 +328,7 @@ export class CentralHubScreenRenderer {
     } else {
       this.renderLandscapeHubScreen(ctx, screenConf, width, height);
     }
+    if (this.missionSol === 7) drawSol07Banner(ctx, width, height, "SOL 7 · OUTPOST STATUS REVIEW", "Record visible section status; assess distribution without changing it.");
   }
 
   // =========================================================================

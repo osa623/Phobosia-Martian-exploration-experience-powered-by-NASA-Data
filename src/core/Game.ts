@@ -32,6 +32,7 @@ import { DEFAULT_MOVEMENT_CONFIG, EVA_MOVEMENT_CONFIG } from "./MovementConfig";
 import { EVA_PREPARATION_TRIGGER_ID, getEVAAccessBlockReason, isWithinEVAInteractionRange } from "./EVAAccess";
 import { EVAResources, type EVAResourceStorage } from "./EVAResources";
 import { RoverSystem } from "../systems/rover/RoverSystem";
+import { Sol07StormController } from "../missions/sol-07/Sol07StormController";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -105,6 +106,7 @@ export class Game {
   private cylinderColliders: VerticalCylinderCollider[] = [];
   private terrain?: THREE.Object3D;
   private roverSystem?: RoverSystem;
+  private sol7Storm = new Sol07StormController();
   private roverKeys = new Set<string>();
   private droneFloorHeight?: number;
   private raycaster = new THREE.Raycaster();
@@ -270,6 +272,7 @@ export class Game {
     this.cameraPresentationManager = new CameraPresentationManager(this.camera);
     if (this.evaSuitActive) this.player.setConfig(EVA_MOVEMENT_CONFIG);
     this.audioManager = new GameAudioManager();
+    if (mState.currentDay === 7 && !mState.sol7.stormEnded) this.sol7Storm.start();
     this.renderer.domElement.addEventListener("pointerdown", this.unlockAudio);
 
     this.observer = new ResizeObserver(this.resize);
@@ -306,7 +309,7 @@ export class Game {
 
   private getEVAAccessBlockMessage(destination: ModuleName): string | null {
     return destination === "Terrain" || destination === "Hub"
-      ? getEVAAccessBlockReason(destination, this.evaSuitActive)
+      ? getEVAAccessBlockReason(destination, this.evaSuitActive, destination === "Terrain" && this.state.missionDay === 7 && !this.missionManager.getSol7Progress().stormEnded)
       : null;
   }
 
@@ -338,6 +341,10 @@ export class Game {
   }
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
+    if (mState.currentDay === 7 && !mState.sol7.stormEnded) this.sol7Storm.start();
+    else if (mState.currentDay === 7 && mState.sol7.report?.validated) this.sol7Storm.endAfterValidatedReport();
+    else if (mState.currentDay !== 7 && this.sol7Storm.isActive()) this.sol7Storm.dispose();
+    if (mState.currentDay === 7 && !mState.sol7.stormEnded && this.current) this.sol7Storm.applyToModule(this.current, this.active);
     const mission = this.missionManager.getCurrentMission();
     const taskProgress = this.missionManager.getMissionTaskProgress();
     this.set({
@@ -362,6 +369,17 @@ export class Game {
       sol5Flight: mState.sol5.flight
     });
   }
+
+  public verifySol7EVALockdown(): boolean {
+    // Verification depends on the active Sol 7 access policy, not on audio/light
+    // playback successfully starting in the presentation controller.
+    if (this.state.missionDay !== 7 || this.missionManager.getSol7Progress().stormEnded) return false;
+    const temporaryLock = getEVAAccessBlockReason("Terrain", true, true);
+    const normalSuitGate = getEVAAccessBlockReason("Terrain", false, false);
+    return Boolean(temporaryLock && normalSuitGate);
+  }
+
+  public onSol7ReportValidated(): void { this.sol7Storm.endAfterValidatedReport(); }
 
   private async loadEnvironment() {
     try {
@@ -1220,7 +1238,7 @@ export class Game {
     }
   };
 
-  private unlockAudio = () => this.audioManager.unlock();
+  private unlockAudio = () => { this.audioManager.unlock(); this.sol7Storm.unlock(); };
 
   private resize = () => {
     const width = this.host.clientWidth;
@@ -1612,6 +1630,7 @@ export class Game {
 
     // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
     configureModuleLighting(model, additions, module);
+    if (this.state.missionDay === 7 && !this.missionManager.getSol7Progress().stormEnded) this.sol7Storm.applyToModule(model, module);
 
     if (module === "Habitat") {
       this.colliders = buildHabitatColliderSection(model);
@@ -2357,7 +2376,7 @@ export class Game {
     this.nearby = best;
     if (!best) {
       // Don't clear prompt if on terrain and inside survey zone
-      if (this.active !== "Terrain" || (this.state.missionDay !== 6 && this.state.missionDay !== 7)) {
+      if (this.active !== "Terrain" || this.state.missionDay !== 6) {
         this.set({ prompt: "" });
       }
       return;
@@ -2372,7 +2391,10 @@ export class Game {
       const key = ENTRANCE_INTERACTION_KEYS[best.identifier] ?? "E";
       const blockMessage = this.getEVAAccessBlockMessage(route.module);
       if (blockMessage && best.identifier === "Terrain_Entrance_Trigger") {
-        this.set({ prompt: "EVA SUIT REQUIRED · VISIT THE PREPARATION AREA" });
+        const sol7Lockdown = this.state.missionDay === 7 && !this.missionManager.getSol7Progress().stormEnded;
+        this.set({ prompt: sol7Lockdown
+          ? "SOL 7 LOCKDOWN · VERIFY AT AIRLOCK CONTROL CONSOLE"
+          : "EVA SUIT REQUIRED · VISIT THE PREPARATION AREA" });
       } else if (blockMessage && best.identifier === "Central_Hub_Entrance_Trigger") {
         this.set({ prompt: "EVA SUIT ACTIVE · REMOVE SUIT BEFORE ENTERING THE CENTRAL HUB" });
       } else {
@@ -2648,6 +2670,7 @@ export class Game {
       }
     }
     this.audioManager.update(dt);
+    this.sol7Storm.update(dt);
 
     const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
       ? this.sol5CameraRig[this.sol5Flight.cameraView]
@@ -2666,6 +2689,7 @@ export class Game {
     this.roverKeys.clear();
     this.disposed = true;
     this.audioManager.dispose();
+    this.sol7Storm.dispose();
     this.renderer.domElement.removeEventListener("pointerdown", this.unlockAudio);
     this.detachSol5Camera();
     this.cleanupSol5Guidance();
