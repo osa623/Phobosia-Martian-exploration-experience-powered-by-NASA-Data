@@ -4,7 +4,7 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
-import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, buildNamedSceneColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
@@ -31,6 +31,7 @@ import { GameAudioManager, resolveIndoorMovementAudioState } from "./GameAudioMa
 import { DEFAULT_MOVEMENT_CONFIG, EVA_MOVEMENT_CONFIG } from "./MovementConfig";
 import { EVA_PREPARATION_TRIGGER_ID, getEVAAccessBlockReason, isWithinEVAInteractionRange } from "./EVAAccess";
 import { EVAResources, type EVAResourceStorage } from "./EVAResources";
+import { RoverSystem } from "../systems/rover/RoverSystem";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -103,6 +104,8 @@ export class Game {
   private orientedColliders: OrientedBoxCollider[] = [];
   private cylinderColliders: VerticalCylinderCollider[] = [];
   private terrain?: THREE.Object3D;
+  private roverSystem?: RoverSystem;
+  private roverKeys = new Set<string>();
   private droneFloorHeight?: number;
   private raycaster = new THREE.Raycaster();
   private down = new THREE.Vector3(0, -1, 0);
@@ -247,6 +250,9 @@ export class Game {
       showDroneConsoleModal: false,
 
       droneModeActive: false,
+      roverActive: false,
+      roverSpeed: 0,
+      roverView: "FIRST PERSON",
       droneTelemetry: { battery: 88, signal: 96, altitude: 15, x: 470, z: -58.7 },
       sol5DroneActive: false,
       sol5LandingPromptActive: false,
@@ -1257,6 +1263,8 @@ export class Game {
 
     if (isModalOpen) return;
 
+    if (this.roverSystem?.isActive) return;
+
     if (this.sol5DroneActive) {
       this.sol5LookYaw -= e.movementX * 0.002;
       this.sol5LookPitch = THREE.MathUtils.clamp(this.sol5LookPitch - e.movementY * 0.002, -1.35, 1.35);
@@ -1340,6 +1348,30 @@ export class Game {
       if (e.code === "Escape") {
         e.preventDefault();
         this.exitDroneFPV();
+      }
+      return;
+    }
+
+    if (this.roverSystem?.isActive) {
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "Space"].includes(e.code)) { e.preventDefault(); this.roverKeys.add(e.code); }
+      if (e.code === "KeyC" && !e.repeat) { e.preventDefault(); this.roverSystem.switchView(); this.publishRoverState(); }
+      if (e.code === "KeyR" && !e.repeat) { e.preventDefault(); this.exitRover(); }
+      if (e.code === "KeyE" && !e.repeat) {
+        e.preventDefault();
+        if (Math.abs(this.roverSystem.snapshot.speed) < 0.18) this.exitRover();
+        else this.set({ prompt: "BRAKE TO A STOP BEFORE EXITING THE ROVER" });
+      }
+      return;
+    }
+
+    if (e.code === "KeyR" && !e.repeat && this.active === "Terrain" && this.roverSystem) {
+      e.preventDefault();
+      if (!this.roverSystem.canEnterFrom(this.camera.position)) {
+        this.set({ prompt: "MOVE CLOSER TO THE TERRAIN ROVER TRIGGER TO ENTER" });
+      } else if (!this.evaSuitActive) {
+        this.set({ prompt: "EVA SUIT REQUIRED · ACCESS MARS FROM THE AIRLOCK" });
+      } else {
+        this.enterRover();
       }
       return;
     }
@@ -1436,6 +1468,8 @@ export class Game {
       if (e.code === "KeyE") this.sol5EInteractionConsumed = false;
     } else if (this.droneModeActive) {
       this.droneKeys.delete(e.code);
+    } else if (this.roverSystem?.isActive) {
+      this.roverKeys.delete(e.code);
     } else {
       this.player.keys.delete(e.code);
     }
@@ -1445,6 +1479,7 @@ export class Game {
     if (document.hidden) {
       this.player.keys.clear();
       this.droneKeys.clear();
+      this.roverKeys.clear();
       this.sol5EInteractionConsumed = false;
       this.audioManager.setIndoorMovement("idle");
     }
@@ -1553,6 +1588,20 @@ export class Game {
       }
     });
 
+    if (module === "Terrain") {
+      try {
+        this.roverSystem = new RoverSystem(model, this.camera);
+        this.interactive.push({ object: this.roverSystem.trigger, identifier: "terrainRover_trigger", center: this.roverSystem.interactionCenter, range: this.roverSystem.interactionRange });
+      } catch (error) {
+        this.roverSystem = undefined;
+        console.error(error);
+        this.set({ notification: error instanceof Error ? error.message : "Mars Rover scene mapping could not be resolved." });
+      }
+    } else {
+      this.roverSystem = undefined;
+      this.roverKeys.clear();
+    }
+
     if (module === "Airlock") {
       const preparationTrigger = model.getObjectByName(EVA_PREPARATION_TRIGGER_ID);
       if (preparationTrigger) this.interactive.push(this.makeTarget(preparationTrigger, EVA_PREPARATION_TRIGGER_ID));
@@ -1574,14 +1623,15 @@ export class Game {
       this.colliders = buildScienceLabColliders(model);
     } else if (module === "Drone") {
       this.colliders = buildDroneSectionColliders(model);
+    } else if (module === "Terrain") {
+      const authoredNames = Array.from({ length: 18 }, (_, index) => `Collider_${index + 1}`);
+      const authored = buildNamedSceneColliders(model, authoredNames);
+      if (authored.missingNames.length || authored.invalidNames.length) {
+        console.warn(`[Master Scene] Collider mapping: found ${authored.foundNames.length}/18; missing: ${authored.missingNames.join(", ") || "none"}; invalid geometry: ${authored.invalidNames.join(", ") || "none"}.`);
+      }
+      this.colliders = [...buildTerrainBuildingColliders(model, true), ...authored.colliders];
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
-    } else if (module !== "Terrain") {
-      this.colliders = buildInteriorColliders(
-        model,
-        new Set(this.interactive.map(target => target.object)),
-        collisionProfiles[module]
-      );
     }
 
     // Attach 3D screen plane rendering to actual screen meshes
@@ -1662,6 +1712,10 @@ export class Game {
   private async loadAndSpawn(route: Transition) {
     const model = await this.getModel(route.module);
     if (this.disposed) return;
+
+    if (this.roverSystem?.isActive) this.roverSystem.exit();
+    this.roverKeys.clear();
+    if (this.state.roverActive) this.set({ roverActive: false, roverSpeed: 0, prompt: "" });
 
     if (this.current) this.scene.remove(this.current);
     this.current = model;
@@ -1964,15 +2018,6 @@ export class Game {
         }
       }
 
-      // Day 7: Surface Observation Form
-      if (day === 7) {
-        const dist = pos.distanceTo(new THREE.Vector3(485.0, 2.1, -95.5));
-        if (dist <= 75 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
-          document.exitPointerLock();
-          this.set({ showSurfaceObservationForm: true, prompt: "" });
-          return;
-        }
-      }
     }
 
     if (!this.nearby) return;
@@ -2252,16 +2297,6 @@ export class Game {
       }
     }
 
-    // Day 7: Surface Observation Scan
-    if (day === 7) {
-      const dist = pos.distanceTo(new THREE.Vector3(485.0, 2.1, -95.5));
-      if (dist <= 75 || pos.distanceTo(new THREE.Vector3(485, 2, -78)) <= 85) {
-        this.missionManager.completeStep("D7_OBJ_02_USE_AIRLOCK");
-        if (!this.state.surfaceObservation) {
-          this.set({ prompt: "Press E to Perform Surface Observation Scan" });
-        }
-      }
-    }
   }
 
   private findNearby() {
@@ -2275,6 +2310,11 @@ export class Game {
         nearest = distance;
         best = target;
       }
+    }
+
+    if (this.active === "Terrain" && this.roverSystem?.canEnterFrom(at)) {
+      const roverTarget = this.interactive.find(target => target.identifier === "terrainRover_trigger");
+      if (roverTarget && (!best || best.identifier !== "terrainRover_trigger")) best = roverTarget;
     }
 
     // The three Airlock portal meshes are authored close together. Resolve an
@@ -2324,7 +2364,9 @@ export class Game {
     }
 
     const route = transitions[this.active][best.identifier];
-    if (best.identifier === EVA_PREPARATION_TRIGGER_ID) {
+    if (best.identifier === "terrainRover_trigger") {
+      this.set({ prompt: this.evaSuitActive ? "[R] ENTER TERRAIN ROVER" : "EVA SUIT REQUIRED · ACCESS MARS FROM THE AIRLOCK" });
+    } else if (best.identifier === EVA_PREPARATION_TRIGGER_ID) {
       this.set({ prompt: this.evaSuitActive ? "[E] REMOVE EVA SUIT" : "[E] PREPARE EVA SUIT" });
     } else if (route) {
       const key = ENTRANCE_INTERACTION_KEYS[best.identifier] ?? "E";
@@ -2462,6 +2504,52 @@ export class Game {
     }
   }
 
+  private canOccupyRover(position: THREE.Vector3, radius: number, height: number): boolean {
+    const centerY = position.y + height * 0.45;
+    return !this.colliders.some(box => {
+      const x = THREE.MathUtils.clamp(position.x, box.min.x, box.max.x);
+      const z = THREE.MathUtils.clamp(position.z, box.min.z, box.max.z);
+      return Math.hypot(position.x - x, position.z - z) < radius && centerY + height * 0.5 > box.min.y && centerY - height * 0.5 < box.max.y;
+    });
+  }
+
+  private publishRoverState() {
+    const rover = this.roverSystem?.snapshot;
+    if (!rover) return;
+    this.set({ roverActive: rover.active, roverSpeed: rover.speed, roverView: rover.view,
+      prompt: rover.active ? "[R] EXIT ROVER · [E] EXIT WHEN STOPPED · [C] CAMERA VIEW" : this.state.prompt,
+      controlHint: rover.active ? "W/S drive · A/D steer · Space brake · C camera · R exit" : this.state.controlHint });
+  }
+
+  private enterRover() {
+    if (this.active !== "Terrain" || !this.evaSuitActive || !this.roverSystem) return;
+    this.nearby = undefined; this.player.keys.clear(); this.roverKeys.clear();
+    this.player.setEVAOutdoorMotion(false);
+    this.roverSystem.enter((x, z) => this.groundHeight(new THREE.Vector3(x, 0, z)));
+    this.set({ roverActive: true, roverSpeed: 0, roverView: this.roverSystem.snapshot.view,
+      prompt: "[R] EXIT ROVER · [E] EXIT WHEN STOPPED · [C] CAMERA VIEW", controlHint: "W/S drive · A/D steer · Space brake · C camera · R exit" });
+  }
+
+  private exitRover() {
+    const system = this.roverSystem;
+    if (!system?.isActive) return;
+    const roverPosition = system.rover.getWorldPosition(new THREE.Vector3());
+    const triggerPosition = system.trigger.getWorldPosition(new THREE.Vector3());
+    const towardTrigger = triggerPosition.sub(roverPosition);
+    towardTrigger.y = 0;
+    if (towardTrigger.lengthSq() < 1e-6) towardTrigger.set(1, 0, 0);
+    towardTrigger.normalize();
+    const exit = roverPosition.addScaledVector(towardTrigger, system.exitOffset);
+    exit.y = this.groundHeight(exit) + this.player.eyeHeight;
+    if (!this.canOccupy(exit)) { exit.addScaledVector(towardTrigger, system.exitOffset); exit.y = this.groundHeight(exit) + this.player.eyeHeight; }
+    system.exit(); this.roverKeys.clear(); this.player.velocity.set(0, 0, 0);
+    const forward = new THREE.Vector3(0, -1, 0).applyQuaternion(system.rover.getWorldQuaternion(new THREE.Quaternion()));
+    this.player.yaw = Math.atan2(-forward.x, -forward.z);
+    this.player.pitch = 0; this.camera.position.copy(exit); this.camera.rotation.set(0, this.player.yaw, 0, "YXZ"); this.player.syncBasePosition();
+    this.player.setEVAOutdoorMotion(this.evaSuitActive);
+    this.set({ roverActive: false, roverSpeed: 0, prompt: "[R] ENTER TERRAIN ROVER", controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock" });
+  }
+
   private loop = () => {
     if (this.disposed) return;
     requestAnimationFrame(this.loop);
@@ -2499,6 +2587,11 @@ export class Game {
       this.updateDrone(dt);
       this.audioManager.setIndoorMovement("idle");
       this.audioManager.setMarsTerrain(false);
+    } else if (this.roverSystem?.isActive) {
+      this.roverSystem.update(dt, this.roverKeys, (x, z) => this.groundHeight(new THREE.Vector3(x, 0, z)), (position, radius, height) => this.canOccupyRover(position, radius, height));
+      if (this.frame % 8 === 0) this.publishRoverState();
+      this.audioManager.setIndoorMovement("idle");
+      this.audioManager.setMarsTerrain(this.evaSuitActive, "idle");
     } else {
       const isModalOpen =
         document.hidden ||
@@ -2569,6 +2662,8 @@ export class Game {
   dispose() {
     if (this.sol5DroneActive) this.missionManager.abortSol5SimulationAttempt(false);
     this.sol5DroneActive = false;
+    this.roverSystem?.exit();
+    this.roverKeys.clear();
     this.disposed = true;
     this.audioManager.dispose();
     this.renderer.domElement.removeEventListener("pointerdown", this.unlockAudio);

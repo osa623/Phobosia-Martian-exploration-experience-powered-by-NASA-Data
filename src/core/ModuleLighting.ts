@@ -300,34 +300,77 @@ export function configureModuleLighting(
   additions.updateWorldMatrix(true, false);
 
   if (module === "Terrain") {
-    // Mars Terrain: Directional Sun positioned to cast shadows across the entire base complex
-    const outpostCenter = new THREE.Vector3(495.0, 0.0, -65.0);
-    const sunOffset = new THREE.Vector3(160.0, 225.0, 110.0);
-    const sunPos = outpostCenter.clone().add(sunOffset);
+    const sunReference = moduleRoot.getObjectByName("Sun_Object");
+    const terrainSurface = moduleRoot.getObjectByName("PHOBOSIA_MarsTerrain_2km");
+    if (!sunReference || !terrainSurface) {
+      console.error(`[Mars Lighting] Cannot configure terrain sunlight. Missing: ${[!sunReference && "Sun_Object", !terrainSurface && "PHOBOSIA_MarsTerrain_2km"].filter(Boolean).join(", ")}.`);
+      return;
+    }
 
-    const sun = new THREE.DirectionalLight(0xffe2c2, 2.6);
+    const sunWorldPosition = sunReference.getWorldPosition(new THREE.Vector3());
+    const sunWorldQuaternion = sunReference.getWorldQuaternion(new THREE.Quaternion());
+    const authoredDown = new THREE.Vector3(0, -1, 0).applyQuaternion(sunWorldQuaternion).normalize();
+    const raycaster = new THREE.Raycaster(sunWorldPosition, authoredDown);
+    const groundHit = raycaster.intersectObject(terrainSurface, true)[0];
+    const terrainBounds = new THREE.Box3().setFromObject(terrainSurface);
+    const terrainCenter = terrainBounds.getCenter(new THREE.Vector3());
+    const targetWorldPosition = groundHit?.point ?? terrainCenter;
+
+    let sun = additions.getObjectByName("MarsSun_DirectionalLight") as THREE.DirectionalLight | undefined;
+    if (!sun) {
+      const existing = moduleRoot.getObjectByName("MarsSun_DirectionalLight");
+      if (existing?.type === "DirectionalLight") sun = existing as THREE.DirectionalLight;
+    }
+    if (!sun) sun = new THREE.DirectionalLight(0xffe2c2, 2.6);
     sun.name = "MarsSun_DirectionalLight";
-    sun.position.copy(sunPos);
+    if (sun.parent !== additions) additions.attach(sun);
+    sun.position.copy(additions.worldToLocal(sunWorldPosition.clone()));
 
-    const targetObj = new THREE.Object3D();
-    targetObj.name = "MarsSun_Target";
-    targetObj.position.copy(outpostCenter);
-    additions.add(targetObj);
+    let targetObj = additions.getObjectByName("MarsSun_Target");
+    if (!targetObj) {
+      targetObj = new THREE.Object3D();
+      targetObj.name = "MarsSun_Target";
+      additions.add(targetObj);
+    }
+    targetObj.position.copy(additions.worldToLocal(targetWorldPosition.clone()));
     sun.target = targetObj;
 
     sun.castShadow = true;
-    sun.shadow.mapSize.width = 2048;
-    sun.shadow.mapSize.height = 2048;
-    sun.shadow.camera.near = 10;
-    sun.shadow.camera.far = 460;
-    sun.shadow.camera.left = -115;
-    sun.shadow.camera.right = 115;
-    sun.shadow.camera.top = 115;
-    sun.shadow.camera.bottom = -115;
+    sun.shadow.mapSize.set(1024, 1024);
+    const camera = sun.shadow.camera;
+    camera.up.copy(new THREE.Vector3(0, 0, 1).applyQuaternion(sunWorldQuaternion).normalize());
+    const lightDirection = targetWorldPosition.clone().sub(sunWorldPosition).normalize();
+    const cameraRight = lightDirection.clone().cross(camera.up).normalize();
+    const cameraUp = cameraRight.clone().cross(lightDirection).normalize();
+    const corners = [
+      new THREE.Vector3(terrainBounds.min.x, terrainBounds.min.y, terrainBounds.min.z),
+      new THREE.Vector3(terrainBounds.min.x, terrainBounds.min.y, terrainBounds.max.z),
+      new THREE.Vector3(terrainBounds.min.x, terrainBounds.max.y, terrainBounds.min.z),
+      new THREE.Vector3(terrainBounds.min.x, terrainBounds.max.y, terrainBounds.max.z),
+      new THREE.Vector3(terrainBounds.max.x, terrainBounds.min.y, terrainBounds.min.z),
+      new THREE.Vector3(terrainBounds.max.x, terrainBounds.min.y, terrainBounds.max.z),
+      new THREE.Vector3(terrainBounds.max.x, terrainBounds.max.y, terrainBounds.min.z),
+      new THREE.Vector3(terrainBounds.max.x, terrainBounds.max.y, terrainBounds.max.z)
+    ];
+    let halfWidth = 0;
+    let halfHeight = 0;
+    for (const corner of corners) {
+      const offset = corner.sub(targetWorldPosition);
+      halfWidth = Math.max(halfWidth, Math.abs(offset.dot(cameraRight)));
+      halfHeight = Math.max(halfHeight, Math.abs(offset.dot(cameraUp)));
+    }
+    const terrainSize = terrainBounds.getSize(new THREE.Vector3());
+    camera.near = 0.1;
+    camera.far = Math.max(1, sunWorldPosition.distanceTo(targetWorldPosition) + terrainSize.length());
+    camera.left = -halfWidth;
+    camera.right = halfWidth;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    camera.updateProjectionMatrix();
     sun.shadow.bias = -0.0003;
     sun.shadow.normalBias = 0.02;
 
-    additions.add(sun);
+    if (!sun.parent) additions.add(sun);
     return;
   }
 
