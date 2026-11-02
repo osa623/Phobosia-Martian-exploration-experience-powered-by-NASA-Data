@@ -37,6 +37,7 @@ async function main() {
   assert.equal(renderSol07UnitScreen(canvasContext, 800, 450, "habitatAlert", { currentDay: 7, completedStepIds: [] }), true);
   assert.ok(screenText.some(value => value.includes("DUST STORM WARNING")), "Habitat physical screen renderer should show the Sol 7 alert");
   assert.equal(renderSol07UnitScreen(canvasContext, 800, 450, "habitatAlert", { currentDay: 8 }), false, "storm alert screen override must be Sol 7-only");
+  assert.equal(renderSol07UnitScreen(canvasContext, 800, 450, "habitatAlert", { currentDay: 7, completedStepIds: ["SOL07_SUBMIT_STORM_REPORT"] }), false, "storm warning screen should return to the normal Sol 7 display after Task 7");
   const modelFiles = { Airlock: "AirLock.glb", Hub: "Central_Connector.glb", Habitat: "Habitat_Zone.glb", MissionControl: "Mission_Control.glb", Science: "Science_Zone.glb", Engineering: "Engineering.glb" };
   for (const [module, file] of Object.entries(modelFiles)) {
     const bytes = fs.readFileSync(`public/assets/models/${file}`);

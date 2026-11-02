@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
-import { drawSol07Banner, renderSol07UnitScreen } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol07Banner, isSol07StormPresentationActive, renderSol07UnitScreen } from "../missions/sol-07/Sol07ScreenRenderer";
 
 // Dynamic resolver for Node CommonJS tests vs Next.js Webpack bundler
 function loadHabitatScreenData(): HabitatScreenData {
@@ -245,6 +245,7 @@ export class HabitatScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionDay);
     if (missionState?.observationRecords) {
       const record = missionState.observationRecords.find(item => item.day === 2 && item.type === "habitat_readiness");
@@ -306,7 +307,7 @@ export class HabitatScreenRenderer {
     ctx.strokeRect(3, 3, width - 6, height - 6);
 
     // Corner brackets
-    if (this.missionDay === 7) drawSol07Banner(ctx, width, height, "SOL 7 · DUST STORM ALERT", "Review the emergency notice on this display and acknowledge it before proceeding.");
+    if (isSol07StormPresentationActive({ currentDay: this.missionDay, completedStepIds: this.completedStepIds })) drawSol07Banner(ctx, width, height, "SOL 7 · DUST STORM ALERT", "Review the emergency notice on this display and acknowledge it before proceeding.");
     this.drawCornerBrackets(ctx, width, height, app.accent || "#45B8E8");
   }
 

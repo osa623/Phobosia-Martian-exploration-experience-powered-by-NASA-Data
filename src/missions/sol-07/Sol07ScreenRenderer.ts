@@ -14,9 +14,14 @@ export function drawSol07Banner(ctx: CanvasRenderingContext2D, width: number, he
   ctx.restore();
 }
 
+/** The storm presentation ends only when Sol 7 Task 7 is validated. */
+export function isSol07StormPresentationActive(state: { currentDay?: number; completedStepIds?: readonly string[]; sol7StormEnded?: boolean }): boolean {
+  return state.currentDay === 7 && state.sol7StormEnded !== true && !state.completedStepIds?.includes("SOL07_SUBMIT_STORM_REPORT");
+}
+
 /** Shared lightweight canvas renderer used by the existing physical screens during Sol 7 only. */
 export function renderSol07UnitScreen(ctx: CanvasRenderingContext2D, width: number, height: number, unit: string, state: { currentDay: number; completedStepIds?: string[]; sol6?: { cultivation?: { sampleId: string; status: string } | null }; sol7StormEnded?: boolean }): boolean {
-  if (state.currentDay !== 7) return false;
+  if (!isSol07StormPresentationActive(state)) return false;
   const rows: Record<string, string[]> = {
     habitatAlert: ["DUST STORM WARNING — GAMEPLAY SIMULATION", "Remain inside the outpost during the active alert.", "Outdoor EVA access is temporarily restricted.", "Review and acknowledge this safety notice."],
     missionControl: ["SYSTEMS ASSESSMENT", "Power generation / reserve: unavailable unless source value is displayed", "Communications / navigation: review existing console records", "Warnings: record only visible values and their provenance"],
