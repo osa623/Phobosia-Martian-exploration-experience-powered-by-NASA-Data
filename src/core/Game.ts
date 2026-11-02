@@ -4,7 +4,7 @@ import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
-import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
+import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, buildNamedSceneColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
 import {
@@ -1624,7 +1624,12 @@ export class Game {
     } else if (module === "Drone") {
       this.colliders = buildDroneSectionColliders(model);
     } else if (module === "Terrain") {
-      this.colliders = buildTerrainBuildingColliders(model, true);
+      const authoredNames = Array.from({ length: 18 }, (_, index) => `Collider_${index + 1}`);
+      const authored = buildNamedSceneColliders(model, authoredNames);
+      if (authored.missingNames.length || authored.invalidNames.length) {
+        console.warn(`[Master Scene] Collider mapping: found ${authored.foundNames.length}/18; missing: ${authored.missingNames.join(", ") || "none"}; invalid geometry: ${authored.invalidNames.join(", ") || "none"}.`);
+      }
+      this.colliders = [...buildTerrainBuildingColliders(model, true), ...authored.colliders];
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     }
