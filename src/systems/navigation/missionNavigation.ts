@@ -12,20 +12,23 @@ import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
 import sol07Mission from "../../jsons/Missions/sol-07.json";
 import sol07Navigation from "../../jsons/Instructions/sol-07-navigation.json";
 import sol08Mission from "../../jsons/Missions/sol-08.json";
+import sol09Mission from "../../jsons/Missions/sol-09.json";
+import sol09Navigation from "../../jsons/Instructions/sol-09-navigation.json";
 import sol08Navigation from "../../jsons/Instructions/sol-08-navigation.json";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
   5: { mission: sol05Mission, navigation: sol05Navigation },
   6: { mission: sol06Mission, navigation: sol06Navigation },
   7: { mission: sol07Mission, navigation: sol07Navigation },
-  8: { mission: sol08Mission, navigation: sol08Navigation }
+  8: { mission: sol08Mission, navigation: sol08Navigation },
+  9: { mission: sol09Mission, navigation: sol09Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -99,7 +102,17 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL08_RESTORE_MAIN_POWER_SUPPLY: "Engineering_PowerUnit_Trigger",
   SOL08_VERIFY_POWER_RECOVERY: "Engineering_PowerUnit_Trigger",
   SOL08_REPAIR_OUTDOOR_COMMUNICATION: "Commuication_fix_Trigger",
-  SOL08_VERIFY_AND_REPORT_RECOVERY: "MC_MAIN_01"
+  SOL08_VERIFY_AND_REPORT_RECOVERY: "MC_MAIN_01",
+  SOL09_TASK_01: "HAB_WATER_NUTRITION_01",
+  SOL09_TASK_02: "LAB_CULTIVATION_01",
+  SOL09_TASK_03: "LAB_CULTIVATION_01",
+  SOL09_TASK_04: "LAB_CULTIVATION_01",
+  SOL09_TASK_05: "Engineering_LifeSupport_Trigger",
+  SOL09_TASK_06: "Engineering_LifeSupport_Trigger",
+  SOL09_TASK_07: "LAB_CULTIVATION_01",
+  SOL09_TASK_08: "LAB_CULTIVATION_01",
+  SOL09_TASK_09: "LAB_CULTIVATION_01",
+  SOL09_TASK_10: "MC_MAIN_01"
 };
 
 export interface ResolvedMissionNavigation {

@@ -238,7 +238,7 @@ export function GameViewport() {
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8) && (
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9) && (
           <section className="[position:absolute] [top:72px] [right:24px] [z-index:30] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
@@ -929,9 +929,9 @@ export function GameViewport() {
             <section className={`bg-[#091722] border shadow-[0_16px_60px_rgba(0,0,0,0.95)] p-[28px_32px] max-w-[min(600px,92vw)] max-h-[86vh] overflow-y-auto w-full ${state.restFeedback.type === "blocked" ? "border-[#e88747]" : "border-[#44d788]"}`}>
               <div>
                 <span className="[color:#e88747] text-[11px] font-bold font-mono [letter-spacing:0.12em]">
-                  {state.restFeedback.type === "blocked" ? "REST PROTOCOL RESTRICTED" : "HABITAT REST CYCLE"}
+                  {state.missionDay === 9 && state.restFeedback.type === "success" ? "MISSION CONTROL · SOL 9 COMPLETE" : state.restFeedback.type === "blocked" ? "REST PROTOCOL RESTRICTED" : "HABITAT REST CYCLE"}
                 </span>
-                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">{state.restFeedback.type === "blocked" ? "Objective Incomplete" : "Rest Period Verified"}</h2>
+                <h2 className="[margin:6px_0_16px] [color:#eaf4f7] [font-size:20px] [font-weight:600] [letter-spacing:0.03em]">{state.missionDay === 9 && state.restFeedback.type === "success" ? "Sol 9 Mission Complete" : state.restFeedback.type === "blocked" ? "Objective Incomplete" : "Rest Period Verified"}</h2>
               </div>
               <div className="[color:#c0d3db] [font-size:14px] [line-height:1.55]">
                 <p>{state.restFeedback.message}</p>

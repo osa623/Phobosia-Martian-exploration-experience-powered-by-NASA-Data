@@ -17,6 +17,7 @@ import { Sol5MissionPanel } from "@/missions/sol-05/components/Sol5MissionPanel"
 import { Sol6MissionPanel } from "@/missions/SOL_06/components/Sol6MissionPanel";
 import { Sol7MissionPanel } from "@/missions/sol-07/components/Sol7MissionPanel";
 import { Sol08MissionPanel } from "@/missions/sol-08/components/Sol08MissionPanel";
+import { Sol09MissionPanel } from "@/missions/sol-09/components/Sol09MissionPanel";
 import { resolveTriggerScreens } from "./triggerAccess";
 
 type Section = "habitat" | "engineering" | "research" | "missionControl" | "centralHub" | "airlock";
@@ -160,6 +161,7 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
           {state.missionDay === 6 && ["MC_NAVIGATION_01", "MC_MAIN_01", "LAB_RESEARCH_ANALYSIS_01", "LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"].includes(triggerId) && <Sol6MissionPanel manager={game?.missionManager} triggerId={triggerId} />}
           {state.missionDay === 7 && <Sol7MissionPanel manager={game?.missionManager} game={game ?? undefined} triggerId={triggerId} />}
           {state.missionDay === 8 && <Sol08MissionPanel game={game} triggerId={triggerId} />}
+          {state.missionDay === 9 && ["HAB_WATER_NUTRITION_01", "LAB_CULTIVATION_01", "Engineering_LifeSupport_Trigger", "MC_MAIN_01"].includes(triggerId) && <Sol09MissionPanel game={game} triggerId={triggerId} />}
           {allowedTasks.length > 0 && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.18)] [margin-top:10px] [padding-top:10px]"><MissionInvestigationPanel game={game} initialTaskId={allowedTasks[0]} availableTaskIds={allowedTasks} showSavedRecords={allowedTasks.includes("SOL02_READINESS_ASSESSMENT") || allowedTasks.includes("SOL03_SUBMIT_TARGET_RECORD")} /></section>}
           {triggerId === "HAB_MONITOR_01" && <section className="[margin:8px_12px] [border-top:1px_solid_rgba(85,_205,_232,_0.15)] [padding:12px]"><div className="font-mono [color:#55cde8] [font-size:10px]">OUTPOST OVERVIEW</div><p className="[color:#dce8ed]">Sol {state.missionDay} · {mission.title} · {missionState?.objectiveState ?? state.objectiveState}</p><p className="[color:#9fb4c0] [font-size:12px]">{mission.primaryObjective}</p><p className="[color:#d4ad72] [font-size:12px]">{game?.missionManager.getMissionTaskProgress().remaining ?? 0} required mission tasks remain. System-specific records stay in their own consoles.</p>{state.notification && <p role="status" className="[border-left:2px_solid_#e88747] [padding-left:8px] [color:#e8c18d] [font-size:12px]">Mission notification: {state.notification}</p>}</section>}
         </main>

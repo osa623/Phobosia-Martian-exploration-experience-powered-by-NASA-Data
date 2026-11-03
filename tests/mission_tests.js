@@ -825,61 +825,30 @@ test('Day 8 Research Lab Analysis strictly requires a Day 7 test fixture and sav
   assert.strictEqual(mm.getState().currentDay, 9);
 });
 
-// P3-005: Day 9 Drone Survey Lifecycle & Non-advancement beyond Day 9
-test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut controls, and strictly concludes Phase 3', () => {
+// P3-005: Sol 9 cultivation and water recovery lifecycle
+test('Sol 9 starts after Sol 8 recovery and uses the cultivation and water assessment tasks', () => {
   mockStorage.clear();
-  let mm = new MissionManager();
-  // Fast forward to Day 9
-  mm.completeStep('DAY1_REVIEW_CONTROLS');
-  mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
-  mm.completeStep('DAY1_INSPECT_BASE_AREAS');
-  mm.completeStep('DAY1_CONFIRM_ORIENTATION');
-  mm.advanceDay(true);
-  completeSol2(mm);
-  mm.advanceDay(true);
-  completeSol3(mm);
-  mm.advanceDay(true);
-  completeSol4(mm);
-  mm.advanceDay(true);
-  mm = completeSol5(mm);
-  mm.advanceDay(true);
-  completeSol6(mm);
-  mm.advanceDay(true);
-  completeSol7(mm);
-  mm.advanceDay(true);
-  seedSol7SurfacePrerequisiteForSol8Test(mm);
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'LAB_RESEARCH_ANALYSIS_01' });
-  mm.saveScienceAnalysis({ selectedInterpretationId: 'INTERPRETATION_SURFACE_PATTERN_REVIEW', summary: 'Downstream test fixture analysis.' });
-  mm.advanceDay(true);
-
+  mockStorage.set('phobosia_mission_progress_v4', JSON.stringify({
+    currentDay: 9,
+    objectiveState: 'in_progress',
+    completedStepIds: [],
+    completedIntroductionIds: [],
+    observationRecords: [],
+    selectedRouteTarget: null,
+    dayBriefingSeen: true,
+    campaignFinished: false,
+    sol8: { started: true, powerFailureActive: false, communicationFailureActive: false, report: { validated: true, submittedAt: new Date().toISOString(), sections: {} } },
+    sol9: { started: true }
+  }));
+  const mm = new MissionManager();
   assert.strictEqual(mm.getState().currentDay, 9);
 
-  // Review Mission Control drone console
+  // Legacy Day 9 drone interactions must not complete or replace Sol 9 tasks.
   mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'MC_SYSTEMS_01' });
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_01_REVIEW_DRONE_TASK'), true);
-
-  mm.completeStep('D9_OBJ_02_ACTIVATE_FPV');
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_02_ACTIVATE_FPV'), true);
+  assert.strictEqual(mm.isStepComplete('SOL09_TASK_01'), false);
+  assert.strictEqual(mm.isStepComplete('SOL09_TASK_02'), false);
+  assert.strictEqual(mm.getSol09Progress().started, true);
   assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
-  const droneRecord = mm.saveDroneSurvey({
-    targetId: 'TARGET_GAMMA_SOUTH_ESCARPMENT',
-    observedCategories: { viewpointTerrainShape: 'Dissected canyon rim', visibleSurfacePattern: 'Polygonal thermal contraction fissures', followUpArea: 'South escarpment shadow boundary', routeRevisit: 'Fault line aerial corridor' },
-    summary: 'Day 9 remote drone survey completed.'
-  });
-  assert(droneRecord !== null);
-  assert.strictEqual(droneRecord.day, 9);
-  assert.strictEqual(droneRecord.isSimulated, true);
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_03_INSPECT_TARGET'), true);
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_04_SAVE_DRONE_RECORD'), true);
-  
-  // Still blocked until FPV exit, and Sol 9 remains the final Phase 3 day.
-  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
-  mm.completeStep('D9_OBJ_05_EXIT_FPV');
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_05_EXIT_FPV'), true);
-  assert.strictEqual(mm.getState().objectiveState, 'completed');
-  const check = mm.canRestAndAdvance();
-  assert.strictEqual(check.canAdvance, false);
-  assert(check.reason.includes('Day 9 Complete') && check.reason.includes('Phase 3'));
   assert.strictEqual(mm.advanceDay().success, false);
   assert.strictEqual(mm.getState().currentDay, 9);
 });

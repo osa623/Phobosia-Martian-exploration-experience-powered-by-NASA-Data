@@ -16,6 +16,8 @@ import sol06Mission from "../jsons/Missions/sol-06.json";
 import { SOL07_TASKS, createInitialSol7Progress, type Sol7Progress, type Sol7TaskId, type Sol7PowerAssessment } from "../missions/sol-07/taskDefinitions";
 import { SOL08_TASKS, createInitialSol08Progress, validateSol08Connections, type Sol08Connection, type Sol08Progress, type Sol08PuzzleId, type Sol08TaskId } from "../missions/sol-08/taskDefinitions";
 import sol08Mission from "../jsons/Missions/sol-08.json";
+import sol09Mission from "../jsons/Missions/sol-09.json";
+import { SOL09_TASKS, createInitialSol09Progress, type Sol09Progress, type Sol09RackId, type Sol09TaskId } from "../missions/sol-09/taskDefinitions";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -275,6 +277,7 @@ export interface MissionProgressState {
   sol6: Sol6MissionProgress;
   sol7: Sol7Progress;
   sol8: Sol08Progress;
+  sol9: Sol09Progress;
 }
 
 export interface Sol6MissionProgress {
@@ -446,27 +449,28 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     briefing: "Restore outpost power through the existing solar repair triggers, then independently restore external communications. Reserve telemetry is gameplay simulation unless a verified persisted value exists.",
     primaryObjective: "Repair Solar Panels A and B and the main connection, restore main power, recover communication, and submit the recovery report.",
     steps: [
-      ...SOL08_TASKS.map((task, index) => ({ stepId: task.stepId, label: task.label, description: sol08Mission.tasks[index].objective, targetTrigger: task.trigger, completed: false, requiresCompletedTasks: index ? [SOL08_TASKS[index - 1].stepId] : undefined }))
+      ...SOL08_TASKS.map((task, index) => ({ stepId: task.stepId, label: task.label, description: sol08Mission.tasks[index]?.objective ?? task.label, targetTrigger: task.trigger, completed: false, requiresCompletedTasks: index ? [SOL08_TASKS[index - 1].stepId] : undefined }))
     ],
     allowedModules: ["Habitat", "Engineering", "MissionControl", "Airlock", "Terrain"],
     completionFeedback: "Sol 8 recovery report validated. Power and communication records are saved for Sol 9; Sol 9 has not been started."
   },
   9: {
     day: 9,
-    id: "DAY_09_DRONE_SURVEY",
-    title: "Drone Survey",
-    storyContext: "Remote Surface Survey Phase. First-person remote FPV drone survey over Mars terrain operated from Mission Control.",
-    briefing: "Mission Control has authorized a remote aerial survey over the terrain using the scout drone. Access the Drone Operation console in Mission Control, engage first-person FPV mode, survey the designated sector, capture telemetry, and return safely to Mission Control.",
-    primaryObjective: "Engage Drone FPV mode from Mission Control, conduct aerial survey of target sector, capture survey record, and return to base.",
-    steps: [
-      { stepId: "D9_OBJ_01_REVIEW_DRONE_TASK", label: "Review drone mission", description: "Review remote survey console in Mission Control.", targetTrigger: "MC_SYSTEMS_01", completed: false },
-      { stepId: "D9_OBJ_02_ACTIVATE_FPV", label: "Activate drone FPV", description: "Engage first-person remote FPV camera view.", completed: false },
-      { stepId: "D9_OBJ_03_INSPECT_TARGET", label: "Survey target sector", description: "Maneuver drone over terrain survey sector.", completed: false },
-      { stepId: "D9_OBJ_04_SAVE_DRONE_RECORD", label: "Save drone survey record", description: "Capture and save DroneSurveyRecord telemetry.", completed: false },
-      { stepId: "D9_OBJ_05_EXIT_FPV", label: "Return to Mission Control", description: "Disengage FPV and restore astronaut controls.", completed: false }
-    ],
-    allowedModules: ["MissionControl", "Hub", "Habitat"],
-    completionFeedback: "Drone survey complete. Remote telemetry archived. Astronaut controls restored. Day 9 marks completion of Phase 3."
+    id: sol09Mission.missionId,
+    title: sol09Mission.title,
+    storyContext: sol09Mission.description,
+    briefing: sol09Mission.description,
+    primaryObjective: "Review the Sol 6 cultivation record, inspect each cultivation rack independently, assess water and nutrient availability, and submit a provenance-aware recovery report.",
+    steps: SOL09_TASKS.map((task, index) => ({
+      stepId: task.stepId,
+      label: task.label,
+      description: sol09Mission.tasks[index].objective,
+      targetTrigger: task.trigger,
+      requiresCompletedTasks: index ? [SOL09_TASKS[index - 1].stepId] : undefined,
+      completed: false
+    })),
+    allowedModules: ["Habitat", "Science", "Engineering", "MissionControl"],
+    completionFeedback: "Sol 9 assessment report validated. Mission records are saved; the day does not advance automatically."
   }
 };
 
@@ -480,8 +484,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 8 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 8
+  const total = day >= 2 && day <= 9 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 9
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -493,6 +497,7 @@ export class MissionManager {
   private isAdvancingDay = false;
   private sol6ValidatedMutation = false;
   private sol8ValidatedMutation = false;
+  private sol9ValidatedMutation = false;
 
   constructor() {
     this.state = this.loadState();
@@ -557,15 +562,34 @@ export class MissionManager {
             const sol8 = parsed.currentDay === 8 && !savedSol8.started
               ? { ...savedSol8, started: true, powerFailureActive: true, communicationFailureActive: true }
               : savedSol8;
+            const sol9Defaults = createInitialSol09Progress();
+            const rawSol9 = parsed.sol9 && typeof parsed.sol9 === "object" ? parsed.sol9 as Partial<Sol09Progress> : {};
+            const savedSol9: Sol09Progress = {
+              ...sol9Defaults,
+              ...rawSol9,
+              evidence: rawSol9.evidence ?? sol9Defaults.evidence,
+              racks: {
+                rack01: { ...sol9Defaults.racks.rack01, ...(rawSol9.racks?.rack01 ?? {}) },
+                rack02: { ...sol9Defaults.racks.rack02, ...(rawSol9.racks?.rack02 ?? {}) }
+              },
+              water: { ...sol9Defaults.water, ...(rawSol9.water ?? {}) }
+            };
+            const sol9Unlocked = Boolean(savedSol8.report?.validated && !savedSol8.powerFailureActive && !savedSol8.communicationFailureActive);
+            const loadedDay: MissionDayNumber = parsed.currentDay === 9 && !sol9Unlocked ? 8 : parsed.currentDay as MissionDayNumber;
+            const sol9 = loadedDay === 9
+              ? { ...savedSol9, started: true }
+              : { ...savedSol9, started: false };
             const sol7TasksActuallyComplete = SOL07_TASKS.every(task => completedStepIds.includes(task.stepId))
               && sol7.report?.validated === true;
             // Older Sol 7 saves could inherit a completed flag from the prior surface objective.
             // Keep the badge and mission state aligned with the seven assessment tasks/report.
-            const objectiveState = parsed.currentDay === 7 && parsed.objectiveState === "completed" && !sol7TasksActuallyComplete
+            const objectiveState = loadedDay !== parsed.currentDay
+              ? "in_progress"
+              : parsed.currentDay === 7 && parsed.objectiveState === "completed" && !sol7TasksActuallyComplete
               ? "in_progress"
               : parsed.objectiveState ?? "not_started";
             return {
-              currentDay: parsed.currentDay as MissionDayNumber,
+              currentDay: loadedDay,
               objectiveState,
               completedStepIds,
               completedIntroductionIds: Array.isArray(parsed.completedIntroductionIds) ? parsed.completedIntroductionIds : [],
@@ -583,7 +607,8 @@ export class MissionManager {
               sol5,
               sol6: rawSol6,
               sol7,
-              sol8
+              sol8,
+              sol9
             };
           }
         }
@@ -611,7 +636,8 @@ export class MissionManager {
       sol5: createInitialSol5Progress(),
       sol6: createInitialSol6Progress(),
       sol7: createInitialSol7Progress(),
-      sol8: createInitialSol08Progress()
+      sol8: createInitialSol08Progress(),
+      sol9: createInitialSol09Progress()
     };
   }
 
@@ -781,6 +807,107 @@ export class MissionManager {
     this.state.notification = "Sol 8 power and communication recovery report validated. Sol 9 has not started.";
     this.emit();
     return { success: true, message: "Sol 8 report validated. Sol 9 has not started." };
+  }
+
+  public getSol09Progress(): Readonly<Sol09Progress> { return this.state.sol9; }
+
+  private recordSol09Step(taskId: Sol09TaskId, triggerId: string, finding: string, provenance: string): boolean {
+    if (this.state.currentDay !== 9 || !this.state.sol9.started || !finding.trim() || !provenance.trim()) return false;
+    const task = SOL09_TASKS.find(item => item.stepId === taskId);
+    const step = this.getCurrentMission().steps.find(item => item.stepId === taskId);
+    if (!task || !step || task.trigger !== triggerId || (step.requiresCompletedTasks ?? []).some(required => !this.isStepComplete(required))) return false;
+    const record = { taskId, triggerId, completedAt: new Date().toISOString(), finding: finding.trim(), provenance: provenance.trim() };
+    this.state.sol9.evidence[taskId] = record;
+    if (taskId === "SOL09_TASK_03") this.state.sol9.racks.rack01.inspection = record;
+    if (taskId === "SOL09_TASK_04") this.state.sol9.racks.rack02.inspection = record;
+    if (taskId === "SOL09_TASK_05") this.state.sol9.water.diagnosis = record;
+    this.sol9ValidatedMutation = true;
+    let completed = false;
+    try { completed = this.completeStep(taskId); }
+    finally { this.sol9ValidatedMutation = false; }
+    if (!completed) delete this.state.sol9.evidence[taskId];
+    this.emit();
+    return completed;
+  }
+
+  public recordSol09TaskEvidence(taskId: Sol09TaskId, triggerId: string, finding: string, provenance: string): boolean {
+    if (["SOL09_TASK_06", "SOL09_TASK_07", "SOL09_TASK_10"].includes(taskId)) return false;
+    if (taskId === "SOL09_TASK_08") {
+      if (this.state.currentDay !== 9 || !this.state.sol9.racks.rack01.irrigationRecord || !this.state.sol9.racks.rack02.irrigationRecord) return false;
+      const record = { taskId, triggerId, completedAt: new Date().toISOString(), finding: finding.trim(), provenance: provenance.trim() };
+      if (!finding.trim() || !provenance.trim() || triggerId !== "LAB_CULTIVATION_01") return false;
+      this.state.sol9.nutrientVerification = record;
+    }
+    if (taskId === "SOL09_TASK_02" && this.state.sol6.cultivation) {
+      const existingId = this.state.sol6.cultivation.sampleId;
+      if (!finding.includes(existingId)) return false;
+    }
+    return this.recordSol09Step(taskId, triggerId, finding, provenance);
+  }
+
+  public recordSol09WaterRestoration(triggerId: string, status: "operational" | "restored", finding: string, provenance: string): boolean {
+    if (triggerId !== "Engineering_LifeSupport_Trigger" || !this.state.sol9.water.diagnosis || this.state.currentDay !== 9) return false;
+    const completed = this.recordSol09Step("SOL09_TASK_06", triggerId, finding, provenance);
+    if (!completed) return false;
+    this.state.sol9.water.mainSupplyStatus = status;
+    this.state.sol9.water.restoration = this.state.sol9.evidence.SOL09_TASK_06 ?? null;
+    this.emit();
+    return true;
+  }
+
+  public recordSol09WaterRecoveryUnavailable(triggerId: string, finding: string, provenance: string): boolean {
+    if (triggerId !== "Engineering_LifeSupport_Trigger" || !this.state.sol9.water.diagnosis || this.state.currentDay !== 9) return false;
+    const completed = this.recordSol09Step("SOL09_TASK_06", triggerId, finding, provenance);
+    if (!completed) return false;
+    this.state.sol9.water.mainSupplyStatus = "unavailable";
+    this.state.sol9.water.restoration = this.state.sol9.evidence.SOL09_TASK_06 ?? null;
+    this.emit();
+    return true;
+  }
+
+  public recordSol09IrrigationTest(rackId: Sol09RackId, triggerId: string, result: "verified" | "unavailable", finding: string, provenance: string): boolean {
+    if (triggerId !== "LAB_CULTIVATION_01" || !this.isStepComplete("SOL09_TASK_06") || !this.state.sol9.racks[rackId].inspection) return false;
+    if (!finding.trim() || !provenance.trim()) return false;
+    const record = { taskId: "SOL09_TASK_07" as const, triggerId, completedAt: new Date().toISOString(), finding: finding.trim(), provenance: provenance.trim() };
+    this.state.sol9.racks[rackId].irrigationResult = result;
+    this.state.sol9.racks[rackId].irrigationRecord = record;
+    if (this.state.sol9.racks.rack01.irrigationRecord && this.state.sol9.racks.rack02.irrigationRecord) {
+      this.sol9ValidatedMutation = true;
+      let completed = false;
+      try { completed = this.completeStep("SOL09_TASK_07"); }
+      finally { this.sol9ValidatedMutation = false; }
+      if (!completed && !this.isStepComplete("SOL09_TASK_07")) return false;
+    }
+    this.emit();
+    return true;
+  }
+
+  public submitSol09Report(sections: Record<string, string>): { success: boolean; message: string } {
+    if (this.state.currentDay !== 9 || this.state.sol9.report) return { success: false, message: "The Sol 9 report is unavailable or already submitted." };
+    const previousTasks = SOL09_TASKS.slice(0, 9).map(task => task.stepId);
+    if (!previousTasks.every(task => this.isStepComplete(task))) return { success: false, message: "Complete the preceding Sol 9 assessments before submitting the final report." };
+    if (sol09Mission.report.requiredSections.some(section => !sections?.[section]?.trim())) return { success: false, message: "Complete each required evidence and limitation section before submission." };
+    this.state.sol9.report = { validated: true, submittedAt: new Date().toISOString(), sections: { ...sections } };
+    const task = SOL09_TASKS[9];
+    const triggerId = task.trigger;
+    this.sol9ValidatedMutation = true;
+    let completed = false;
+    try { completed = this.completeStep(task.stepId); }
+    finally { this.sol9ValidatedMutation = false; }
+    if (!completed) { this.state.sol9.report = null; return { success: false, message: "The report could not be validated." }; }
+    const recoveryVerified = this.state.sol9.water.mainSupplyStatus === "restored"
+      && this.state.sol9.racks.rack01.irrigationResult === "verified"
+      && this.state.sol9.racks.rack02.irrigationResult === "verified";
+    this.state.notification = recoveryVerified
+      ? "Sol 9 Water System Recovery and Cultivation Assessment report validated. No later Sol was started."
+      : "Sol 9 assessment report submitted with unresolved recovery limitations recorded. Water restoration and/or rack irrigation remain unverified.";
+    this.emit();
+    return {
+      success: true,
+      message: recoveryVerified
+        ? "Sol 9 report validated. Mission state saved."
+        : "Sol 9 report submitted and saved. The unresolved water and/or irrigation recovery results remain recorded as limitations."
+    };
   }
 
   public subscribe(listener: (state: Readonly<MissionProgressState>) => void): () => void {
@@ -1070,7 +1197,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 8) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 9) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1235,11 +1362,13 @@ export class MissionManager {
 
     if (this.state.currentDay === 6 && !this.sol6ValidatedMutation) return false;
     if (this.state.currentDay === 8 && stepId.startsWith("SOL08_") && !this.sol8ValidatedMutation) return false;
+    if (this.state.currentDay === 9 && stepId.startsWith("SOL09_") && !this.sol9ValidatedMutation) return false;
 
     if ((this.state.currentDay === 5 || this.state.currentDay === 6) && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
       return false;
     }
     if (this.state.currentDay === 8 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
+    if (this.state.currentDay === 9 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
     if (this.state.currentDay === 5) {
       if (stepId === "SOL05_PREFLIGHT_BRIEFING" && !this.state.sol5.briefingConfirmed) return false;
       if (stepId === "SOL05_ACTIVATE_SIMULATION" && (!this.state.sol5.simulationActivated || this.state.sol5.attemptStatus !== "active")) return false;
@@ -1268,7 +1397,7 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
-      if ((this.state.currentDay >= 2 && this.state.currentDay <= 5) || this.state.currentDay === 8) {
+      if ((this.state.currentDay >= 2 && this.state.currentDay <= 5) || this.state.currentDay === 8 || this.state.currentDay === 9) {
         this.state.notification = this.getCurrentNavigationNotification();
       }
       this.emit();
@@ -1501,14 +1630,11 @@ export class MissionManager {
       }
     }
 
-    // Day 9
+    // Sol 9 uses the existing water and cultivation OS applications; trigger
+    // arrival only opens the current interface and does not validate progress.
     if (day === 9) {
-      if (
-        event.type === "trigger_interacted" &&
-        (event.identifier === "MC_SYSTEMS_01" || event.identifier === "MC_NAVIGATION_01" || event.identifier === "MC_MAIN_01")
-      ) {
-        this.completeStep("D9_OBJ_01_REVIEW_DRONE_TASK");
-        return { handled: true, feedback: "Drone Operation console ready. Prepare for remote FPV survey." };
+      if (event.type === "trigger_interacted" && SOL09_TASKS.some(task => task.trigger === event.identifier)) {
+        return { handled: true, feedback: "Sol 9 application opened. Review and record its displayed evidence to continue." };
       }
     }
 
@@ -1684,7 +1810,9 @@ export class MissionManager {
 
     if (allStepsComplete && this.state.objectiveState !== "completed" && this.state.objectiveState !== "waiting_for_rest") {
       this.state.objectiveState = "completed";
-      this.state.notification = `Objective Completed: ${mission.title}. Return to Habitat to rest.`;
+      this.state.notification = this.state.currentDay === 9
+        ? `Sol 9 report validated: ${mission.title}. No later Sol was started.`
+        : `Objective Completed: ${mission.title}. Return to Habitat to rest.`;
     }
   }
 
@@ -1758,17 +1886,13 @@ export class MissionManager {
       return { canAdvance: false, reason: "Sol 8 requires both independent recovery states to be resolved and the final recovery report validated before resting." };
     }
 
-    // Day 9 concludes Phase 3
+    // Sol 9 is a terminal assessment day in this build; never auto-advance it.
     if (this.state.currentDay === 9) {
-      if (!this.state.droneSurvey || !this.isStepComplete("D9_OBJ_05_EXIT_FPV")) {
-        return {
-          canAdvance: false,
-          reason: "Cannot rest yet. Drone survey record must be saved and FPV mode exited."
-        };
-      }
       return {
         canAdvance: false,
-        reason: "Day 9 Complete. All Phase 3 geological, surface, lab analysis, and drone survey objectives achieved. Future campaign days will follow in subsequent phases."
+        reason: this.state.sol9.report?.validated
+          ? "Sol 9 report validated. The mission is complete and this build does not automatically advance to another Sol."
+          : "Complete the Sol 9 assessment and submit its validated report before ending the mission."
       };
     }
 
@@ -1799,6 +1923,7 @@ export class MissionManager {
     this.state.currentDay = nextDay;
     this.state.objectiveState = "in_progress";
     if (nextDay === 8) this.state.sol8 = { ...this.state.sol8, started: true, powerFailureActive: true, communicationFailureActive: true, mainPowerRestored: false, communicationOnline: false };
+    if (nextDay === 9) this.state.sol9 = { ...this.state.sol9, started: true };
     this.state.dayBriefingSeen = false;
     this.state.notification = this.getCurrentNavigationNotification() ?? `Day ${nextDay} Begun: ${DAYS_CONFIG[nextDay].title}`;
 
@@ -1854,7 +1979,8 @@ export class MissionManager {
       sol5: createInitialSol5Progress(),
       sol6: createInitialSol6Progress(),
       sol7: createInitialSol7Progress(),
-      sol8: createInitialSol08Progress()
+      sol8: createInitialSol08Progress(),
+      sol9: createInitialSol09Progress()
     };
     this.emit();
   }

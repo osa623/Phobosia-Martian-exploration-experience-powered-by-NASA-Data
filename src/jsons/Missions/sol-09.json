@@ -1,0 +1,905 @@
+{
+  "missionId": "PHOBOSIA_SOL_09",
+  "sol": 9,
+  "title": "Cultivation Assessment & Water System Recovery",
+  "subtitle": "Restoring the Outpost Water Supply and Verifying the Cultivation Experiment",
+  "missionType": "science_and_engineering",
+  "status": "locked",
+  "description": "Investigate the water-system condition following the SOL 7 dust storm, restore the main water supply where required, inspect the two cultivation racks, verify irrigation and nutrient distribution, and review the cultivation experiment initiated during SOL 6.",
+  "missionPrinciples": {
+    "scientificIntegrity": true,
+    "preserveHistoricalEvidence": true,
+    "noFabricatedMeasurements": true,
+    "distinguishSimulationFromSourceData": true,
+    "useExistingPhysicalDisplays": true,
+    "useExistingOSFramework": true,
+    "noNewPhysicalScreens": true,
+    "noNewGlobalInteractionFramework": true
+  },
+  "prerequisites": [
+    {
+      "type": "mission_completed",
+      "missionId": "PHOBOSIA_SOL_08",
+      "required": true
+    },
+    {
+      "type": "mission_data_available",
+      "missionId": "PHOBOSIA_SOL_06",
+      "required": true,
+      "description": "SOL 6 cultivation experiment records and soil sample provenance must remain accessible."
+    },
+    {
+      "type": "mission_data_available",
+      "missionId": "PHOBOSIA_SOL_07",
+      "required": true,
+      "description": "SOL 7 storm event records, timestamps and post-storm assessment must be preserved."
+    }
+  ],
+  "initialMissionState": {
+    "waterSystem": {
+      "status": "requires_inspection",
+      "mainSupplyStatus": "unknown_until_inspected",
+      "distributionStatus": "unknown_until_inspected",
+      "waterReserve": {
+        "value": null,
+        "unit": null,
+        "source": "existing_persisted_game_state",
+        "fallback": "unavailable"
+      },
+      "stormImpact": {
+        "relatedMission": "PHOBOSIA_SOL_07",
+        "impactStatus": "requires_verification",
+        "stormStartTimestamp": null,
+        "stormEndTimestamp": null,
+        "stormDuration": null,
+        "deriveFromPersistedTimestampsOnly": true
+      }
+    },
+    "cultivationSystem": {
+      "status": "requires_inspection",
+      "rackCount": 2,
+      "rackRecords": {
+        "rack01": {
+          "status": "unknown_until_inspected",
+          "waterStatus": "unknown",
+          "nutrientStatus": "unknown",
+          "plantCondition": "unknown",
+          "automationStatus": "unknown"
+        },
+        "rack02": {
+          "status": "unknown_until_inspected",
+          "waterStatus": "unknown",
+          "nutrientStatus": "unknown",
+          "plantCondition": "unknown",
+          "automationStatus": "unknown"
+        }
+      },
+      "experimentSource": {
+        "missionId": "PHOBOSIA_SOL_06",
+        "soilSampleIdentity": "retrieve_from_persisted_mission_data",
+        "sampleProvenance": "preserve_original_record",
+        "experimentResults": "retrieve_from_persisted_records",
+        "doNotGenerateSyntheticResults": true
+      }
+    }
+  },
+  "missionZones": [
+    {
+      "zoneId": "Habitat",
+      "purpose": "Inspect the available water and nutrient reserve information through the existing Habitat interface."
+    },
+    {
+      "zoneId": "Research_Zone",
+      "purpose": "Inspect the two cultivation racks through their existing connected physical display and OS application."
+    },
+    {
+      "zoneId": "Engineering",
+      "purpose": "Inspect and restore the main water supply through the existing Board and Supply interface."
+    },
+    {
+      "zoneId": "MissionControl",
+      "purpose": "Review mission status and submit the final SOL 9 report through the existing supported interface."
+    }
+  ],
+  "existingInteractionBindings": {
+    "researchCultivationDisplay": {
+      "description": "Existing Research Zone Cultivation Environment display; the GLB does not provide named cultivation-rack objects or a verified rack-to-chamber data binding.",
+      "triggerId": "LAB_CULTIVATION_01",
+      "screenId": "Cultivation_EnvironmentScreen",
+      "osApplicationId": "SOL09_CULTIVATION_MANAGEMENT",
+      "interaction": "existing_E_interaction",
+      "createNewPhysicalScreen": false,
+      "createNewTrigger": false
+    },
+    "engineeringWaterSupplyDisplay": {
+      "description": "Existing Engineering Life Support Resource display; the requested Board and Supply display was not present in the inspected model.",
+      "triggerId": "Engineering_LifeSupport_Trigger",
+      "screenId": "LifeSupportUnitScreenMain02.001",
+      "osApplicationId": "SOL09_WATER_SUPPLY_CONTROL",
+      "interaction": "existing_E_interaction",
+      "createNewPhysicalScreen": false,
+      "createNewTrigger": false
+    },
+    "habitatWaterDisplay": {
+      "description": "Existing Habitat water and nutrients status interface.",
+      "triggerId": "HAB_WATER_NUTRITION_01",
+      "screenId": "Habitat_WaterNutrition_Display",
+      "interaction": "existing_E_interaction",
+      "createNewPhysicalScreen": false,
+      "createNewTrigger": false
+    }
+  },
+  "interfaces": [
+    { "interfaceId": "SOL09_CULTIVATION_MANAGEMENT", "triggerId": "LAB_CULTIVATION_01", "location": "Research Zone Cultivation Environment display" },
+    { "interfaceId": "SOL09_WATER_SUPPLY_CONTROL", "triggerId": "Engineering_LifeSupport_Trigger", "location": "Engineering Life Support Resource display" },
+    { "interfaceId": "SOL09_HABITAT_WATER", "triggerId": "HAB_WATER_NUTRITION_01", "location": "Habitat Water and Nutrition display" },
+    { "interfaceId": "SOL09_FINAL_REPORT", "triggerId": "MC_MAIN_01", "location": "Mission Control Main Operations Console" }
+  ],
+  "osApplications": {
+    "SOL09_CULTIVATION_MANAGEMENT": {
+      "applicationName": "Cultivation Management System",
+      "applicationType": "existing_phobosIA_os_application",
+      "location": "Research_Zone",
+      "entryPoint": "LAB_CULTIVATION_01",
+      "description": "An existing-display OS application for reviewing Sol 6 history and separate Rack 01/Rack 02 records. Rack-specific physical and telemetry mappings remain explicitly unavailable where not present in source data.",
+      "layout": {
+        "style": "existing_phobosIA_os_visual_language",
+        "theme": "dark_scientific_workstation",
+        "navigation": "application_internal_navigation",
+        "responsive": true,
+        "avoidIndependentFullscreenRenderer": true,
+        "reuseExistingOSWindowAndApplicationFramework": true
+      },
+      "mainDashboard": {
+        "sections": [
+          {
+            "id": "cultivation_overview",
+            "title": "Cultivation Overview",
+            "description": "Display a combined summary of both racks without merging their individual records.",
+            "widgets": [
+              "rack01_status",
+              "rack02_status",
+              "overall_irrigation_status",
+              "overall_nutrient_status",
+              "experiment_progress",
+              "last_recorded_observation"
+            ]
+          },
+          {
+            "id": "rack_selection",
+            "title": "Cultivation Racks",
+            "description": "Allow the player to select either of the two existing cultivation racks.",
+            "rackCards": [
+              {
+                "rackId": "resolve_from_existing_rack_mapping_01",
+                "displayLabel": "Rack 01",
+                "dataBinding": "existing_persisted_rack01_state"
+              },
+              {
+                "rackId": "resolve_from_existing_rack_mapping_02",
+                "displayLabel": "Rack 02",
+                "dataBinding": "existing_persisted_rack02_state"
+              }
+            ],
+            "independentRackState": true
+          },
+          {
+            "id": "experiment_history",
+            "title": "Experiment History",
+            "description": "Review the cultivation experiment initiated in SOL 6.",
+            "dataSources": [
+              "PHOBOSIA_SOL_06",
+              "existing_cultivation_experiment_records",
+              "existing_soil_sample_provenance"
+            ],
+            "displayFields": [
+              "experiment_id",
+              "sample_identity",
+              "sample_origin",
+              "recorded_experiment_date",
+              "recorded_observations",
+              "recorded_growth_status",
+              "recorded_plant_condition"
+            ],
+            "preserveOriginalRecords": true,
+            "allowFabricatedResults": false
+          }
+        ]
+      },
+      "rackInspection": {
+        "sharedTemplate": true,
+        "separateDataBindings": true,
+        "sections": [
+          {
+            "id": "plant_condition",
+            "title": "Plant Condition",
+            "description": "Show the latest persisted observations for the selected rack.",
+            "fields": [
+              "growth_stage",
+              "plant_condition",
+              "visible_observations",
+              "last_observation_timestamp",
+              "health_assessment"
+            ],
+            "unknownValueLabel": "Not recorded",
+            "doNotInferPlantHealth": true
+          },
+          {
+            "id": "irrigation_status",
+            "title": "Irrigation Status",
+            "description": "Inspect water availability and irrigation delivery for the selected rack.",
+            "fields": [
+              "irrigation_status",
+              "water_delivery_status",
+              "available_water_reading",
+              "last_irrigation_event",
+              "irrigation_automation_status"
+            ],
+            "interactiveControls": [
+              {
+                "controlId": "rack_irrigation_enable",
+                "type": "toggle",
+                "description": "Enable or disable the existing irrigation control if supported by the current system.",
+                "requiresExistingControlMapping": true
+              },
+              {
+                "controlId": "rack_irrigation_manual_test",
+                "type": "action",
+                "description": "Run a supported irrigation status test and display the returned result.",
+                "requiresExistingControlMapping": true
+              }
+            ]
+          },
+          {
+            "id": "nutrient_status",
+            "title": "Nutrient Supply",
+            "description": "Inspect nutrient availability and distribution for the selected rack.",
+            "fields": [
+              "nutrient_solution_status",
+              "nutrient_availability",
+              "recorded_concentration",
+              "last_nutrient_update",
+              "nutrient_delivery_status"
+            ],
+            "unknownValueLabel": "Not recorded",
+            "doNotInventConcentrationValues": true
+          },
+          {
+            "id": "root_environment",
+            "title": "Root Environment",
+            "description": "Show only environmental values that are already recorded or supported by the current cultivation simulation.",
+            "optionalFields": [
+              "root_zone_moisture",
+              "growing_medium_condition",
+              "root_environment_temperature"
+            ],
+            "hideUnavailableMeasurements": true
+          },
+          {
+            "id": "automation_status",
+            "title": "Automation",
+            "description": "Inspect the existing irrigation automation and scheduling state.",
+            "fields": [
+              "automation_enabled",
+              "current_schedule",
+              "last_automation_event",
+              "next_scheduled_event",
+              "automation_fault"
+            ],
+            "doNotInventSchedules": true
+          },
+          {
+            "id": "rack_observation_history",
+            "title": "Observation History",
+            "description": "Review the selected rack's persisted history without combining it with the other rack.",
+            "fields": [
+              "observation_timestamp",
+              "recorded_condition",
+              "water_events",
+              "nutrient_events",
+              "maintenance_events"
+            ]
+          }
+        ]
+      },
+      "interactiveVisualizations": {
+        "irrigationDistribution": {
+          "enabled": true,
+          "visualizationType": "interactive_2d_or_3d_system_diagram",
+          "description": "Display a technical visualization of the existing irrigation distribution path serving the selected rack.",
+          "mustUseExistingSystemTopology": true,
+          "components": [
+            "existing_water_inlet",
+            "existing_irrigation_lines",
+            "existing_valves_if_present",
+            "existing_distribution_points",
+            "selected_cultivation_rack"
+          ],
+          "visualStates": [
+            "normal_flow",
+            "restricted_flow",
+            "inactive_flow",
+            "unknown_flow"
+          ],
+          "visualFeedback": {
+            "flowAnimation": "lightweight_animated_flow_indicators",
+            "statusHighlighting": true,
+            "showUnavailableComponentsAsUnknown": true
+          },
+          "playerInteractions": [
+            "select_component",
+            "inspect_component_status",
+            "operate_supported_valve_or_control",
+            "run_irrigation_test",
+            "review_test_result"
+          ],
+          "rules": [
+            "Do not invent physical pipes or valves that do not exist in the project.",
+            "Do not allow a visual diagram interaction to bypass mission validation.",
+            "Do not claim that water physically flowed unless the relevant system state confirms it.",
+            "Keep Rack 01 and Rack 02 distribution states independent."
+          ]
+        },
+        "nutrientMonitoring": {
+          "enabled": true,
+          "visualizationType": "interactive_nutrient_status_panel",
+          "description": "Provide an interactive representation of nutrient availability, mixing status and delivery to the selected rack.",
+          "possibleVisualElements": [
+            "nutrient_reservoir_status",
+            "mixing_status",
+            "nutrient_delivery_indicator",
+            "available_measurement_gauges",
+            "calibration_status"
+          ],
+          "playerInteractions": [
+            "inspect_nutrient_status",
+            "inspect_available_measurements",
+            "operate_existing_supported_controls",
+            "run_supported_calibration_check"
+          ],
+          "scientificRules": [
+            "Use existing experiment configuration for valid ranges.",
+            "Do not create arbitrary pH or EC target values.",
+            "Do not fabricate nutrient concentrations.",
+            "If no valid target range exists, provide inspection only and mark calibration unavailable."
+          ]
+        }
+      },
+      "rackRepairAndValidation": {
+        "rack01": {
+          "completionEvent": "SOL09_RACK_01_IRRIGATION_VERIFIED",
+          "requiredConditions": [
+            "rack01_inspected",
+            "rack01_irrigation_test_completed",
+            "rack01_result_persisted"
+          ]
+        },
+        "rack02": {
+          "completionEvent": "SOL09_RACK_02_IRRIGATION_VERIFIED",
+          "requiredConditions": [
+            "rack02_inspected",
+            "rack02_irrigation_test_completed",
+            "rack02_result_persisted"
+          ]
+        },
+        "nutrientVerificationEvent": "SOL09_NUTRIENT_SYSTEM_VERIFIED",
+        "validationRules": [
+          "A rack must be inspected individually.",
+          "A rack test must use its own persisted state.",
+          "A successful test on Rack 01 must not complete Rack 02.",
+          "A failed test must remain failed or unresolved until a valid retry succeeds.",
+          "A UI toggle alone must not complete a mission objective.",
+          "Only a validated system result can publish a completion event."
+        ]
+      },
+      "applicationExit": {
+        "preserveSelectedRack": true,
+        "preserveInspectionState": true,
+        "restoreExistingOSNavigation": true,
+        "doNotCloseMissionOrAdvanceDay": true
+      }
+    },
+    "SOL09_WATER_SUPPLY_CONTROL": {
+      "applicationName": "Water Supply & Distribution Control",
+      "applicationType": "existing_phobosIA_os_application",
+      "location": "Engineering",
+      "entryPoint": "Engineering_LifeSupport_Trigger",
+      "description": "An assessment application on the existing Engineering Life Support Resource display. The requested Board and Supply display, main-supply status and physical repair control were not found, so the application does not claim a water repair.",
+      "layout": {
+        "style": "existing_phobosIA_os_visual_language",
+        "theme": "dark_industrial_engineering",
+        "navigation": "application_internal_navigation",
+        "responsive": true,
+        "reuseExistingOSWindowAndApplicationFramework": true,
+        "avoidIndependentFullscreenRenderer": true
+      },
+      "mainDashboard": {
+        "widgets": [
+          "main_water_supply_status",
+          "water_reserve_status",
+          "distribution_status",
+          "filtration_status_if_available",
+          "pump_status_if_available",
+          "cultivation_supply_status",
+          "habitat_supply_status",
+          "last_system_update"
+        ],
+        "statusRules": [
+          "Read actual persisted state.",
+          "Do not assume the water supply is damaged before inspection.",
+          "Do not fabricate reserve percentages or pressure values.",
+          "Clearly label unavailable readings."
+        ]
+      },
+      "systemInspection": {
+        "sections": [
+          {
+            "id": "water_reserve",
+            "title": "Water Reserve",
+            "fields": [
+              "current_reserve_value",
+              "reserve_unit",
+              "reserve_capacity",
+              "last_recorded_update",
+              "reserve_status"
+            ],
+            "dataSource": "existing_water_system_state",
+            "hideUnavailableMeasurements": true
+          },
+          {
+            "id": "main_supply",
+            "title": "Main Supply",
+            "fields": [
+              "supply_status",
+              "supply_connection_status",
+              "supply_fault",
+              "last_repair_event"
+            ],
+            "dataSource": "existing_engineering_water_system_state"
+          },
+          {
+            "id": "distribution_network",
+            "title": "Distribution Network",
+            "fields": [
+              "distribution_status",
+              "habitat_delivery_status",
+              "cultivation_delivery_status",
+              "detected_restrictions",
+              "last_distribution_test"
+            ],
+            "dataSource": "existing_water_distribution_state"
+          },
+          {
+            "id": "filtration_and_pumping",
+            "title": "Filtration & Pumping",
+            "description": "Show only components confirmed to exist in the current Engineering Unit model and project configuration.",
+            "fields": [
+              "filter_status",
+              "pump_status",
+              "component_faults",
+              "maintenance_history"
+            ],
+            "hideNonexistentComponents": true
+          },
+          {
+            "id": "storm_impact_review",
+            "title": "Post-Storm Assessment",
+            "description": "Review SOL 7 storm records and correlate them with actual water-system records.",
+            "dataSource": "PHOBOSIA_SOL_07",
+            "fields": [
+              "storm_start_timestamp",
+              "storm_end_timestamp",
+              "calculated_storm_duration",
+              "post_storm_assessment",
+              "recorded_water_system_impact"
+            ],
+            "calculateDurationFromPersistedTimestampsOnly": true,
+            "markUnavailableIfMissing": true,
+            "doNotInventStormImpact": true
+          }
+        ]
+      },
+      "interactiveWaterDiagnosis": {
+        "enabled": true,
+        "visualizationType": "interactive_water_distribution_diagram",
+        "description": "Provide an interactive technical diagram representing the actual existing water supply and distribution topology.",
+        "mustUseExistingSystemTopology": true,
+        "components": [
+          "existing_main_water_supply",
+          "existing_water_reserve",
+          "existing_distribution_components",
+          "existing_habitat_branch_if_present",
+          "existing_cultivation_branch_if_present"
+        ],
+        "optionalComponents": [
+          "existing_pump",
+          "existing_filter",
+          "existing_valves",
+          "existing_connection_junctions"
+        ],
+        "visualStates": [
+          "operational",
+          "restricted",
+          "inactive",
+          "damaged",
+          "unknown"
+        ],
+        "playerInteractions": [
+          "select_component",
+          "inspect_component",
+          "view_component_status",
+          "operate_existing_control",
+          "run_diagnostic_test",
+          "review_diagnostic_result"
+        ],
+        "visualFeedback": {
+          "waterFlowAnimation": "lightweight_animated_flow_indicators",
+          "pressureIndicators": "only_if_supported_by_existing_state",
+          "faultHighlighting": true,
+          "connectionStatusIndicators": true
+        },
+        "validationRules": [
+          "The visualization must reflect authoritative water-system state.",
+          "A player action must produce a real state transition through the existing system.",
+          "Do not let the player visually connect arbitrary pipes to bypass repair conditions.",
+          "Do not report restored supply until the engineering system confirms it.",
+          "Do not introduce a new water simulation engine if the existing state model can represent the required behavior."
+        ]
+      },
+      "restorationWorkflow": {
+        "description": "Restore the main water supply only after the actual identified fault has been addressed and the supported verification test succeeds.",
+        "requiredStages": [
+          {
+            "stageId": "water_system_inspection",
+            "title": "Inspect Water System",
+            "completionCondition": "Actual main supply and distribution status retrieved."
+          },
+          {
+            "stageId": "fault_identification",
+            "title": "Identify Water-System Fault",
+            "completionCondition": "A fault is identified from existing persisted state or a supported diagnostic."
+          },
+          {
+            "stageId": "engineering_repair",
+            "title": "Perform Engineering Repair",
+            "completionCondition": "Required existing repair interaction succeeds."
+          },
+          {
+            "stageId": "supply_verification",
+            "title": "Verify Main Supply",
+            "completionCondition": "Engineering system reports restored supply and a successful verification test."
+          }
+        ],
+        "completionEvent": "SOL09_MAIN_WATER_SUPPLY_RESTORED",
+        "mustNotCompleteOnButtonPressAlone": true,
+        "mustPersistValidatedResult": true
+      },
+      "applicationExit": {
+        "preserveDiagnosticResults": true,
+        "restoreExistingOSNavigation": true,
+        "doNotAdvanceDay": true
+      }
+    }
+  },
+  "sharedWaterSystemState": {
+    "description": "A single authoritative water-system state must be shared between Engineering, Habitat and the Research Zone.",
+    "authoritativeSource": "existing_game_water_system_state",
+    "consumers": [
+      "SOL09_WATER_SUPPLY_CONTROL",
+      "existing_habitat_water_nutrition_interface",
+      "SOL09_CULTIVATION_MANAGEMENT"
+    ],
+    "rules": [
+      "Engineering controls the main water supply state.",
+      "Habitat displays the relevant available water and nutrient information.",
+      "Cultivation Management displays the supply available to each rack.",
+      "A main supply restoration must update dependent displays through the existing state/event mechanism.",
+      "Individual rack irrigation faults remain independently diagnosable.",
+      "Rack 01 state must never overwrite Rack 02 state.",
+      "Do not create separate conflicting copies of the same water reserve value."
+    ]
+  },
+  "seedStorageInspection": {
+    "enabled": true,
+    "description": "Review existing seed storage information if the project already persists it.",
+    "dataSource": "existing_seed_storage_records",
+    "fields": [
+      "seed_type",
+      "stored_quantity",
+      "storage_capacity",
+      "recorded_viability",
+      "last_inventory_update"
+    ],
+    "hideUnavailableFields": true,
+    "doNotInventSeedCounts": true,
+    "doesNotBlockMissionCompletionIfNoDataExists": true
+  },
+  "tasks": [
+    {
+      "taskId": "SOL09_TASK_01",
+      "title": "Inspect Habitat Water and Nutrient Reserves",
+      "zone": "Habitat",
+      "mandatory": true,
+      "objective": "Use the existing Habitat water and nutrients interface to inspect the current reserve information and record any reported shortage.",
+      "completionCondition": "Habitat reserve information has been retrieved and inspection evidence persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_02",
+      "title": "Review the Cultivation Experiment",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Open the existing cultivation display and review the SOL 6 experiment history, sample provenance and available observations.",
+      "completionCondition": "Original SOL 6 cultivation records have been reviewed without modifying their provenance."
+    },
+    {
+      "taskId": "SOL09_TASK_03",
+      "title": "Inspect Cultivation Rack 01",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Inspect Rack 01 plant condition, irrigation status, nutrient supply and automation state.",
+      "completionCondition": "Rack 01 inspection record persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_04",
+      "title": "Inspect Cultivation Rack 02",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Inspect Rack 02 independently using its own data binding.",
+      "completionCondition": "Rack 02 inspection record persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_05",
+      "title": "Diagnose the Main Water Supply",
+      "zone": "Engineering",
+      "mandatory": true,
+      "objective": "Use the existing Engineering Board and Supply OS application to inspect the main water supply and distribution system.",
+      "completionCondition": "A supported diagnostic result has been persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_06",
+      "title": "Restore the Main Water Supply",
+      "zone": "Engineering",
+      "mandatory": true,
+      "objective": "Perform the required engineering repair using the existing water-system controls and verify the restored supply.",
+      "completionCondition": "SOL09_MAIN_WATER_SUPPLY_RESTORED event is validated and persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_07",
+      "title": "Verify Cultivation Irrigation",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Test irrigation delivery for both racks independently and resolve any supported irrigation fault.",
+      "completionCondition": "Both rack verification events are validated and persisted."
+    },
+    {
+      "taskId": "SOL09_TASK_08",
+      "title": "Verify Nutrient Distribution",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Inspect nutrient availability and verify the existing nutrient distribution system using supported measurements and controls.",
+      "completionCondition": "Nutrient system verification is persisted, or the report records that the relevant measurement or control is unavailable."
+    },
+    {
+      "taskId": "SOL09_TASK_09",
+      "title": "Review Cultivation and Water-System Evidence",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Review the recorded experiment, water-system repair result, rack conditions and irrigation verification results.",
+      "completionCondition": "Evidence review is completed and the final assessment is saved."
+    },
+    {
+      "taskId": "SOL09_TASK_10",
+      "title": "Submit the SOL 9 Report",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Submit a report summarising the water-system condition, repairs, rack inspections, nutrient verification and cultivation experiment status.",
+      "completionCondition": "All mandatory mission tasks are validated and the final report is persisted."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "SOL09_OBJ_HABITAT_WATER_INSPECTION",
+      "title": "Inspect Habitat Water Reserves",
+      "type": "screen_interaction",
+      "required": true,
+      "completionCondition": "Habitat water and nutrient information retrieved."
+    },
+    {
+      "id": "SOL09_OBJ_CULTIVATION_HISTORY",
+      "title": "Review SOL 6 Cultivation Records",
+      "type": "data_review",
+      "required": true,
+      "completionCondition": "Existing cultivation history and sample provenance reviewed."
+    },
+    {
+      "id": "SOL09_OBJ_RACK_01",
+      "title": "Inspect Rack 01",
+      "type": "os_application_interaction",
+      "required": true,
+      "completionCondition": "Rack 01 inspection saved."
+    },
+    {
+      "id": "SOL09_OBJ_RACK_02",
+      "title": "Inspect Rack 02",
+      "type": "os_application_interaction",
+      "required": true,
+      "completionCondition": "Rack 02 inspection saved."
+    },
+    {
+      "id": "SOL09_OBJ_WATER_DIAGNOSTIC",
+      "title": "Diagnose Water Supply",
+      "type": "interactive_os_application",
+      "required": true,
+      "completionCondition": "Engineering diagnostic result persisted."
+    },
+    {
+      "id": "SOL09_OBJ_WATER_RESTORATION",
+      "title": "Restore Water Supply",
+      "type": "validated_engineering_action",
+      "required": true,
+      "completionCondition": "Main supply restoration event validated."
+    },
+    {
+      "id": "SOL09_OBJ_RACK_IRRIGATION",
+      "title": "Verify Both Irrigation Systems",
+      "type": "interactive_os_application",
+      "required": true,
+      "completionCondition": "Rack 01 and Rack 02 irrigation verification events validated."
+    },
+    {
+      "id": "SOL09_OBJ_NUTRIENT_VERIFICATION",
+      "title": "Verify Nutrient Distribution",
+      "type": "interactive_os_application",
+      "required": true,
+      "completionCondition": "Nutrient verification completed or explicitly recorded as unavailable."
+    },
+    {
+      "id": "SOL09_OBJ_FINAL_REPORT",
+      "title": "Submit Final Report",
+      "type": "report_submission",
+      "required": true,
+      "completionCondition": "Final report validated and persisted."
+    }
+  ],
+  "eventDefinitions": {
+    "SOL09_RACK_01_IRRIGATION_VERIFIED": {
+      "source": "SOL09_CULTIVATION_MANAGEMENT",
+      "requiresValidatedResult": true
+    },
+    "SOL09_RACK_02_IRRIGATION_VERIFIED": {
+      "source": "SOL09_CULTIVATION_MANAGEMENT",
+      "requiresValidatedResult": true
+    },
+    "SOL09_NUTRIENT_SYSTEM_VERIFIED": {
+      "source": "SOL09_CULTIVATION_MANAGEMENT",
+      "requiresValidatedResult": true
+    },
+    "SOL09_MAIN_WATER_SUPPLY_RESTORED": {
+      "source": "SOL09_WATER_SUPPLY_CONTROL",
+      "requiresValidatedResult": true
+    },
+    "SOL09_FINAL_REPORT_SUBMITTED": {
+      "source": "MissionControl",
+      "requiresValidatedResult": true
+    }
+  },
+  "navigation": {
+    "enabled": true,
+    "useExistingNavigationSystem": true,
+    "destinations": [
+      {
+        "destinationId": "SOL09_HABITAT_WATER_INSPECTION",
+        "zone": "Habitat",
+        "description": "Existing Habitat water and nutrients display."
+      },
+      {
+        "destinationId": "SOL09_RESEARCH_CULTIVATION_DISPLAY",
+        "zone": "Research_Zone",
+        "description": "Existing display connected to the two cultivation racks."
+      },
+      {
+        "destinationId": "SOL09_ENGINEERING_WATER_DISPLAY",
+        "zone": "Engineering",
+        "description": "Existing Engineering Board and Supply display."
+      },
+      {
+        "destinationId": "SOL09_MISSION_REPORT",
+        "zone": "MissionControl",
+        "description": "Existing mission report submission interface."
+      }
+    ],
+    "resolveCoordinatesFromExistingNavigationData": true,
+    "doNotInventTriggerCoordinates": true
+  },
+  "report": {
+    "reportId": "SOL09_FINAL_WATER_AND_CULTIVATION_REPORT",
+    "title": "Water System Recovery & Cultivation Assessment",
+    "requiredSections": [
+      "mission_summary",
+      "SOL_7_storm_record_review",
+      "water_reserve_status",
+      "main_water_supply_diagnostic",
+      "water_restoration_result",
+      "rack_01_inspection",
+      "rack_02_inspection",
+      "irrigation_verification",
+      "nutrient_distribution_assessment",
+      "SOL_6_experiment_history",
+      "soil_sample_provenance",
+      "plant_condition_assessment",
+      "seed_storage_status_if_available",
+      "data_limitations",
+      "final_conclusion"
+    ],
+    "scientificReportingRules": [
+      "Use persisted observations and validated mission events.",
+      "Clearly identify unavailable records.",
+      "Do not fabricate plant growth, plant health, nutrient levels, water reserves or storm duration.",
+      "Do not alter SOL 6 sample identity or provenance.",
+      "Distinguish simulated gameplay telemetry from NASA-derived information.",
+      "Preserve unresolved issues in the final report."
+    ]
+  },
+  "completion": {
+    "allMandatoryTasksRequired": true,
+    "requiredEvents": [
+      "SOL09_MAIN_WATER_SUPPLY_RESTORED",
+      "SOL09_RACK_01_IRRIGATION_VERIFIED",
+      "SOL09_RACK_02_IRRIGATION_VERIFIED",
+      "SOL09_FINAL_REPORT_SUBMITTED"
+    ],
+    "nutrientVerificationMustBeRecorded": true,
+    "preserveAllPreviousSOLProgress": true,
+    "onComplete": {
+      "setMissionStatus": "completed",
+      "persistMissionResults": true,
+      "unlockNextMission": true,
+      "advanceDayAutomatically": false
+    }
+  },
+  "persistence": {
+    "useExistingMissionPersistence": true,
+    "preserveSOL06CultivationRecords": true,
+    "preserveSOL07StormRecords": true,
+    "preserveSOL08RecoveryRecords": true,
+    "persistRackStatesIndependently": true,
+    "persistWaterSystemState": true,
+    "persistDiagnosticResults": true,
+    "persistValidatedRepairEvents": true,
+    "persistReport": true,
+    "reloadMustRestoreCompletedActions": true,
+    "preventDuplicateCompletionEvents": true
+  },
+  "performance": {
+    "reuseExistingOSFramework": true,
+    "reuseExistingThreeJSRenderer": true,
+    "avoidAdditionalWebGLContexts": true,
+    "preferLightweightDiagrams": true,
+    "useLowPolyVisualizationWhere3DIsRequired": true,
+    "limitAnimatedFlowEffects": true,
+    "disposeTemporaryResources": true,
+    "avoidUnboundedAnimationLoops": true,
+    "targetHardware": {
+      "gpu": "NVIDIA MX350 2GB VRAM",
+      "ram": "12GB"
+    }
+  },
+  "dataProvenance": {
+    "NASAData": "Only explicitly sourced NASA datasets and records.",
+    "MissionSimulation": "PHOBOSIA gameplay state, simulated telemetry and mission events.",
+    "CultivationExperiment": "Persisted SOL 6 experiment records and later verified observations.",
+    "StormHistory": "Persisted SOL 7 timestamps and assessment records.",
+    "unknownData": "Must be labelled unavailable or not recorded."
+  },
+  "dataIntegrity": {
+    "noFabricatedMeasurements": true,
+    "noFabricatedExperimentOutcomes": true,
+    "noInventedSceneObjects": true,
+    "noInventedTriggerIds": true,
+    "noInventedCoordinates": true,
+    "noDuplicateGlobalSystems": true,
+    "noGlobalSchemaModificationWithoutApproval": true,
+    "preserveExistingMissionHistory": true,
+    "preserveExistingOSFramework": true
+  }
+}

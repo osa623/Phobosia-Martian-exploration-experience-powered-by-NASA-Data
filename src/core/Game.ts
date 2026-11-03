@@ -2128,6 +2128,7 @@ export class Game {
       }
       const check = this.missionManager.canRestAndAdvance();
       if (!check.canAdvance) {
+        const terminalMissionComplete = this.state.missionDay === 9 && Boolean(this.missionManager.getSol09Progress().report?.validated);
         const remaining = this.missionManager.getRemainingSteps();
         const missingTasks = remaining.map(task => {
           const dayOneTask = DAY1_TASKS.find(item => item.taskId === task.stepId);
@@ -2136,7 +2137,7 @@ export class Game {
         });
         this.set({
           restFeedback: {
-            type: "blocked",
+            type: terminalMissionComplete ? "success" : "blocked",
             message: this.state.missionDay === 1
               ? `Sol 1 Incomplete: ${missingTasks.length} required ${missingTasks.length === 1 ? "task remains" : "tasks remain"} before resting. Finish them and return to the Habitat Rest Area.`
               : check.reason,
@@ -2213,26 +2214,7 @@ export class Game {
       }
     }
 
-    // 3. Mission Control Day 5 Route Planning & Day 9 Drone Console
-    if (this.active === "MissionControl") {
-      if (
-        this.state.missionDay === 9 &&
-        (this.nearby.identifier === "MC_SYSTEMS_01" ||
-          this.nearby.identifier === "MC_NAVIGATION_01" ||
-          this.nearby.identifier === "MC_MAIN_01" ||
-          /Drone/i.test(this.nearby.identifier))
-      ) {
-        document.exitPointerLock();
-        this.missionManager.completeStep("D9_OBJ_01_REVIEW_DRONE_TASK");
-        this.set({
-          showDroneConsoleModal: true,
-          prompt: ""
-        });
-        return;
-      }
-    }
-
-    // 4. Sol 8 Research Lab analysis sequence. Sol 3 uses the same physical
+    // 3. Sol 8 Research Lab analysis sequence. Sol 3 uses the same physical
     // analysis trigger for its dataset investigation through TriggerOperatingSystem.
     if (
       this.state.missionDay === 8 &&
