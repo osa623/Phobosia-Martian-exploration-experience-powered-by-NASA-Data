@@ -58,6 +58,7 @@ const mockState: GameState = {
   sol5Message: null,
   showCinematicOverlay: false,
   showOSDesktop: true,
+  showPersonalLaptop: false,
   osInitialApp: undefined,
   cameraPresentation: null
 };

@@ -2,7 +2,10 @@
   "name": "phobosia",
   "private": true,
   "scripts": {
+    "refresh:laptop-assets": "node scripts/generate-laptop-assets.mjs",
+    "predev": "npm run refresh:laptop-assets",
     "dev": "node node_modules/next/dist/bin/next dev",
+    "prebuild": "npm run refresh:laptop-assets",
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",

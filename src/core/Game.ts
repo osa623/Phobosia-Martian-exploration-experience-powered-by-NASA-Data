@@ -26,6 +26,7 @@ import { ResearchScreenRenderer } from "./ResearchScreenRenderer";
 import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
+import { LaptopScreenRenderer } from "@/jsons/Screens/Laptop_Screen/LaptopScreenRenderer";
 import { CameraPresentationManager } from "./CameraPresentation";
 import { GameAudioManager, resolveIndoorMovementAudioState } from "./GameAudioManager";
 import { DEFAULT_MOVEMENT_CONFIG, EVA_MOVEMENT_CONFIG } from "./MovementConfig";
@@ -125,6 +126,7 @@ export class Game {
 
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
+  private laptopScreenRenderer = new LaptopScreenRenderer();
   private habitatScreenRenderer = new HabitatScreenRenderer();
   private engineeringScreenRenderer = new EngineeringScreenRenderer();
   private researchScreenRenderer = new ResearchScreenRenderer();
@@ -268,6 +270,7 @@ export class Game {
 
       showCinematicOverlay: false,
       showOSDesktop: false,
+      showPersonalLaptop: false,
       osInitialApp: undefined,
       cameraPresentation: null
     };
@@ -510,7 +513,8 @@ export class Game {
       this.state.showDroneConsoleModal ||
       this.state.restFeedback ||
       this.state.showCinematicOverlay ||
-      this.state.showOSDesktop;
+      this.state.showOSDesktop ||
+      this.state.showPersonalLaptop;
 
     if (!isModalOpen) {
       void this.renderer.domElement.requestPointerLock();
@@ -772,6 +776,19 @@ export class Game {
     }
     this.cinematicGliding = false;
     this.set({ showOSDesktop: false, showCinematicOverlay: false });
+    this.lock();
+  }
+
+  openPersonalLaptop() {
+    if (this.active !== "Habitat" || this.transitioning) return;
+    if (document.pointerLockElement) document.exitPointerLock();
+    this.player.keys.clear();
+    this.set({ showPersonalLaptop: true, prompt: "" });
+  }
+
+  closePersonalLaptop() {
+    if (!this.state.showPersonalLaptop) return;
+    this.set({ showPersonalLaptop: false });
     this.lock();
   }
 
@@ -1293,6 +1310,7 @@ export class Game {
       this.state.restFeedback ||
       this.state.showCinematicOverlay ||
       this.state.showOSDesktop ||
+      this.state.showPersonalLaptop ||
       this.cameraPresentationManager.isPresentationActive();
 
     if (isModalOpen) return;
@@ -1470,6 +1488,14 @@ export class Game {
       if (e.code === "Escape") {
         e.preventDefault();
         this.closeOSDesktop();
+      }
+      return;
+    }
+
+    if (this.state.showPersonalLaptop) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        this.closePersonalLaptop();
       }
       return;
     }
@@ -1681,8 +1707,10 @@ export class Game {
     // Attach 3D screen plane rendering to actual screen meshes
     if (module === "Habitat") {
       this.habitatScreenRenderer.attachToHabitat(model, this.missionManager.getState());
+      this.laptopScreenRenderer.attachToHabitat(model);
     } else {
       this.habitatScreenRenderer.dispose();
+      this.laptopScreenRenderer.dispose();
     }
     if (module === "Engineering") {
       this.engineeringScreenRenderer.attachToEngineering(model, this.missionManager.getState());
@@ -2119,6 +2147,18 @@ export class Game {
       return;
     }
     if (key !== "E") return;
+
+    if (this.active === "Habitat" && this.nearby.identifier === "HAB_WORKSTATION_01") {
+      document.exitPointerLock();
+      const result = this.missionManager.handleContextEvent({ type: "trigger_interacted", module: this.active, identifier: this.nearby.identifier });
+      this.set({
+        notification: result.feedback ?? (this.state.missionDay === 1 ? "Habitat workstation opened. Personal laptop ready." : null),
+        prompt: "",
+        showPersonalLaptop: true
+      });
+      this.player.keys.clear();
+      return;
+    }
 
     // 2. Habitat Rest & Day Advance
     if (this.nearby.identifier === "HAB_REST_01") {
@@ -2719,6 +2759,7 @@ export class Game {
     }
 
     this.habitatScreenRenderer.dispose();
+    this.laptopScreenRenderer.dispose();
     this.engineeringScreenRenderer.dispose();
     this.researchScreenRenderer.dispose();
     this.missionControlScreenRenderer.dispose();

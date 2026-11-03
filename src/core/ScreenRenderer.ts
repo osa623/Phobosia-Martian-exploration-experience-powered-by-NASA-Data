@@ -71,6 +71,9 @@ export class ScreenRenderer {
 
       const rendererType = this.matchScreenType(moduleName, identifier);
       if (rendererType) {
+        // The Habitat personal laptop uses its own fixed desktop renderer.
+        if (moduleName === "Habitat" && identifier.includes("Habitat_Workstation_Display")) return;
+
         // Habitat physical status displays are handled by dedicated HabitatScreenRenderer
         if (
           moduleName === "Habitat" &&

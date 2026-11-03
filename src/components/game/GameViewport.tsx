@@ -11,6 +11,8 @@ import {
   type TerrainRouteTarget
 } from "@/core/MissionManager";
 import { Sol6FieldCapture } from "@/missions/SOL_06/components/Sol6FieldCapture";
+import { PersonalLaptopOS } from "@/systems/personal-laptop/PersonalLaptopOS";
+import { LaptopAudioController, type LaptopAudioSnapshot } from "@/systems/personal-laptop/LaptopAudioController";
 
 const initialState: GameState = {
   ready: false,
@@ -73,6 +75,7 @@ const initialState: GameState = {
 
   showCinematicOverlay: false,
   showOSDesktop: false,
+  showPersonalLaptop: false,
   osInitialApp: undefined,
   cameraPresentation: null
 };
@@ -82,6 +85,8 @@ export function GameViewport() {
   const game = useRef<Game | null>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<GameState>(initialState);
+  const [laptopAudio, setLaptopAudio] = useState<LaptopAudioController | null>(null);
+  const [laptopAudioSnapshot, setLaptopAudioSnapshot] = useState<Readonly<LaptopAudioSnapshot> | null>(null);
 
   // Sol 05 Route Planning
   const [selectedTarget, setSelectedTarget] = useState<string>("TARGET_ALPHA_CRATER_RIM");
@@ -112,6 +117,20 @@ export function GameViewport() {
   }, []);
 
   useEffect(() => {
+    const controller = new LaptopAudioController();
+    setLaptopAudio(controller);
+    const unsubscribe = controller.subscribe(setLaptopAudioSnapshot);
+    return () => {
+      unsubscribe();
+      controller.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    laptopAudio?.setHabitatAudible(state.module === "Habitat");
+  }, [laptopAudio, state.module]);
+
+  useEffect(() => {
     if (state.transition !== "video" || !video.current) return;
     const element = video.current;
     element.currentTime = 0;
@@ -133,6 +152,7 @@ export function GameViewport() {
     !state.restFeedback &&
     !state.showCinematicOverlay &&
     !state.showOSDesktop &&
+    !state.showPersonalLaptop &&
     !state.cameraPresentation;
   const compassPoints = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const compassIndex = Math.round(state.evaHeadingDegrees / 45) % compassPoints.length;
@@ -146,7 +166,7 @@ export function GameViewport() {
         onTravel={(targetModule) => void game.current?.speedTravel(targetModule)}
       />  */}
       {/* EVA visor frame and edge-positioned telemetry, based on the supplied Mars helmet reference. */}
-      {state.evaSuitActive && !state.transition && !state.droneModeActive && !state.sol5DroneActive && !state.panel && !state.showOSDesktop && !state.showCinematicOverlay && (
+      {state.evaSuitActive && !state.transition && !state.droneModeActive && !state.sol5DroneActive && !state.panel && !state.showOSDesktop && !state.showPersonalLaptop && !state.showCinematicOverlay && (
         <div className="[position:fixed] [inset:0] [pointer-events:none] [z-index:20] [overflow:hidden]" aria-label="EVA helmet visor and suit HUD">
           <div className="[position:absolute] [inset:0] [background:radial-gradient(ellipse_at_center,_transparent_59%,_rgba(4,_7,_10,_0.12)_76%,_rgba(2,_4,_6,_0.48)_100%)]" />
           {state.isOutdoorTerrain && <div className="[position:absolute] [inset:0] [background:radial-gradient(ellipse_at_center,_rgba(151,_78,_42,_0.035)_22%,_rgba(129,_69,_42,_0.08)_72%,_rgba(93,_48,_30,_0.17)_100%)] [mix-blend-mode:soft-light]" />}
@@ -323,6 +343,15 @@ export function GameViewport() {
             state={state}
             onClose={() => game.current?.closeOSDesktop()}
             initialApp={state.osInitialApp}
+          />
+        )}
+
+        {laptopAudio && laptopAudioSnapshot && (
+          <PersonalLaptopOS
+            open={state.showPersonalLaptop}
+            onClose={() => game.current?.closePersonalLaptop()}
+            audio={laptopAudio}
+            audioSnapshot={laptopAudioSnapshot}
           />
         )}
 

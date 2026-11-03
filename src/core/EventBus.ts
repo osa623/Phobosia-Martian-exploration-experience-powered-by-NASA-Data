@@ -96,6 +96,7 @@ export interface GameState {
   // Cinematic screen interaction + PHOBOSIA OS Desktop
   showCinematicOverlay: boolean;
   showOSDesktop: boolean;
+  showPersonalLaptop: boolean;
   osInitialApp?: string;
 
   // Day 1 Camera Presentation Banner
