@@ -21,6 +21,7 @@
  */
 
 import * as THREE from "three";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
@@ -340,6 +341,7 @@ export class ResearchScreenRenderer {
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.texture.needsUpdate = true;
     }
   }

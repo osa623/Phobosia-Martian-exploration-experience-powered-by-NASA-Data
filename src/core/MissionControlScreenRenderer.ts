@@ -27,6 +27,7 @@ import { DAYS_CONFIG, getMissionTaskProgressFor, type MissionDayNumber } from ".
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import sol03Mission from "../jsons/Missions/sol-03.json";
 import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
 export interface MissionControlScreenPanel {
   id?: string;
@@ -338,6 +339,7 @@ export class MissionControlScreenRenderer {
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.texture.needsUpdate = true;
     }
   }

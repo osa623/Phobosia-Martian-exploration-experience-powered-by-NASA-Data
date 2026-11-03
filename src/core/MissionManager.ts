@@ -14,6 +14,8 @@ import { SOL5_TASKS } from "../missions/sol-05/taskDefinitions";
 import { SOL06_TASKS, type Sol6AnalysisRecord, type Sol6CultivationExperiment, type Sol6FieldObservation, type Sol6Report, type Sol6SampleRecord } from "../missions/SOL_06/taskDefinitions";
 import sol06Mission from "../jsons/Missions/sol-06.json";
 import { SOL07_TASKS, createInitialSol7Progress, type Sol7Progress, type Sol7TaskId, type Sol7PowerAssessment } from "../missions/sol-07/taskDefinitions";
+import { SOL08_TASKS, createInitialSol08Progress, validateSol08Connections, type Sol08Connection, type Sol08Progress, type Sol08PuzzleId, type Sol08TaskId } from "../missions/sol-08/taskDefinitions";
+import sol08Mission from "../jsons/Missions/sol-08.json";
 
 export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
@@ -272,6 +274,7 @@ export interface MissionProgressState {
   sol5: Sol5MissionProgress;
   sol6: Sol6MissionProgress;
   sol7: Sol7Progress;
+  sol8: Sol08Progress;
 }
 
 export interface Sol6MissionProgress {
@@ -437,19 +440,16 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
   },
   8: {
     day: 8,
-    id: "DAY_08_RESEARCH_LAB_ANALYSIS",
-    title: "Research Lab Analysis",
-    storyContext: "Scientific Analysis Phase. Analysis of Day 7 surface observation in the Research Lab.",
-    briefing: "Proceed to the Research Lab. Access the Analysis console to inspect your Day 7 surface observation, cross-reference earlier geological survey notes, select a cautious scientific interpretation, and log the final analysis record.",
-    primaryObjective: "Review Day 7 surface observation in Research Lab, compare earlier survey data, select interpretation, and save scientific analysis.",
+    id: sol08Mission.missionId,
+    title: sol08Mission.title,
+    storyContext: sol08Mission.description,
+    briefing: "Restore outpost power through the existing solar repair triggers, then independently restore external communications. Reserve telemetry is gameplay simulation unless a verified persisted value exists.",
+    primaryObjective: "Repair Solar Panels A and B and the main connection, restore main power, recover communication, and submit the recovery report.",
     steps: [
-      { stepId: "D8_OBJ_01_OPEN_SOURCE_RECORD", label: "Open Day 7 record", description: "Open saved Day 7 surface observation in Research Lab interface.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
-      { stepId: "D8_OBJ_02_REVIEW_COMPARISON", label: "Review comparison data", description: "Compare surface observation with Day 6 geological survey notes.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
-      { stepId: "D8_OBJ_03_SELECT_INTERPRETATION", label: "Select interpretation", description: "Select a supported scientific interpretation.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false },
-      { stepId: "D8_OBJ_04_SAVE_ANALYSIS", label: "Save scientific analysis", description: "Save ScienceAnalysisRecord linked to Day 7 source data.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false }
+      ...SOL08_TASKS.map((task, index) => ({ stepId: task.stepId, label: task.label, description: sol08Mission.tasks[index].objective, targetTrigger: task.trigger, completed: false, requiresCompletedTasks: index ? [SOL08_TASKS[index - 1].stepId] : undefined }))
     ],
-    allowedModules: ["Science", "Hub", "Habitat", "MissionControl"],
-    completionFeedback: "Scientific analysis confirmed and archived. Laboratory review complete. Rest in Habitat to conclude Day 8."
+    allowedModules: ["Habitat", "Engineering", "MissionControl", "Airlock", "Terrain"],
+    completionFeedback: "Sol 8 recovery report validated. Power and communication records are saved for Sol 9; Sol 9 has not been started."
   },
   9: {
     day: 9,
@@ -480,8 +480,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 7 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 7
+  const total = day >= 2 && day <= 8 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 8
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -492,6 +492,7 @@ export class MissionManager {
   private listeners = new Set<(state: Readonly<MissionProgressState>) => void>();
   private isAdvancingDay = false;
   private sol6ValidatedMutation = false;
+  private sol8ValidatedMutation = false;
 
   constructor() {
     this.state = this.loadState();
@@ -550,6 +551,12 @@ export class MissionManager {
             const sol7 = parsed.sol7 && typeof parsed.sol7 === "object"
               ? { ...createInitialSol7Progress(), ...(parsed.sol7 as Partial<Sol7Progress>) }
               : createInitialSol7Progress();
+            const savedSol8 = parsed.sol8 && typeof parsed.sol8 === "object"
+              ? { ...createInitialSol08Progress(), ...(parsed.sol8 as Partial<Sol08Progress>) }
+              : createInitialSol08Progress();
+            const sol8 = parsed.currentDay === 8 && !savedSol8.started
+              ? { ...savedSol8, started: true, powerFailureActive: true, communicationFailureActive: true }
+              : savedSol8;
             const sol7TasksActuallyComplete = SOL07_TASKS.every(task => completedStepIds.includes(task.stepId))
               && sol7.report?.validated === true;
             // Older Sol 7 saves could inherit a completed flag from the prior surface objective.
@@ -575,7 +582,8 @@ export class MissionManager {
               selectedSiteId: typeof parsed.selectedSiteId === "string" ? parsed.selectedSiteId : this.targetIdFromRecords(Array.isArray(parsed.investigationRecords) ? parsed.investigationRecords as InvestigationRecord[] : []),
               sol5,
               sol6: rawSol6,
-              sol7
+              sol7,
+              sol8
             };
           }
         }
@@ -602,7 +610,8 @@ export class MissionManager {
       selectedSiteId: null,
       sol5: createInitialSol5Progress(),
       sol6: createInitialSol6Progress(),
-      sol7: createInitialSol7Progress()
+      sol7: createInitialSol7Progress(),
+      sol8: createInitialSol08Progress()
     };
   }
 
@@ -674,6 +683,104 @@ export class MissionManager {
     this.state.notification = "Sol 7 impact report validated. Storm shutdown complete; Sol 8 has not started.";
     this.emit();
     return { success: true, message: "Report validated. Storm shutdown complete; Sol 8 has not started." };
+  }
+
+  public getSol8Progress(): Readonly<Sol08Progress> { return this.state.sol8; }
+
+  private recordSol08Step(taskId: Sol08TaskId): boolean {
+    this.sol8ValidatedMutation = true;
+    try { return this.completeStep(taskId); }
+    finally { this.sol8ValidatedMutation = false; }
+  }
+
+  public recordSol08PowerAlertReview(): boolean {
+    if (this.state.currentDay !== 8 || !this.state.sol8.started || this.state.sol8.mainPowerRestored) return false;
+    this.state.sol8.powerAlertAcknowledged = true;
+    return this.recordSol08Step("SOL08_REVIEW_POWER_FAILURE_ALERT");
+  }
+
+  public recordSol08PowerUnitInspection(notes: string): boolean {
+    if (this.state.currentDay !== 8 || !this.state.sol8.started || !this.isStepComplete("SOL08_REVIEW_POWER_FAILURE_ALERT") || notes.trim().length < 8) return false;
+    this.state.sol8.powerUnitInspected = true;
+    return this.recordSol08Step("SOL08_INSPECT_ENGINEERING_POWER_UNIT");
+  }
+
+  public recordSol08CommunicationDiagnosis(notes: string): boolean {
+    if (this.state.currentDay !== 8 || !this.isStepComplete("SOL08_INSPECT_ENGINEERING_POWER_UNIT") || notes.trim().length < 8 || this.state.sol8.communicationOnline) return false;
+    this.state.sol8.communicationDiagnosed = true;
+    return this.recordSol08Step("SOL08_INSPECT_COMMUNICATION_FAILURE");
+  }
+
+  public markSol08EVAPrepared(suitActive: boolean): boolean {
+    if (this.state.currentDay !== 8 || !this.isStepComplete("SOL08_INSPECT_COMMUNICATION_FAILURE") || !suitActive) return false;
+    if (this.state.sol8.evaPrepared) return true;
+    this.state.sol8.evaPrepared = true;
+    return this.recordSol08Step("SOL08_PREPARE_EVA");
+  }
+
+  public recordSol08CircuitRepair(puzzleId: Sol08PuzzleId, triggerId: string, connections: readonly Sol08Connection[], retryCount = 0): boolean {
+    if (this.state.currentDay !== 8 || !this.state.sol8.evaPrepared || !validateSol08Connections(puzzleId, connections)) return false;
+    const expectedTrigger: Record<Sol08PuzzleId, string> = {
+      SOL08_PANEL_A_CIRCUIT_REPAIR: "PowerUnit_A",
+      SOL08_PANEL_B_CIRCUIT_REPAIR: "PowerUnit_B",
+      SOL08_MAIN_POWER_ROUTING_REPAIR: "PowerUnit_AB_Main"
+    };
+    if (triggerId !== expectedTrigger[puzzleId]) return false;
+    const route: Record<Sol08PuzzleId, Sol08TaskId> = {
+      SOL08_PANEL_A_CIRCUIT_REPAIR: "SOL08_REPAIR_SOLAR_PANEL_A",
+      SOL08_PANEL_B_CIRCUIT_REPAIR: "SOL08_REPAIR_SOLAR_PANEL_B",
+      SOL08_MAIN_POWER_ROUTING_REPAIR: "SOL08_REPAIR_MAIN_SOLAR_CONNECTION"
+    };
+    const taskId = route[puzzleId];
+    if (!taskId || this.state.sol8.repairs[puzzleId]) return false;
+    if (puzzleId === "SOL08_PANEL_B_CIRCUIT_REPAIR" && !this.isStepComplete("SOL08_REPAIR_SOLAR_PANEL_A")) return false;
+    if (puzzleId === "SOL08_MAIN_POWER_ROUTING_REPAIR" && (!this.isStepComplete("SOL08_REPAIR_SOLAR_PANEL_A") || !this.isStepComplete("SOL08_REPAIR_SOLAR_PANEL_B"))) return false;
+    this.state.sol8.repairs[puzzleId] = { puzzleId, taskId, connections: connections.map(edge => ({ ...edge })), validated: true, completedAt: new Date().toISOString(), retryCount: Math.max(0, Math.floor(retryCount)) };
+    const completed = this.recordSol08Step(taskId);
+    if (!completed) delete this.state.sol8.repairs[puzzleId];
+    else this.emit();
+    return completed;
+  }
+
+  public restoreSol08MainSupply(): boolean {
+    if (this.state.currentDay !== 8 || this.state.sol8.mainPowerRestored ||
+      !["SOL08_PANEL_A_CIRCUIT_REPAIR", "SOL08_PANEL_B_CIRCUIT_REPAIR", "SOL08_MAIN_POWER_ROUTING_REPAIR"].every(id => this.state.sol8.repairs[id as Sol08PuzzleId]?.validated)) return false;
+    this.state.sol8.mainPowerRestored = true;
+    this.state.sol8.powerFailureActive = false;
+    const completed = this.recordSol08Step("SOL08_RESTORE_MAIN_POWER_SUPPLY");
+    if (!completed) {
+      this.state.sol8.mainPowerRestored = false;
+      this.state.sol8.powerFailureActive = true;
+    }
+    return completed;
+  }
+
+  public verifySol08PowerRecovery(notes: string): boolean {
+    if (this.state.currentDay !== 8 || !this.state.sol8.mainPowerRestored || notes.trim().length < 8) return false;
+    this.state.sol8.powerRecoveryVerified = true;
+    return this.recordSol08Step("SOL08_VERIFY_POWER_RECOVERY");
+  }
+
+  public confirmSol08CommunicationRepair(triggerId: string): boolean {
+    if (this.state.currentDay !== 8 || triggerId !== "Commuication_fix_Trigger" || !this.state.sol8.mainPowerRestored || !this.isStepComplete("SOL08_VERIFY_POWER_RECOVERY") || this.state.sol8.communicationOnline) return false;
+    this.state.sol8.communicationOnline = true;
+    this.state.sol8.communicationFailureActive = false;
+    return this.recordSol08Step("SOL08_REPAIR_OUTDOOR_COMMUNICATION");
+  }
+
+  public submitSol08RecoveryReport(sections: Record<string, string>): { success: boolean; message: string } {
+    if (this.state.currentDay !== 8 || this.state.sol8.report) return { success: false, message: "The Sol 8 report is unavailable or already validated." };
+    const requiredTasks = SOL08_TASKS.slice(0, -1).map(task => task.stepId);
+    if (!requiredTasks.every(id => this.isStepComplete(id)) || this.state.sol8.powerFailureActive || this.state.sol8.communicationFailureActive || !this.state.sol8.mainPowerRestored || !this.state.sol8.communicationOnline) return { success: false, message: "Complete and verify both independent recovery sequences before submitting the report." };
+    if (!sections || sol08Mission.report.requiredSections.some(section => !sections[section]?.trim())) return { success: false, message: "Complete every required report section with actual recovery records and provenance limitations." };
+    this.state.sol8.report = { validated: true, submittedAt: new Date().toISOString(), sections: { ...sections } };
+    if (!this.recordSol08Step("SOL08_VERIFY_AND_REPORT_RECOVERY")) {
+      this.state.sol8.report = null;
+      return { success: false, message: "The report could not be validated against the recovery task sequence." };
+    }
+    this.state.notification = "Sol 8 power and communication recovery report validated. Sol 9 has not started.";
+    this.emit();
+    return { success: true, message: "Sol 8 report validated. Sol 9 has not started." };
   }
 
   public subscribe(listener: (state: Readonly<MissionProgressState>) => void): () => void {
@@ -963,7 +1070,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 7) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 8) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1127,10 +1234,12 @@ export class MissionManager {
     if (!stepDef) return false;
 
     if (this.state.currentDay === 6 && !this.sol6ValidatedMutation) return false;
+    if (this.state.currentDay === 8 && stepId.startsWith("SOL08_") && !this.sol8ValidatedMutation) return false;
 
     if ((this.state.currentDay === 5 || this.state.currentDay === 6) && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
       return false;
     }
+    if (this.state.currentDay === 8 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
     if (this.state.currentDay === 5) {
       if (stepId === "SOL05_PREFLIGHT_BRIEFING" && !this.state.sol5.briefingConfirmed) return false;
       if (stepId === "SOL05_ACTIVATE_SIMULATION" && (!this.state.sol5.simulationActivated || this.state.sol5.attemptStatus !== "active")) return false;
@@ -1159,7 +1268,7 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
-      if (this.state.currentDay >= 2 && this.state.currentDay <= 5) {
+      if ((this.state.currentDay >= 2 && this.state.currentDay <= 5) || this.state.currentDay === 8) {
         this.state.notification = this.getCurrentNavigationNotification();
       }
       this.emit();
@@ -1645,19 +1754,8 @@ export class MissionManager {
       return { canAdvance: false, reason: "Sol 7 requires the validated impact report, storm shutdown and persisted post-storm power assessment before resting." };
     }
 
-    if (this.state.currentDay === 8) {
-      if (!this.state.surfaceObservation) {
-        return {
-          canAdvance: false,
-          reason: "Cannot rest yet. Missing prerequisite Day 7 surface observation."
-        };
-      }
-      if (!this.state.scienceAnalysis || this.state.scienceAnalysis.sourceObservationId !== this.state.surfaceObservation.id) {
-        return {
-          canAdvance: false,
-          reason: "Cannot rest yet. Scientific analysis linked to Day 7 record has not been saved."
-        };
-      }
+    if (this.state.currentDay === 8 && (!this.state.sol8.report?.validated || this.state.sol8.powerFailureActive || this.state.sol8.communicationFailureActive)) {
+      return { canAdvance: false, reason: "Sol 8 requires both independent recovery states to be resolved and the final recovery report validated before resting." };
     }
 
     // Day 9 concludes Phase 3
@@ -1700,6 +1798,7 @@ export class MissionManager {
 
     this.state.currentDay = nextDay;
     this.state.objectiveState = "in_progress";
+    if (nextDay === 8) this.state.sol8 = { ...this.state.sol8, started: true, powerFailureActive: true, communicationFailureActive: true, mainPowerRestored: false, communicationOnline: false };
     this.state.dayBriefingSeen = false;
     this.state.notification = this.getCurrentNavigationNotification() ?? `Day ${nextDay} Begun: ${DAYS_CONFIG[nextDay].title}`;
 
@@ -1754,7 +1853,8 @@ export class MissionManager {
       selectedSiteId: null,
       sol5: createInitialSol5Progress(),
       sol6: createInitialSol6Progress(),
-      sol7: createInitialSol7Progress()
+      sol7: createInitialSol7Progress(),
+      sol8: createInitialSol08Progress()
     };
     this.emit();
   }

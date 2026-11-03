@@ -15,6 +15,8 @@ import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
 import { renderSol07UnitScreen } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
+import type { ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 
 export interface AirlockScreenPanel {
   id?: string;
@@ -269,7 +271,7 @@ export class AirlockScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number; currentSol?: number; sol7?: { stormEnded?: boolean } }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot & { sol7?: { stormEnded?: boolean } }): void {
     if (missionState?.currentSol) {
       this.missionSol = missionState.currentSol;
     } else if (missionState?.currentDay) {
@@ -280,6 +282,7 @@ export class AirlockScreenRenderer {
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.texture.needsUpdate = true;
     }
   }

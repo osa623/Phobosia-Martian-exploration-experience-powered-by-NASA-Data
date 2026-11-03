@@ -12,6 +12,7 @@ export interface ScreenMissionSnapshot {
   selectedSiteId?: string | null;
   investigationRecords?: Array<{ taskId: string; classification?: string; rationale?: string; playerComment?: string; limitations?: string[]; evidenceReferences?: string[] }>;
   sol6?: { cultivation?: { sampleId: string; status: string } | null };
+  sol8?: { started: boolean; powerFailureActive: boolean; communicationFailureActive: boolean; reservePowerPercent: number };
 }
 
 type ScreenConfigPair = { browser: () => any; node: () => any; path: string };
@@ -27,7 +28,7 @@ function loadNodeScreenConfig(path: string): unknown {
   }
 }
 
-const bySol: Record<1 | 2 | 3 | 4 | 7, SolScreenConfigs> = {
+const bySol: Record<1 | 2 | 3 | 4 | 7 | 8, SolScreenConfigs> = {
   1: {
     airlock: { browser: () => require("../jsons/Screens/Sol_1/airlock-screen-data.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_1/airlock-screen-data.json"), path: "Screens/Sol_1/airlock-screen-data.json" },
     centralHub: { browser: () => require("../jsons/Screens/Sol_1/central-hub-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_1/central-hub-screens.json"), path: "Screens/Sol_1/central-hub-screens.json" },
@@ -67,12 +68,20 @@ const bySol: Record<1 | 2 | 3 | 4 | 7, SolScreenConfigs> = {
     habitat: { browser: () => require("../jsons/Screens/Sol_7/habitatScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_7/habitatScreenData.json"), path: "Screens/Sol_7/habitatScreenData.json" },
     missionControl: { browser: () => require("../jsons/Screens/Sol_7/mission-control-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_7/mission-control-screens.json"), path: "Screens/Sol_7/mission-control-screens.json" },
     research: { browser: () => require("../jsons/Screens/Sol_7/research-zone-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_7/research-zone-screens.json"), path: "Screens/Sol_7/research-zone-screens.json" }
+  },
+  8: {
+    airlock: { browser: () => require("../jsons/Screens/Sol_8/airlock-screen-data.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/airlock-screen-data.json"), path: "Screens/Sol_8/airlock-screen-data.json" },
+    centralHub: { browser: () => require("../jsons/Screens/Sol_8/central-hub-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/central-hub-screens.json"), path: "Screens/Sol_8/central-hub-screens.json" },
+    engineering: { browser: () => require("../jsons/Screens/Sol_8/engineeringScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/engineeringScreenData.json"), path: "Screens/Sol_8/engineeringScreenData.json" },
+    habitat: { browser: () => require("../jsons/Screens/Sol_8/habitatScreenData.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/habitatScreenData.json"), path: "Screens/Sol_8/habitatScreenData.json" },
+    missionControl: { browser: () => require("../jsons/Screens/Sol_8/mission-control-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/mission-control-screens.json"), path: "Screens/Sol_8/mission-control-screens.json" },
+    research: { browser: () => require("../jsons/Screens/Sol_8/research-zone-screens.json"), node: () => loadNodeScreenConfig("../src/jsons/Screens/Sol_8/research-zone-screens.json"), path: "Screens/Sol_8/research-zone-screens.json" }
   }
 };
 
 /** Select content for Sols 1-4 while leaving legacy behavior available to later Sols. */
 export function getScreenConfigForSol<T>(section: ScreenConfigSection, sol: number, legacyConfig: T): T {
-  if (sol !== 1 && sol !== 2 && sol !== 3 && sol !== 4 && sol !== 7) return legacyConfig;
+  if (sol !== 1 && sol !== 2 && sol !== 3 && sol !== 4 && sol !== 7 && sol !== 8) return legacyConfig;
 
   const entry = bySol[sol][section];
   if (!entry) return legacyConfig;

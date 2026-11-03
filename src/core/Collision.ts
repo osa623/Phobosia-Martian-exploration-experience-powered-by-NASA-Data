@@ -58,7 +58,7 @@ export function buildInteriorColliders(
 }
 
 /** Static coarse AABBs for solid mesh objects across mars_Terrain, including buildings, vehicles and rocks. */
-export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false): THREE.Box3[] {
+export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false, excludeSolarStructures = false, excludeSatelliteCommunication = false): THREE.Box3[] {
   const skipped = excludeRocks
     ? /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky|rock|rover/i
     : /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
@@ -67,6 +67,18 @@ export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks
   root.traverse(object => {
     const mesh = object as THREE.Mesh;
     let ancestor: THREE.Object3D | null = object;
+    let belongsToSolarStructure = false;
+    let belongsToSatelliteCommunication = false;
+    while (ancestor && ancestor !== root) {
+      if (/solar|solor|solarpanel/i.test(ancestor.name)) {
+        belongsToSolarStructure = true;
+      }
+      if (/satellite|satelite|communication|commuication/i.test(ancestor.name)) belongsToSatelliteCommunication = true;
+      ancestor = ancestor.parent;
+    }
+    if (excludeSolarStructures && belongsToSolarStructure) return;
+    if (excludeSatelliteCommunication && belongsToSatelliteCommunication) return;
+    ancestor = object;
     let authoredColliderAncestor = false;
     while (ancestor && ancestor !== root && ancestor.name !== "Drone_Zone") {
       if (/^Collider_(?:[1-9]|1[0-8])$/i.test(ancestor.name)) authoredColliderAncestor = true;

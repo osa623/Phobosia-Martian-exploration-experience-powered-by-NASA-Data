@@ -24,6 +24,7 @@ import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
 export interface EngineeringScreenData {
   moduleId: string;
@@ -271,6 +272,7 @@ export class EngineeringScreenRenderer {
     const now = Date.now();
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.lastRenderTime = now;
       binding.texture.needsUpdate = true;
     }

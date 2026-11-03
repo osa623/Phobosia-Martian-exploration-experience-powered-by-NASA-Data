@@ -33,6 +33,7 @@ import { EVA_PREPARATION_TRIGGER_ID, getEVAAccessBlockReason, isWithinEVAInterac
 import { EVAResources, type EVAResourceStorage } from "./EVAResources";
 import { RoverSystem } from "../systems/rover/RoverSystem";
 import { Sol07StormController } from "../missions/sol-07/Sol07StormController";
+import { Sol08PowerEffects } from "../missions/sol-08/Sol08PowerEffects";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -107,6 +108,8 @@ export class Game {
   private terrain?: THREE.Object3D;
   private roverSystem?: RoverSystem;
   private sol7Storm = new Sol07StormController();
+  private sol8PowerEffects = new Sol08PowerEffects();
+  private sol8PowerEffectsResolved = false;
   private roverKeys = new Set<string>();
   private droneFloorHeight?: number;
   private raycaster = new THREE.Raycaster();
@@ -273,6 +276,7 @@ export class Game {
     if (this.evaSuitActive) this.player.setConfig(EVA_MOVEMENT_CONFIG);
     this.audioManager = new GameAudioManager();
     if (mState.currentDay === 7 && !mState.sol7.stormEnded) this.sol7Storm.start();
+    if (mState.currentDay === 8 && mState.sol8.powerFailureActive) this.sol8PowerEffects.start();
     this.renderer.domElement.addEventListener("pointerdown", this.unlockAudio);
 
     this.observer = new ResizeObserver(this.resize);
@@ -320,6 +324,7 @@ export class Game {
 
     this.evaSuitActive = !this.evaSuitActive;
     this.missionManager.markSol6EVAActivated(this.evaSuitActive);
+    if (this.evaSuitActive && this.state.missionDay === 8) this.missionManager.markSol08EVAPrepared(this.evaSuitActive);
     const resourceSnapshot = this.evaSuitActive ? this.evaResources.beginSession() : this.evaResources.endSession();
     const feedback = this.evaSuitActive
       ? "EVA SUIT READY · You are cleared for Mars surface observation."
@@ -341,6 +346,17 @@ export class Game {
   }
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
+    if (mState.currentDay === 8 && mState.sol8.powerFailureActive) {
+      this.sol8PowerEffects.start();
+      this.sol8PowerEffects.disableModuleLights(this.current ?? new THREE.Group(), this.active);
+    } else if (mState.currentDay === 8 && mState.sol8.mainPowerRestored && !this.sol8PowerEffectsResolved) {
+      this.sol8PowerEffectsResolved = true;
+      this.sol8PowerEffects.restoreLights();
+      this.sol8PowerEffects.fadeOut();
+    } else if (mState.currentDay !== 8 && this.sol8PowerEffects.isActive()) {
+      this.sol8PowerEffects.dispose();
+      this.sol8PowerEffectsResolved = false;
+    }
     if (mState.currentDay === 7 && !mState.sol7.stormEnded) this.sol7Storm.start();
     else if (mState.currentDay === 7 && mState.sol7.report?.validated) this.sol7Storm.endAfterValidatedReport();
     else if (mState.currentDay !== 7 && this.sol7Storm.isActive()) this.sol7Storm.dispose();
@@ -1238,7 +1254,7 @@ export class Game {
     }
   };
 
-  private unlockAudio = () => { this.audioManager.unlock(); this.sol7Storm.unlock(); };
+  private unlockAudio = () => { this.audioManager.unlock(); this.sol7Storm.unlock(); this.sol8PowerEffects.unlock(); };
 
   private resize = () => {
     const width = this.host.clientWidth;
@@ -1620,6 +1636,14 @@ export class Game {
       this.roverKeys.clear();
     }
 
+    if (module === "Terrain" && this.state.missionDay === 8) {
+      for (const id of ["PowerUnit_A", "PowerUnit_B", "PowerUnit_AB_Main", "Commuication_fix_Trigger"]) {
+        const object = model.getObjectByName(id);
+        if (object) this.interactive.push(this.makeTarget(object, id));
+        else console.warn(`[Sol 8] Existing repair trigger missing from loaded Terrain scene: ${id}`);
+      }
+    }
+
     if (module === "Airlock") {
       const preparationTrigger = model.getObjectByName(EVA_PREPARATION_TRIGGER_ID);
       if (preparationTrigger) this.interactive.push(this.makeTarget(preparationTrigger, EVA_PREPARATION_TRIGGER_ID));
@@ -1630,6 +1654,7 @@ export class Game {
 
     // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
     configureModuleLighting(model, additions, module);
+    if (this.state.missionDay === 8 && this.missionManager.getSol8Progress().powerFailureActive) this.sol8PowerEffects.disableModuleLights(model, module);
     if (this.state.missionDay === 7 && !this.missionManager.getSol7Progress().stormEnded) this.sol7Storm.applyToModule(model, module);
 
     if (module === "Habitat") {
@@ -1648,7 +1673,7 @@ export class Game {
       if (authored.missingNames.length || authored.invalidNames.length) {
         console.warn(`[Master Scene] Collider mapping: found ${authored.foundNames.length}/18; missing: ${authored.missingNames.join(", ") || "none"}; invalid geometry: ${authored.invalidNames.join(", ") || "none"}.`);
       }
-      this.colliders = [...buildTerrainBuildingColliders(model, true), ...authored.colliders];
+      this.colliders = [...buildTerrainBuildingColliders(model, true, true, true), ...authored.colliders];
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     }
@@ -2211,6 +2236,7 @@ export class Game {
     // analysis trigger for its dataset investigation through TriggerOperatingSystem.
     if (
       this.state.missionDay === 8 &&
+      !this.missionManager.getSol8Progress().started &&
       this.active === "Science" &&
       (this.nearby.identifier === "LAB_RESEARCH_ANALYSIS_01" || this.nearby.identifier === "LAB_RESEARCH_MONITORING_01")
     ) {
@@ -2243,7 +2269,8 @@ export class Game {
     });
 
     // 6. Screen Actions / Cinematic Transition to PHOBOSIA OS Desktop
-    const title = screenActions[this.nearby.identifier];
+    const sol8Interactives = ["HAB_MONITOR_01", "Engineering_PowerUnit_Trigger", "MC_SYSTEMS_01", "MC_MAIN_01", "PowerUnit_A", "PowerUnit_B", "PowerUnit_AB_Main", "Commuication_fix_Trigger"];
+    const title = screenActions[this.nearby.identifier] ?? (this.state.missionDay === 8 && sol8Interactives.includes(this.nearby.identifier) ? this.nearby.identifier : undefined);
     if (title) {
       document.exitPointerLock();
 
@@ -2671,6 +2698,7 @@ export class Game {
     }
     this.audioManager.update(dt);
     this.sol7Storm.update(dt);
+    this.sol8PowerEffects.update(dt);
 
     const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
       ? this.sol5CameraRig[this.sol5Flight.cameraView]
@@ -2690,6 +2718,7 @@ export class Game {
     this.disposed = true;
     this.audioManager.dispose();
     this.sol7Storm.dispose();
+    this.sol8PowerEffects.dispose();
     this.renderer.domElement.removeEventListener("pointerdown", this.unlockAudio);
     this.detachSol5Camera();
     this.cleanupSol5Guidance();
