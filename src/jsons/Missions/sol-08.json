@@ -2,9 +2,9 @@
   "missionId": "PHOBOSIA_SOL_08",
   "sol": 8,
   "title": "Mars Outpost Power and Communication Recovery",
-  "subtitle": "Solar Generation Restoration, Outpost Power Recovery and Communication Repair",
-  "missionType": "power_and_communication_recovery",
-  "description": "Restore the outpost power system following the Sol 7 dust storm, repair both solar panels and the main solar power connection, restore the main supply through the existing Engineering Power Unit, and independently recover the outdoor communication system. Preserve all previous Sol progress, observations, evidence, sample identity and cultivation records.",
+  "subtitle": "Solar Array Restoration and Communication Network Repair",
+  "missionType": "outpost_system_recovery",
+  "description": "Restore the outpost solar power system after the Sol 7 dust storm, recover the main power supply, and independently repair the external communication system. Use interactive electrical repair simulations at the existing outdoor repair triggers.",
   "status": "locked",
   "prerequisites": [
     "PHOBOSIA_SOL_07"
@@ -13,512 +13,433 @@
     "preserveSol01ToSol07": true,
     "preserveSol03SelectedTarget": true,
     "preserveSol04AndSol05Evidence": true,
-    "preserveSol06FieldObservations": true,
     "preserveSol06SampleIdentityAndAnalysis": true,
     "preserveSol06CultivationExperiment": true,
     "preserveSol07DustStormAssessment": true,
     "preserveSol07PostStormPowerAssessment": true,
-    "preserveSol07EventHistory": true,
-    "preserveAllPreviousMissionReports": true,
-    "initialReservePowerPercent": 20,
-    "initialReservePowerIsGameplaySimulation": true,
-    "powerFailureAndCommunicationFailureAreIndependent": true,
-    "missionScope": "PHOBOSIA_SOL_08_ONLY"
+    "preserveSol07StormEventHistory": true,
+    "powerFailureState": "SOL08_ONLY",
+    "communicationFailureState": "SOL08_ONLY",
+    "preserveAllPreviousMissionReports": true
   },
   "missionZones": [
     "Habitat",
-    "Mission Control",
     "Engineering",
+    "Mission Control",
     "Airlock",
+    "Central Hub",
     "Outdoor Solar Panel Area",
-    "Outdoor Communication Area",
-    "Central Hub"
-  ],
-  "interfaces": [
-    {"interfaceId":"SOL08_HABITAT_POWER_ALERT","triggerId":"HAB_MONITOR_01","location":"Existing Habitat physical status display","resolution":"Use the existing Habitat monitor."},
-    {"interfaceId":"SOL08_ENGINEERING_POWER_UNIT","triggerId":"Engineering_PowerUnit_Trigger","location":"Existing Engineering Power Unit front-end","resolution":"Reuse the existing Engineering screens and Power Unit interaction."},
-    {"interfaceId":"SOL08_COMMUNICATION_DIAGNOSTIC","triggerId":"MC_SYSTEMS_01","location":"Existing Mission Control systems console","resolution":"Use the existing Mission Control systems interface."},
-    {"interfaceId":"SOL08_EVA_PREPARATION","triggerId":"Mars_Observation_Preparation_Trigger","location":"Existing Airlock EVA preparation area","resolution":"Use the shared EVA suit preparation system."},
-    {"interfaceId":"SOL08_PANEL_A_REPAIR","triggerId":"PowerUnit_A","location":"Existing Mars terrain Solar Panel A repair point","resolution":"Use the named existing terrain interaction."},
-    {"interfaceId":"SOL08_PANEL_B_REPAIR","triggerId":"PowerUnit_B","location":"Existing Mars terrain Solar Panel B repair point","resolution":"Use the named existing terrain interaction."},
-    {"interfaceId":"SOL08_MAIN_CONNECTION_REPAIR","triggerId":"PowerUnit_AB_Main","location":"Existing Mars terrain main solar connection repair point","resolution":"Use the named existing terrain interaction."},
-    {"interfaceId":"SOL08_COMMUNICATION_REPAIR","triggerId":"Commuication_fix_Trigger","location":"Existing Mars terrain communication repair point","resolution":"Preserve the supplied trigger spelling and use the loaded terrain object."},
-    {"interfaceId":"SOL08_RECOVERY_REPORT","triggerId":"MC_MAIN_01","location":"Existing Mission Control main operations console","resolution":"Reuse the existing Mission Control report interface."}
+    "Outdoor Communication Area"
   ],
   "initialMissionState": {
-    "powerFailure": {
-      "active": true,
+    "powerSystem": {
+      "failureActive": true,
       "status": "CRITICAL",
       "reservePowerPercent": 20,
-      "reservePowerSource": "SOL_7_POST_STORM_ASSESSMENT_OR_GAMEPLAY_SIMULATION",
+      "reservePowerValueType": "GAMEPLAY_SIMULATION_UNLESS_VERIFIED_SOURCE_EXISTS",
       "solarPanelAStatus": "OFFLINE",
       "solarPanelBStatus": "OFFLINE",
-      "mainSolarPowerLineStatus": "DAMAGED_OR_DISCONNECTED",
-      "mainPowerSupplyStatus": "RESERVE_POWER_ONLY",
-      "warningVisible": true,
-      "beepAudioActive": true,
-      "emergencyLightsInactive": true
+      "mainSolarConnectionStatus": "DAMAGED_OR_DISCONNECTED",
+      "mainSupplyStatus": "RESERVE_POWER_ONLY",
+      "powerWarningActive": true,
+      "warningAudioActive": true,
+      "emergencyLightsDisabled": true
     },
-    "communicationFailure": {
-      "active": true,
+    "communicationSystem": {
+      "failureActive": true,
       "status": "OFFLINE",
-      "warningVisible": true,
-      "beepAudioActive": false,
-      "repairCompleted": false
+      "communicationWarningActive": true,
+      "warningAudioActive": false
     }
   },
   "tasks": [
     {
-      "taskId": "SOL08_REVIEW_POWER_FAILURE_ALERT",
-      "title": "Review Critical Power Failure Alert",
+      "taskId": "SOL08_REVIEW_POWER_ALERT",
+      "title": "Review Critical Power Failure",
       "zone": "Habitat",
       "mandatory": true,
-      "objective": "Review the critical low-reserve power alert, acknowledge the power emergency and understand the temporary reserve-power condition.",
-      "completionCondition": "The player reviews and acknowledges the active Sol 8 Power Failure warning."
+      "objective": "Review the critical low-power alert and understand that the outpost is temporarily operating on reserve power.",
+      "completionCondition": "The player acknowledges the power failure alert through the existing physical screen interaction."
     },
     {
-      "taskId": "SOL08_INSPECT_ENGINEERING_POWER_UNIT",
+      "taskId": "SOL08_INSPECT_POWER_UNIT",
       "title": "Inspect Engineering Power Unit",
       "zone": "Engineering",
       "mandatory": true,
-      "objective": "Open the existing Engineering Power Unit interface and inspect reserve power, solar generation, panel status, main solar connection and power distribution.",
-      "completionCondition": "The Power Unit assessment is recorded, the low-reserve warning is acknowledged, and the three outdoor repair requirements are identified."
+      "objective": "Inspect the existing Power Unit interface and review reserve power, solar panel status, main connection status and power distribution.",
+      "completionCondition": "The existing Power Unit interface records the initial power-system assessment."
     },
     {
       "taskId": "SOL08_INSPECT_COMMUNICATION_FAILURE",
-      "title": "Inspect Communication System Failure",
+      "title": "Inspect Communication Failure",
       "zone": "Mission Control",
       "mandatory": true,
-      "objective": "Inspect the existing Mission Control communication interface, record the offline communication status and identify the outdoor communication repair requirement.",
-      "completionCondition": "The communication failure is diagnosed and recorded without clearing or repairing it."
+      "objective": "Review the existing Mission Control communication diagnostic interface and record the communication system offline state.",
+      "completionCondition": "The communication failure is reviewed and recorded independently of the power failure."
     },
     {
       "taskId": "SOL08_PREPARE_EVA",
-      "title": "Prepare for External Power Repairs",
+      "title": "Prepare for External Repairs",
       "zone": "Airlock",
       "mandatory": true,
-      "objective": "Use the existing Airlock and global EVA system to equip the EVA suit and prepare for authorized outdoor repair operations.",
-      "completionCondition": "The existing EVA system confirms that the player is equipped and authorized for the outdoor repair sequence."
+      "objective": "Use the existing EVA preparation and suit equipment system before accessing the outdoor repair locations.",
+      "completionCondition": "The existing EVA system confirms that the player is properly prepared and authorized for outdoor access."
     },
     {
       "taskId": "SOL08_REPAIR_SOLAR_PANEL_A",
       "title": "Restore Solar Panel A",
       "zone": "Outdoor Solar Panel Area",
       "mandatory": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_A",
-      "objective": "Reach the existing Solar Panel A repair interaction and complete the required repair using the existing trigger.",
-      "completionCondition": "The existing PowerUnit_A interaction confirms successful repair and records Solar Panel A as operational."
+      "trigger": "PowerUnit_A",
+      "objective": "Activate the existing Solar Panel A repair trigger and complete its interactive electrical circuit repair simulation.",
+      "completionCondition": "The Solar Panel A repair simulation validates successfully and the existing mission system records Panel A as repaired."
     },
     {
       "taskId": "SOL08_REPAIR_SOLAR_PANEL_B",
       "title": "Restore Solar Panel B",
       "zone": "Outdoor Solar Panel Area",
       "mandatory": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_B",
-      "objective": "Reach the existing Solar Panel B repair interaction and complete the required repair using the existing trigger.",
-      "completionCondition": "The existing PowerUnit_B interaction confirms successful repair and records Solar Panel B as operational."
+      "trigger": "PowerUnit_B",
+      "objective": "Activate the existing Solar Panel B repair trigger and complete its interactive electrical circuit repair simulation.",
+      "completionCondition": "The Solar Panel B repair simulation validates successfully and the existing mission system records Panel B as repaired."
     },
     {
       "taskId": "SOL08_REPAIR_MAIN_SOLAR_CONNECTION",
       "title": "Repair Main Solar Power Connection",
       "zone": "Outdoor Solar Panel Area",
       "mandatory": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_AB_Main",
-      "objective": "Repair the main outdoor solar power connection that links the two solar panels to the outpost power system.",
-      "completionCondition": "The existing PowerUnit_AB_Main interaction confirms that the main solar connection is repaired and records it as operational."
+      "trigger": "PowerUnit_AB_Main",
+      "objective": "Activate the existing main solar connection repair trigger and complete the interactive power-routing simulation that connects both solar panel outputs to the main power distribution line.",
+      "completionCondition": "The main connection simulation validates successfully and both panel outputs are confirmed connected to the main power line."
     },
     {
-      "taskId": "SOL08_RESTORE_MAIN_POWER_SUPPLY",
-      "title": "Restore Main Outpost Power Supply",
+      "taskId": "SOL08_RESTORE_MAIN_POWER",
+      "title": "Restore Main Outpost Power",
       "zone": "Engineering",
       "mandatory": true,
-      "objective": "Return to the existing Engineering Power Unit interface, verify Solar Panel A, Solar Panel B and the main solar connection, then restore the main outpost supply.",
-      "completionCondition": "The Power Unit validates all three repair states, confirms main power restoration, clears only the Power Failure state, fades out the power warning beep and restores the configured emergency light objects to their original active state."
+      "objective": "Return to the existing Engineering Power Unit interface. Verify the three outdoor repairs and restore the main outpost supply from the solar generation system.",
+      "completionCondition": "The Engineering Power Unit confirms that Solar Panel A, Solar Panel B and the main solar connection are repaired, then confirms main supply restoration."
     },
     {
-      "taskId": "SOL08_VERIFY_POWER_RECOVERY",
-      "title": "Verify Outpost Power Recovery",
-      "zone": "Engineering",
-      "mandatory": true,
-      "objective": "Verify restored solar generation, main power supply, reserve status, power distribution and the removal of the Power Failure warning from all relevant physical 3D screens.",
-      "completionCondition": "Power recovery is verified and recorded. Communication Failure remains active and its warning remains visible."
-    },
-    {
-      "taskId": "SOL08_REPAIR_OUTDOOR_COMMUNICATION",
-      "title": "Restore Outdoor Communication System",
+      "taskId": "SOL08_REPAIR_COMMUNICATION_SYSTEM",
+      "title": "Restore External Communication",
       "zone": "Outdoor Communication Area",
       "mandatory": true,
-      "triggerCollection": "Communication_Mission",
-      "triggerId": "Commuication_fix_Trigger",
-      "objective": "Reach the existing outdoor communication repair interaction and restore the communication system using the supplied trigger.",
-      "completionCondition": "The existing communication repair interaction confirms successful restoration and records the communication system as online."
+      "trigger": "Commuication_fix_Trigger",
+      "objective": "After power restoration, access the existing outdoor communication repair trigger and complete the existing communication recovery interaction.",
+      "completionCondition": "The existing communication repair interaction confirms that the communication system is online."
     },
     {
-      "taskId": "SOL08_VERIFY_AND_REPORT_RECOVERY",
-      "title": "Verify Recovery and Submit Mission Report",
+      "taskId": "SOL08_VERIFY_AND_SUBMIT_REPORT",
+      "title": "Verify Recovery and Submit Report",
       "zone": "Mission Control",
       "mandatory": true,
-      "objective": "Verify power and communication recovery independently, confirm that both corresponding warnings are cleared, and submit the Sol 8 recovery report.",
-      "completionCondition": "All mandatory repair and verification records are present, both failure states are resolved, and the final report validates."
+      "objective": "Verify restored power and communication states and submit the Sol 8 recovery report.",
+      "completionCondition": "Both systems are independently verified, all mandatory repair records are persisted, and the final report validates."
     }
   ],
-  "objectives": [
-    {
-      "id": "SOL08_OBJ_01",
-      "title": "Acknowledge Critical Power Failure",
-      "zone": "Habitat",
-      "type": "power_failure_alert_acknowledgement",
-      "required": true,
-      "completionCondition": "The active low-reserve power alert is reviewed and acknowledged."
-    },
-    {
-      "id": "SOL08_OBJ_02",
-      "title": "Assess Engineering Power Unit",
-      "zone": "Engineering",
-      "type": "power_unit_diagnosis",
-      "required": true,
-      "requiredFields": [
-        "availablePowerReserve",
-        "reservePowerPercentage",
-        "solarPanelAStatus",
-        "solarPanelBStatus",
-        "mainSolarPowerLineStatus",
-        "mainPowerSupplyStatus",
-        "powerDistributionStatus"
-      ],
-      "completionCondition": "The player records the current Power Unit condition and identifies all required repair stages."
-    },
-    {
-      "id": "SOL08_OBJ_03",
-      "title": "Diagnose Communication Failure",
-      "zone": "Mission Control",
-      "type": "communication_failure_diagnosis",
-      "required": true,
-      "requiredFields": [
-        "communicationSystemStatus",
-        "communicationFailureStatus",
-        "communicationRepairRequired"
-      ],
-      "completionCondition": "The communication fault is identified and recorded. It remains unresolved."
-    },
-    {
-      "id": "SOL08_OBJ_04",
-      "title": "Complete EVA Preparation",
-      "zone": "Airlock",
-      "type": "existing_eva_preparation",
-      "required": true,
-      "completionCondition": "The existing EVA system confirms suit preparation and outdoor access authorization."
-    },
-    {
-      "id": "SOL08_OBJ_05",
-      "title": "Repair Solar Panel A",
-      "zone": "Outdoor Solar Panel Area",
-      "type": "solar_panel_repair",
-      "required": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_A",
-      "completionCondition": "Solar Panel A repair is confirmed by the existing trigger interaction."
-    },
-    {
-      "id": "SOL08_OBJ_06",
-      "title": "Repair Solar Panel B",
-      "zone": "Outdoor Solar Panel Area",
-      "type": "solar_panel_repair",
-      "required": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_B",
-      "completionCondition": "Solar Panel B repair is confirmed by the existing trigger interaction."
-    },
-    {
-      "id": "SOL08_OBJ_07",
-      "title": "Repair Main Solar Connection",
-      "zone": "Outdoor Solar Panel Area",
-      "type": "main_solar_connection_repair",
-      "required": true,
-      "triggerCollection": "PowerMission_Triggers",
-      "triggerId": "PowerUnit_AB_Main",
-      "completionCondition": "The main outdoor solar connection repair is confirmed by the existing trigger interaction."
-    },
-    {
-      "id": "SOL08_OBJ_08",
-      "title": "Restore Main Power Supply",
-      "zone": "Engineering",
-      "type": "main_power_restoration",
-      "required": true,
-      "requiredFields": [
-        "solarPanelAStatus",
-        "solarPanelBStatus",
-        "mainSolarPowerLineStatus",
-        "mainPowerSupplyStatus",
-        "powerDistributionStatus"
-      ],
-      "completionCondition": "All three repair states are verified and the existing Engineering Power Unit confirms main power restoration."
-    },
-    {
-      "id": "SOL08_OBJ_09",
-      "title": "Verify Power Recovery",
-      "zone": "Engineering",
-      "type": "power_recovery_verification",
-      "required": true,
-      "completionCondition": "Power Failure warning is removed, power beep fades to silence, configured lights return to their captured original state, and communication warning remains active."
-    },
-    {
-      "id": "SOL08_OBJ_10",
-      "title": "Repair Communication System",
-      "zone": "Outdoor Communication Area",
-      "type": "communication_system_repair",
-      "required": true,
-      "triggerCollection": "Communication_Mission",
-      "triggerId": "Commuication_fix_Trigger",
-      "completionCondition": "The existing outdoor communication repair trigger confirms that communication is online."
-    },
-    {
-      "id": "SOL08_OBJ_11",
-      "title": "Submit Recovery Report",
-      "zone": "Mission Control",
-      "type": "power_and_communication_recovery_report",
-      "required": true,
-      "completionCondition": "Power and communication recovery are independently verified and the report passes validation."
-    }
-  ],
-  "powerFailureConfiguration": {
+  "repairMiniGames": {
     "enabled": true,
     "scope": "PHOBOSIA_SOL_08_ONLY",
-    "startCondition": "Activate when the existing mission lifecycle starts PHOBOSIA_SOL_08.",
-    "initialReservePowerPercent": 20,
-    "reservePowerValueType": "GAMEPLAY_SIMULATION_UNLESS_VERIFIED_PERSISTED_VALUE_EXISTS",
-    "warning": {
-      "warningId": "SOL08_POWER_FAILURE_WARNING",
-      "severity": "CRITICAL",
-      "title": "CRITICAL POWER FAILURE",
-      "message": "Main solar generation is unavailable. The outpost is operating on limited reserve power. Restore both solar panels and the main solar connection, then reactivate the main supply through the Engineering Power Unit.",
-      "showAtMissionStart": true,
-      "showOnRelevantPhysical3DScreens": true,
-      "clearOnlyAfter": "SOL08_OBJ_08",
-      "mustNotClearWhenCommunicationIsRepaired": true
-    },
-    "audio": {
-      "warningBeepAssetPath": "F:/Phobosia-main/public/assets/sounds/sol7Sounds/warningBeepTone.MP3",
-      "playOnlyForPowerFailure": true,
-      "startWhenPowerFailureBecomesActive": true,
-      "continueUntilMainPowerRestoration": true,
-      "fadeOutAfter": "SOL08_OBJ_08",
-      "neverHardCut": true,
-      "mustNotPlayForCommunicationFailure": true,
-      "preventDuplicatePlayback": true,
-      "cleanupOnExitTransitionReloadReset": true
-    },
-    "emergencyLights": {
-      "effect": "TEMPORARILY_DISABLE_CONFIGURED_LIGHT_OBJECTS",
-      "startWhenPowerFailureBecomesActive": true,
-      "restoreWhen": "SOL08_OBJ_08",
-      "restoreBeforeCommunicationRepair": true,
-      "captureOriginalStateBeforeDisabling": true,
-      "restoreExactOriginalVisibilityAndLightProperties": true,
-      "doNotAssumeEveryObjectWasInitiallyVisible": true,
-      "doNotChangeUnlistedLights": true,
-      "cleanupOnExitTransitionReloadReset": true,
-      "groups": {
-        "AirLock": [
-          "Light02",
-          "Light08"
-        ],
-        "Central_Connector": [
-          "Light12",
-          "Light15",
-          "Light16",
-          "Light17",
-          "Light18"
-        ],
-        "Habitat": [
-          "LightStrip08",
-          "LightStrip09",
-          "LightStrip10",
-          "LightStrip12",
-          "LightStrip13",
-          "LightStrip14"
-        ],
-        "MissionControl": [
-          "LightStrip02",
-          "LightStrip03",
-          "LightStrip04",
-          "LightStrip05",
-          "LightStrip06",
-          "LightStrip07",
-          "LightStrip08",
-          "LightStrip09",
-          "LightStrip10"
-        ],
-        "Science_Zone": [
-          "Light007",
-          "Light010",
-          "Light012"
-        ],
-        "Engineering": [
-          "Walking_Path_Light_0",
-          "Walking_Path_Light_01",
-          "Walking_Path_Light_02"
-        ]
-      },
-      "verifyExactSceneNames": true,
-      "missingObjectHandling": "LOG_ERROR_AND_CONTINUE_WITH_VERIFIED_OBJECTS",
-      "doNotInventOrRenameObjects": true
-    },
-    "completionEffects": {
-      "clearPowerFailureWarning": true,
-      "fadePowerWarningBeep": true,
-      "restoreConfiguredLightObjects": true,
-      "restoreMainPowerStatus": true,
-      "keepCommunicationFailureWarning": true,
-      "doNotWaitForCommunicationRepair": true
-    }
-  },
-  "communicationFailureConfiguration": {
-    "enabled": true,
-    "scope": "PHOBOSIA_SOL_08_ONLY",
-    "startCondition": "Activate when the existing mission lifecycle starts PHOBOSIA_SOL_08.",
-    "warning": {
-      "warningId": "SOL08_COMMUNICATION_FAILURE_WARNING",
-      "severity": "HIGH",
-      "title": "COMMUNICATION SYSTEM OFFLINE",
-      "message": "The outpost communication system is offline. Inspect Mission Control diagnostics and restore the external communication system.",
-      "showAtMissionStart": true,
-      "showOnRelevantPhysical3DScreens": true,
-      "clearOnlyAfter": "SOL08_OBJ_10",
-      "mustRemainAfterPowerRestoration": true
-    },
-    "audio": {
-      "playWarningBeep": false,
-      "usePowerFailureBeepAsset": false
-    },
-    "completionEffects": {
-      "clearCommunicationFailureWarning": true,
-      "setCommunicationStatusOnline": true,
-      "doNotChangePowerFailureState": true,
-      "doNotReplayPowerFailureBeep": true
-    }
-  },
-  "repairTriggers": {
-    "powerCollection": "PowerMission_Triggers",
-    "powerTriggers": [
+    "interactionStyle": "EXISTING_E_INTERACTION_WINDOW",
+    "visualizationType": "INTERACTIVE_3D_ELECTRICAL_CIRCUIT_SIMULATION",
+    "inspiration": "Cable-routing and wire-connection puzzle mechanics, redesigned as a realistic futuristic Mars outpost electrical maintenance interface.",
+    "doNotCopyAmongUsVisualDesign": true,
+    "useExistingInteractionFramework": true,
+    "useExistingInputAndModalFramework": true,
+    "doNotCreateGlobalSystemJson": true,
+    "doNotModifyGlobalMissionSchema": true,
+    "doNotReplaceExistingTriggerSystem": true,
+    "doNotCreateDuplicateInteractionFramework": true,
+    "completionMustBeValidated": true,
+    "allowRetry": true,
+    "allowCancel": true,
+    "cancelDoesNotCompleteTask": true,
+    "failedAttemptDoesNotDamageExistingPowerState": true,
+    "preventDuplicateCompletionEvents": true,
+    "pauseOrManagePlayerMovementUsingExistingInteractionRules": true,
+    "restoreInputAndPointerStateOnClose": true,
+    "cleanupVisualizationOnClose": true,
+    "puzzles": [
       {
-        "triggerId": "PowerUnit_A",
-        "target": "Solar Panel A",
-        "repairOrder": 1,
-        "required": true
+        "puzzleId": "SOL08_PANEL_A_CIRCUIT_REPAIR",
+        "trigger": "PowerUnit_A",
+        "taskId": "SOL08_REPAIR_SOLAR_PANEL_A",
+        "title": "Solar Array A — Electrical Circuit Restoration",
+        "description": "Reconnect the solar panel output through the correct polarity and regulation path.",
+        "visualization": {
+          "mode": "INTERACTIVE_3D",
+          "showPanelOutput": true,
+          "showPositiveAndNegativeTerminals": true,
+          "showPowerRegulator": true,
+          "showConnectionPorts": true,
+          "showCableRouting": true,
+          "showLiveConnectionFeedback": true,
+          "showValidationStatus": true
+        },
+        "interaction": {
+          "method": "DRAG_AND_DROP_CONNECTORS",
+          "sourceToDestinationConnection": true,
+          "correctPolarityRequired": true,
+          "compatiblePortRequired": true,
+          "allRequiredConnectionsMustBeCompleted": true,
+          "wrongConnectionFeedback": true,
+          "allowDisconnectAndRetry": true
+        },
+        "validation": {
+          "requireAllRequiredConnections": true,
+          "requireCorrectPolarity": true,
+          "requireValidPortCompatibility": true,
+          "requireNoInvalidFinalConnections": true,
+          "emitSuccessOnlyAfterValidation": true,
+          "successEvent": "SOL08_PANEL_A_REPAIR_VALIDATED"
+        }
       },
       {
-        "triggerId": "PowerUnit_B",
-        "target": "Solar Panel B",
-        "repairOrder": 2,
-        "required": true
+        "puzzleId": "SOL08_PANEL_B_CIRCUIT_REPAIR",
+        "trigger": "PowerUnit_B",
+        "taskId": "SOL08_REPAIR_SOLAR_PANEL_B",
+        "title": "Solar Array B — Electrical Circuit Restoration",
+        "description": "Restore the second solar panel's electrical output using its own circuit-routing configuration.",
+        "visualization": {
+          "mode": "INTERACTIVE_3D",
+          "showPanelOutput": true,
+          "showPositiveAndNegativeTerminals": true,
+          "showPowerRegulator": true,
+          "showConnectionPorts": true,
+          "showCableRouting": true,
+          "showLiveConnectionFeedback": true,
+          "showValidationStatus": true
+        },
+        "interaction": {
+          "method": "DRAG_AND_DROP_CONNECTORS",
+          "sourceToDestinationConnection": true,
+          "correctPolarityRequired": true,
+          "compatiblePortRequired": true,
+          "allRequiredConnectionsMustBeCompleted": true,
+          "wrongConnectionFeedback": true,
+          "allowDisconnectAndRetry": true
+        },
+        "validation": {
+          "requireAllRequiredConnections": true,
+          "requireCorrectPolarity": true,
+          "requireValidPortCompatibility": true,
+          "requireNoInvalidFinalConnections": true,
+          "emitSuccessOnlyAfterValidation": true,
+          "successEvent": "SOL08_PANEL_B_REPAIR_VALIDATED"
+        }
       },
       {
-        "triggerId": "PowerUnit_AB_Main",
-        "target": "Main solar power connection linking both panels to the outpost power unit",
-        "repairOrder": 3,
-        "required": true
+        "puzzleId": "SOL08_MAIN_POWER_ROUTING_REPAIR",
+        "trigger": "PowerUnit_AB_Main",
+        "taskId": "SOL08_REPAIR_MAIN_SOLAR_CONNECTION",
+        "title": "Main Power Bus — Connection Restoration",
+        "description": "Route the restored Solar Array A and Solar Array B outputs through the main power connection to the outpost distribution bus.",
+        "visualization": {
+          "mode": "INTERACTIVE_3D",
+          "showSolarPanelAOutput": true,
+          "showSolarPanelBOutput": true,
+          "showMainPowerBus": true,
+          "showConnectionJunctions": true,
+          "showCableRouting": true,
+          "showLivePowerFlowFeedback": true,
+          "showValidationStatus": true
+        },
+        "interaction": {
+          "method": "DRAG_AND_DROP_CABLE_ROUTING",
+          "requirePanelAConnection": true,
+          "requirePanelBConnection": true,
+          "requireCorrectJunctionRouting": true,
+          "requireMainBusConnection": true,
+          "wrongConnectionFeedback": true,
+          "allowDisconnectAndRetry": true
+        },
+        "validation": {
+          "requirePanelAOutputConnected": true,
+          "requirePanelBOutputConnected": true,
+          "requireValidMainBusRoute": true,
+          "requireNoInvalidFinalConnections": true,
+          "emitSuccessOnlyAfterValidation": true,
+          "successEvent": "SOL08_MAIN_POWER_CONNECTION_VALIDATED"
+        }
       }
     ],
-    "communicationCollection": "Communication_Mission",
-    "communicationTrigger": {
-      "triggerId": "Commuication_fix_Trigger",
-      "target": "Outdoor communication repair point",
-      "required": true
-    },
-    "triggerRules": {
-      "useExistingTriggersOnly": true,
-      "doNotCreateDuplicateTriggers": true,
-      "doNotRenameTriggers": true,
-      "doNotMoveTriggers": true,
-      "doNotInventCoordinates": true,
-      "verifyActualSceneAndCollectionMappings": true,
-      "recordMissingMappingsAsBlockers": true
+    "technicalConstraints": {
+      "preferExistingThreeJsRenderingAndInteractionLibraries": true,
+      "doNotAddHeavyExternal3DFramework": true,
+      "optimizeForLowEndHardware": true,
+      "targetGpu": "NVIDIA_MX350_2GB",
+      "avoidUnnecessaryHighPolyGeometry": true,
+      "avoidLargeTextures": true,
+      "disposeTemporaryGeometryAndMaterials": true,
+      "doNotCreateUnboundedAnimationLoops": true,
+      "supportExistingWindowCloseBehaviour": true,
+      "supportKeyboardAndMouseInteraction": true
     }
   },
-  "engineeringPowerRestoration": {
-    "useExistingMasterScenePowerUnit": true,
-    "useExistingPowerUnitFrontend": true,
-    "doNotCreateReplacementPowerUnit": true,
-    "requireAllOutdoorRepairsBeforeMainRestore": true,
-    "requiredRepairStates": [
-      "PowerUnit_A",
-      "PowerUnit_B",
-      "PowerUnit_AB_Main"
+  "powerRestoration": {
+    "requiredValidatedEvents": [
+      "SOL08_PANEL_A_REPAIR_VALIDATED",
+      "SOL08_PANEL_B_REPAIR_VALIDATED",
+      "SOL08_MAIN_POWER_CONNECTION_VALIDATED"
     ],
-    "restoreMainSupplyThroughExistingInterface": true,
-    "verifyPowerDistributionAfterRestore": true,
-    "powerFailureClearTrigger": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED",
-    "communicationWarningMustRemain": true
+    "restoreOnlyThroughEngineeringPowerUnit": true,
+    "requireAllThreeRepairs": true,
+    "successEvent": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED",
+    "onSuccess": {
+      "setPowerFailureResolved": true,
+      "setMainSupplyRestored": true,
+      "updatePowerDistribution": true,
+      "clearPowerFailureWarning": true,
+      "fadeWarningBeepToSilence": true,
+      "restoreExactOriginalEmergencyLightStates": true,
+      "persistPowerRepairRecords": true,
+      "keepCommunicationFailureActive": true,
+      "keepCommunicationWarningVisible": true
+    }
+  },
+  "communicationRepair": {
+    "collection": "Communication_Mission",
+    "trigger": "Commuication_fix_Trigger",
+    "warningId": "SOL08_COMMUNICATION_FAILURE_WARNING",
+    "successEvent": "SOL08_COMMUNICATION_REPAIR_CONFIRMED",
+    "requiresPowerRestoration": true,
+    "onSuccess": {
+      "setCommunicationOnline": true,
+      "setCommunicationFailureResolved": true,
+      "clearCommunicationWarning": true,
+      "preserveRestoredPowerState": true,
+      "doNotRestartPowerWarningAudio": true
+    }
+  },
+  "warningAudio": {
+    "assetPath": "/assets/sounds/sol7Sounds/warningBeepTone.MP3",
+    "sourcePathReference": "F:\\Phobosia-main\\public\\assets\\sounds\\sol7Sounds\\warningBeepTone.MP3",
+    "scope": "POWER_FAILURE_ONLY",
+    "startWhen": "SOL08_POWER_FAILURE_ACTIVE",
+    "stopWhen": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED",
+    "fadeOutRequired": true,
+    "neverHardCut": true,
+    "communicationFailureMustNotTriggerAudio": true,
+    "preventDuplicateAudioInstances": true,
+    "cleanupOnExitReloadReset": true
+  },
+  "emergencyLights": {
+    "scope": "SOL08_POWER_FAILURE_ONLY",
+    "disableWhen": "SOL08_POWER_FAILURE_ACTIVE",
+    "restoreWhen": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED",
+    "captureOriginalStateBeforeChanging": true,
+    "restoreExactOriginalState": true,
+    "doNotForceAllLightsVisible": true,
+    "doNotModifyUnlistedLights": true,
+    "verifyExactSceneNames": true,
+    "groups": {
+      "AirLock": [
+        "Light02",
+        "Light08"
+      ],
+      "Central_Connector": [
+        "Light12",
+        "Light15",
+        "Light16",
+        "Light17",
+        "Light18"
+      ],
+      "Habitat": [
+        "LightStrip08",
+        "LightStrip09",
+        "LightStrip10",
+        "LightStrip12",
+        "LightStrip13",
+        "LightStrip14"
+      ],
+      "MissionControl": [
+        "LightStrip02",
+        "LightStrip03",
+        "LightStrip04",
+        "LightStrip05",
+        "LightStrip06",
+        "LightStrip07",
+        "LightStrip08",
+        "LightStrip09",
+        "LightStrip10"
+      ],
+      "Science_Zone": [
+        "Light007",
+        "Light010",
+        "Light012"
+      ],
+      "Engineering": [
+        "Walking_Path_Light_0",
+        "Walking_Path_Light_01",
+        "Walking_Path_Light_02"
+      ]
+    }
   },
   "physicalScreenWarnings": {
     "scope": "EXISTING_PHYSICAL_3D_SCREENS_ONLY",
+    "directory": "src/jsons/Screens",
     "doNotUseOperatingSystemUI": true,
-    "showBothWarningsAtMissionStart": true,
     "warnings": [
       {
         "warningId": "SOL08_POWER_FAILURE_WARNING",
-        "sourceState": "powerFailure.active",
-        "showAtMissionStart": true,
-        "clearWhen": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED",
-        "mustRemainAfterCommunicationRepair": false
+        "title": "CRITICAL POWER FAILURE",
+        "severity": "CRITICAL",
+        "activeWhen": "SOL08_POWER_FAILURE_ACTIVE",
+        "clearWhen": "ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED"
       },
       {
         "warningId": "SOL08_COMMUNICATION_FAILURE_WARNING",
-        "sourceState": "communicationFailure.active",
-        "showAtMissionStart": true,
-        "clearWhen": "COMMUNICATION_REPAIR_TRIGGER_CONFIRMS_ONLINE",
-        "mustRemainAfterPowerRestoration": true
+        "title": "COMMUNICATION SYSTEM OFFLINE",
+        "severity": "HIGH",
+        "activeWhen": "SOL08_COMMUNICATION_FAILURE_ACTIVE",
+        "clearWhen": "SOL08_COMMUNICATION_REPAIR_CONFIRMED"
       }
     ],
-    "screenSourceDirectory": "src/jsons/Screens",
-    "implementationRequirement": "Inspect existing screen JSON files and their rendering conventions before creating Sol 8 screen source files. Do not assume screen IDs, mesh names, trigger IDs or component schemas."
+    "independentWarningStates": true,
+    "doNotClearBothWarningsTogether": true
   },
   "navigation": {
     "sourceDirectory": "src/jsons/Instructions",
-    "requireSeparateSol8NavigationSource": true,
-    "implementationRequirement": "Inspect existing navigation instruction JSON files before creating the Sol 8 navigation source. Reuse established destination identifiers, instruction format and navigation conventions. Do not invent destination IDs or coordinates."
+    "createSeparateSol8NavigationSource": true,
+    "inspectExistingSourcesBeforeCreation": true,
+    "reuseExistingDestinationIds": true,
+    "doNotInventCoordinatesOrDestinationIds": true
   },
   "report": {
     "reportId": "PHOBOSIA_SOL_08_REPORT",
-    "title": "Mars Outpost Power and Communication Recovery Report",
-    "submissionRequired": true,
+    "title": "Outpost Power and Communication Recovery Report",
     "requiredSections": [
       "Mission Overview",
-      "Sol 7 Post-Storm Assessment Reference",
-      "Initial Reserve Power Status",
-      "Engineering Power Unit Diagnosis",
-      "Solar Panel A Repair",
-      "Solar Panel B Repair",
-      "Main Solar Connection Repair",
-      "Main Power Supply Restoration",
+      "Initial Reserve Power Condition",
+      "Engineering Power Unit Assessment",
+      "Solar Panel A Repair and Validation",
+      "Solar Panel B Repair and Validation",
+      "Main Solar Connection Repair and Validation",
+      "Main Power Restoration",
       "Power Distribution Verification",
       "Emergency Light Restoration",
-      "Power Warning and Audio Resolution",
-      "Mission Control Communication Diagnosis",
-      "Outdoor Communication Repair",
+      "Power Warning Audio Resolution",
+      "Communication System Diagnosis",
+      "Communication Repair",
       "Communication Recovery Verification",
-      "Remaining Issues",
-      "Data Provenance and Gameplay Simulation Limitations"
+      "Repair Simulation Results",
+      "Data Provenance and Simulation Limitations",
+      "Remaining Issues"
     ],
-    "mustIncludeAllRepairResults": true,
-    "mustRecordActualCompletionState": true,
-    "mustNotInventTelemetry": true
+    "submissionRequired": true,
+    "mustIncludeAllMandatoryTasks": true
   },
   "completion": {
-    "allMandatoryTasksRequired": true,
-    "allThreePowerRepairsRequired": true,
-    "mainPowerRestoreVerificationRequired": true,
-    "communicationRepairRequired": true,
-    "powerWarningMustClearAtPowerRestoration": true,
-    "communicationWarningMustClearAtCommunicationRestoration": true,
-    "configuredLightsMustRestoreAtPowerRestoration": true,
-    "powerBeepMustFadeAtPowerRestoration": true,
-    "bothFailureStatesMustBeResolvedBeforeReportSubmission": true,
-    "persistRecoveryRecordsForSol09": true,
+    "allTenTasksRequired": true,
+    "allThreeElectricalRepairPuzzlesValidated": true,
+    "engineeringMainSupplyRestored": true,
+    "communicationRecoveryConfirmed": true,
+    "powerWarningCleared": true,
+    "communicationWarningCleared": true,
+    "emergencyLightsRestored": true,
+    "finalReportMustValidate": true,
+    "preservePreviousMissionData": true,
     "nextSol": 9,
     "nextMission": "PHOBOSIA_SOL_09",
     "doNotAutoStartNextSol": true
@@ -526,18 +447,20 @@
   "dataProvenance": {
     "neverInventNASAObservations": true,
     "neverPresentGameplaySimulationAsNASAData": true,
-    "preserveSol07SourceAndSimulationLabels": true,
-    "usePersistedMissionTelemetryWhenAvailable": true
+    "labelSimulatedReservePower": true,
+    "preserveSol07AssessmentReferences": true,
+    "recordRepairPuzzleResultsAsGameplayInteractions": true
   },
   "dataIntegrity": {
     "doNotModifySol01ToSol07": true,
     "preserveSol06SampleAndCultivation": true,
-    "preserveSol07StormAssessmentAndHistory": true,
+    "preserveSol07StormHistory": true,
+    "preserveExistingTriggerDefinitions": true,
+    "doNotModifyGlobalSystemJson": true,
+    "doNotModifyGlobalMissionSchema": true,
     "useExistingMissionLifecycle": true,
-    "useExistingEVA": true,
-    "useExistingPowerUnit": true,
-    "useExistingScreenRenderingSystem": true,
+    "useExistingScreenRenderer": true,
     "useExistingNavigationSystem": true,
-    "doNotInventSceneMappingsOrObjectNames": true
+    "doNotInventSceneMappings": true
   }
 }
