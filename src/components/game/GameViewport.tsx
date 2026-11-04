@@ -120,6 +120,7 @@ export function GameViewport() {
     const controller = new LaptopAudioController();
     setLaptopAudio(controller);
     const unsubscribe = controller.subscribe(setLaptopAudioSnapshot);
+    game.current?.connectLaptopAudio(controller);
     return () => {
       unsubscribe();
       controller.dispose();

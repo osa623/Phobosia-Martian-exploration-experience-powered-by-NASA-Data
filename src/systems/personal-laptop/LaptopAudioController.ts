@@ -42,9 +42,10 @@ export class LaptopAudioController {
   private listeners = new Set<(snapshot: Readonly<LaptopAudioSnapshot>) => void>();
   private snapshot: LaptopAudioSnapshot;
   private currentUrl: string | null = null;
-  private rampFrame = 0;
   private lastPersistAt = 0;
   private savedPosition = 0;
+  private audioContext: AudioContext | null = null;
+  private spatialGate: AudioParam | null = null;
   private disposed = false;
 
   constructor() {
@@ -67,7 +68,7 @@ export class LaptopAudioController {
     this.savedPosition = typeof saved.currentTime === "number" ? Math.max(0, saved.currentTime) : 0;
     this.audio = new Audio();
     this.audio.preload = "metadata";
-    this.audio.volume = 0;
+    this.audio.volume = this.snapshot.volume;
     this.audio.addEventListener("timeupdate", this.onTimeUpdate);
     this.audio.addEventListener("durationchange", this.onDurationChange);
     this.audio.addEventListener("ended", this.onEnded);
@@ -98,17 +99,15 @@ export class LaptopAudioController {
   public setHabitatAudible(audible: boolean) {
     if (this.snapshot.habitatAudible === audible) return;
     this.update({ habitatAudible: audible });
-    const generation = ++this.rampFrame;
-    const from = this.audio.volume;
-    const to = audible ? this.snapshot.volume : 0;
-    const startedAt = performance.now();
-    const tick = (now: number) => {
-      if (this.disposed || generation !== this.rampFrame) return;
-      const progress = clamp((now - startedAt) / 260, 0, 1);
-      this.audio.volume = from + (to - from) * progress;
-      if (progress < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+    this.setSpatialGate(audible);
+  }
+
+  public getMediaElement() { return this.audio; }
+
+  public attachSpatialOutput(context: AudioContext, gain: AudioParam) {
+    this.audioContext = context;
+    this.spatialGate = gain;
+    this.setSpatialGate(this.snapshot.habitatAudible, true);
   }
 
   public async playTrack(trackId: string, queue?: LaptopTrack[]) {
@@ -120,7 +119,9 @@ export class LaptopAudioController {
     if (changedTrack) this.update({ currentTrackId: track.id, currentTime: 0, duration: 0 });
     this.update({ error: null });
     try {
-      await this.audio.play();
+      const resume = this.audioContext?.state === "suspended" ? this.audioContext.resume() : Promise.resolve();
+      const playback = this.audio.play();
+      await Promise.all([resume, playback]);
       this.update({ isPlaying: true, error: null });
       this.touchRecentlyPlayed(track.id);
       this.persist(true);
@@ -137,7 +138,9 @@ export class LaptopAudioController {
         return;
       }
       try {
-        await this.audio.play();
+        const resume = this.audioContext?.state === "suspended" ? this.audioContext.resume() : Promise.resolve();
+        const playback = this.audio.play();
+        await Promise.all([resume, playback]);
         this.update({ isPlaying: true, error: null });
       } catch {
         this.update({ error: "Playback was blocked. Press Play again to start audio." });
@@ -185,9 +188,8 @@ export class LaptopAudioController {
 
   public setVolume(volume: number) {
     const nextVolume = clamp(volume, 0, 1);
-    this.rampFrame++;
     this.update({ volume: nextVolume });
-    if (this.snapshot.habitatAudible) this.audio.volume = nextVolume;
+    this.audio.volume = nextVolume;
     this.persist(true);
   }
 
@@ -215,7 +217,8 @@ export class LaptopAudioController {
 
   public dispose() {
     this.disposed = true;
-    this.rampFrame++;
+    this.spatialGate = null;
+    this.audioContext = null;
     this.audio.pause();
     this.persist(true);
     this.audio.removeEventListener("timeupdate", this.onTimeUpdate);
@@ -267,6 +270,15 @@ export class LaptopAudioController {
     void this.next();
   };
   private onError = () => this.update({ isPlaying: false, error: "This audio file could not be played by the browser." });
+
+  private setSpatialGate(audible: boolean, immediate = false) {
+    if (!this.spatialGate || !this.audioContext) return;
+    const gate = this.spatialGate;
+    const now = this.audioContext.currentTime;
+    gate.cancelScheduledValues(now);
+    if (immediate) gate.setValueAtTime(audible ? 1 : 0, now);
+    else gate.setTargetAtTime(audible ? 1 : 0, now, 0.22 / 3);
+  }
 
   private update(patch: Partial<LaptopAudioSnapshot>) {
     this.snapshot = { ...this.snapshot, ...patch };

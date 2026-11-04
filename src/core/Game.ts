@@ -27,6 +27,8 @@ import { MissionControlScreenRenderer } from "./MissionControlScreenRenderer";
 import { CentralHubScreenRenderer } from "./CentralHubScreenRenderer";
 import { AirlockScreenRenderer } from "./AirlockScreenRenderer";
 import { LaptopScreenRenderer } from "@/jsons/Screens/Laptop_Screen/LaptopScreenRenderer";
+import { LaptopPositionalAudio } from "@/systems/personal-laptop/LaptopPositionalAudio";
+import type { LaptopAudioController } from "@/systems/personal-laptop/LaptopAudioController";
 import { CameraPresentationManager } from "./CameraPresentation";
 import { GameAudioManager, resolveIndoorMovementAudioState } from "./GameAudioManager";
 import { DEFAULT_MOVEMENT_CONFIG, EVA_MOVEMENT_CONFIG } from "./MovementConfig";
@@ -127,6 +129,8 @@ export class Game {
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
   private laptopScreenRenderer = new LaptopScreenRenderer();
+  private laptopPositionalAudio = new LaptopPositionalAudio();
+  private laptopAudioController?: LaptopAudioController;
   private habitatScreenRenderer = new HabitatScreenRenderer();
   private engineeringScreenRenderer = new EngineeringScreenRenderer();
   private researchScreenRenderer = new ResearchScreenRenderer();
@@ -312,6 +316,19 @@ export class Game {
   private set(p: Partial<GameState>) {
     this.state = { ...this.state, ...p };
     this.emit(this.state);
+  }
+
+  public connectLaptopAudio(controller: LaptopAudioController) {
+    this.laptopAudioController = controller;
+    const habitat = this.loaded.get("Habitat");
+    if (habitat) this.attachLaptopPositionalAudio(habitat);
+  }
+
+  private attachLaptopPositionalAudio(model: THREE.Group) {
+    const controller = this.laptopAudioController;
+    if (!controller) return;
+    const output = this.laptopPositionalAudio.attach(model, this.camera, controller.getMediaElement(), this.player.eyeHeight);
+    controller.attachSpatialOutput(output.context, output.gate);
   }
 
   private getEVAAccessBlockMessage(destination: ModuleName): string | null {
@@ -1708,6 +1725,7 @@ export class Game {
     if (module === "Habitat") {
       this.habitatScreenRenderer.attachToHabitat(model, this.missionManager.getState());
       this.laptopScreenRenderer.attachToHabitat(model);
+      this.attachLaptopPositionalAudio(model);
     } else {
       this.habitatScreenRenderer.dispose();
       this.laptopScreenRenderer.dispose();
@@ -2760,6 +2778,7 @@ export class Game {
 
     this.habitatScreenRenderer.dispose();
     this.laptopScreenRenderer.dispose();
+    this.laptopPositionalAudio.dispose();
     this.engineeringScreenRenderer.dispose();
     this.researchScreenRenderer.dispose();
     this.missionControlScreenRenderer.dispose();

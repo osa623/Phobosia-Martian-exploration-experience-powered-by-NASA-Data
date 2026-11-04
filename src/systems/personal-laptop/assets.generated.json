@@ -9,14 +9,6 @@
       "extension": "mp3"
     },
     {
-      "id": "songs/BEYOND THE RED HORIZON.mp3",
-      "fileName": "BEYOND THE RED HORIZON.mp3",
-      "title": "BEYOND THE RED HORIZON",
-      "url": "/assets/laptop/songs/BEYOND%20THE%20RED%20HORIZON.mp3",
-      "mimeType": "audio/mpeg",
-      "extension": "mp3"
-    },
-    {
       "id": "songs/Built From the Ground.mp3",
       "fileName": "Built From the Ground.mp3",
       "title": "Built From the Ground",
@@ -37,6 +29,14 @@
       "fileName": "Dancing Into Your Heart.mp3",
       "title": "Dancing Into Your Heart",
       "url": "/assets/laptop/songs/Dancing%20Into%20Your%20Heart.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/ODESZA - A Moment Apart (1).mp3",
+      "fileName": "ODESZA - A Moment Apart (1).mp3",
+      "title": "ODESZA - A Moment Apart (1)",
+      "url": "/assets/laptop/songs/ODESZA%20-%20A%20Moment%20Apart%20(1).mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     },
@@ -183,7 +183,7 @@
     {
       "id": "wallpaper/camera001.png",
       "fileName": "camera001.png",
-      "title": "Selfie",
+      "title": "camera001",
       "url": "/assets/laptop/wallpaper/camera001.png",
       "mimeType": "image/png",
       "extension": "png"
