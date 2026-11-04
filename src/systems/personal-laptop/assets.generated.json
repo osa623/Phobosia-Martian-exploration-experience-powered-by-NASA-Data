@@ -1,6 +1,14 @@
 {
   "songs": [
     {
+      "id": "songs/Before the Morning Comes.mp3",
+      "fileName": "Before the Morning Comes.mp3",
+      "title": "Before the Morning Comes",
+      "url": "/assets/laptop/songs/Before%20the%20Morning%20Comes.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
       "id": "songs/BEYOND THE RED HORIZON.mp3",
       "fileName": "BEYOND THE RED HORIZON.mp3",
       "title": "BEYOND THE RED HORIZON",
@@ -9,34 +17,50 @@
       "extension": "mp3"
     },
     {
-      "id": "songs/Danza Kuduro Remix - TikTok Version.mp3",
-      "fileName": "Danza Kuduro Remix - TikTok Version.mp3",
-      "title": "Danza Kuduro Remix - TikTok Version",
-      "url": "/assets/laptop/songs/Danza%20Kuduro%20Remix%20-%20TikTok%20Version.mp3",
+      "id": "songs/Built From the Ground.mp3",
+      "fileName": "Built From the Ground.mp3",
+      "title": "Built From the Ground",
+      "url": "/assets/laptop/songs/Built%20From%20the%20Ground.mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     },
     {
-      "id": "songs/Don Toliver - Lose My Mind (feat. Doja Cat) [From F1® The Movie] [Official Audio].mp3",
-      "fileName": "Don Toliver - Lose My Mind (feat. Doja Cat) [From F1® The Movie] [Official Audio].mp3",
-      "title": "Don Toliver - Lose My Mind (feat Doja Cat) [From F1® The Movie] [Official Audio]",
-      "url": "/assets/laptop/songs/Don%20Toliver%20-%20Lose%20My%20Mind%20(feat.%20Doja%20Cat)%20%5BFrom%20F1%C2%AE%20The%20Movie%5D%20%5BOfficial%20Audio%5D.mp3",
+      "id": "songs/Colours of Home.mp3",
+      "fileName": "Colours of Home.mp3",
+      "title": "Colours of Home",
+      "url": "/assets/laptop/songs/Colours%20of%20Home.mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     },
     {
-      "id": "songs/Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop.mp3",
-      "fileName": "Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop.mp3",
-      "title": "Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop",
-      "url": "/assets/laptop/songs/Jothi%20Nonstop%20With%20Sahara%20Flash%20%E0%B6%AD%E0%B7%94%E0%B7%82%E0%B7%8F%E0%B6%BB%20Jo%20%E0%B6%9C%E0%B7%9A%20%E0%B7%84%E0%B6%A9%E0%B7%92%E0%B6%B1%E0%B7%8A%20%E0%B6%A2%E0%B7%9D%E0%B6%AD%E0%B7%92%20Nonstop%20%23sampathvideo%20%23jothinonstop.mp3",
+      "id": "songs/Dancing Into Your Heart.mp3",
+      "fileName": "Dancing Into Your Heart.mp3",
+      "title": "Dancing Into Your Heart",
+      "url": "/assets/laptop/songs/Dancing%20Into%20Your%20Heart.mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     },
     {
-      "id": "songs/ODESZA - A Moment Apart (1).mp3",
-      "fileName": "ODESZA - A Moment Apart (1).mp3",
-      "title": "ODESZA - A Moment Apart (1)",
-      "url": "/assets/laptop/songs/ODESZA%20-%20A%20Moment%20Apart%20(1).mp3",
+      "id": "songs/Somewhere in Your Eyes.mp3",
+      "fileName": "Somewhere in Your Eyes.mp3",
+      "title": "Somewhere in Your Eyes",
+      "url": "/assets/laptop/songs/Somewhere%20in%20Your%20Eyes.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/The Room You Left Behind.mp3",
+      "fileName": "The Room You Left Behind.mp3",
+      "title": "The Room You Left Behind",
+      "url": "/assets/laptop/songs/The%20Room%20You%20Left%20Behind.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Under the Summer Lights.mp3",
+      "fileName": "Under the Summer Lights.mp3",
+      "title": "Under the Summer Lights",
+      "url": "/assets/laptop/songs/Under%20the%20Summer%20Lights.mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     }
@@ -157,10 +181,10 @@
   ],
   "wallpapers": [
     {
-      "id": "wallpaper/ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
-      "fileName": "ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
-      "title": "ChatGPT Image Sep 25, 2026, 03 41 47 PM",
-      "url": "/assets/laptop/wallpaper/ChatGPT%20Image%20Sep%2025%2C%202026%2C%2003_41_47%20PM.png",
+      "id": "wallpaper/camera001.png",
+      "fileName": "camera001.png",
+      "title": "Selfie",
+      "url": "/assets/laptop/wallpaper/camera001.png",
       "mimeType": "image/png",
       "extension": "png"
     }
