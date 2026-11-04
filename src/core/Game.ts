@@ -7,6 +7,7 @@ import type { GameState, SetState } from "./EventBus";
 import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, buildNamedSceneColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
 import { collisionProfiles } from "./CollisionProfiles";
 import { configureModuleLighting, configureMeshShadows, getModuleHemisphereConfig } from "./ModuleLighting";
+import { advanceNighttimeGameplayClock, createMasterTerrainLightClusters, DAYTIME_EXR_URL, isMasterTerrainNighttimeEligible, NIGHTTIME_DURATION_SECONDS, NIGHTTIME_EXR_URL, NIGHTTIME_SKY_ROTATION_RADIANS_PER_SECOND, setTerrainNightLightsEnabled, type TerrainLightClusters } from "./MasterTerrainEnvironment";
 import {
   MissionManager,
   DAYS_CONFIG,
@@ -146,6 +147,15 @@ export class Game {
   private observer: ResizeObserver;
   private environmentTarget?: THREE.WebGLRenderTarget;
   private environmentTexture?: THREE.DataTexture;
+  private nighttimeEnvironmentTarget?: THREE.WebGLRenderTarget;
+  private nighttimeEnvironmentTexture?: THREE.DataTexture;
+  private terrainLightClusters?: TerrainLightClusters;
+  private nighttimeActive = false;
+  private nighttimeElapsedSeconds = 0;
+  private nighttimeExpiredForCycle = false;
+  private nighttimePersistAccumulator = 0;
+  private nighttimeSessionInitializedForDay: number | null = null;
+  private nighttimeSkyRotation = 0;
   private hemiLight: THREE.HemisphereLight;
 
   // Cinematic screen camera transition state
@@ -293,6 +303,7 @@ export class Game {
 
     // Subscribe to mission state changes
     this.missionManager.subscribe(updated => {
+      this.syncMasterTerrainEnvironment(updated);
       this.syncMissionStateToUI(updated);
       this.screenRenderer.renderAll(this.active, updated);
       if (this.active === "Habitat") {
@@ -419,9 +430,7 @@ export class Game {
 
   private async loadEnvironment() {
     try {
-      const source = await new EXRLoader().loadAsync(
-        "/assets/exr/mars-dunes-day-light_2K_fc2ff73b-6eed-4836-92ed-f94e0d2d649f.exr"
-      );
+      const source = await new EXRLoader().loadAsync(DAYTIME_EXR_URL);
       if (this.disposed) {
         source.dispose();
         return;
@@ -437,21 +446,116 @@ export class Game {
     } catch {
       this.set({ error: "Environment EXR could not be loaded; continuing without terrain reflections." });
     }
+
+    try {
+      const source = await new EXRLoader().loadAsync(NIGHTTIME_EXR_URL);
+      if (this.disposed) {
+        source.dispose();
+        return;
+      }
+      source.mapping = THREE.EquirectangularReflectionMapping;
+      this.nighttimeEnvironmentTexture = source;
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.nighttimeEnvironmentTarget = pmrem.fromEquirectangular(source);
+      pmrem.dispose();
+      this.syncMasterTerrainEnvironment(this.missionManager.getState());
+    } catch (error) {
+      console.error(`[Master Terrain Environment] Nighttime EXR failed to load from ${NIGHTTIME_EXR_URL}.`, error);
+    }
   }
 
   private updateEnvironment() {
     const hemiConfig = getModuleHemisphereConfig(this.active);
     this.hemiLight.color.setHex(hemiConfig.skyColor);
     this.hemiLight.groundColor.setHex(hemiConfig.groundColor);
-    this.hemiLight.intensity = hemiConfig.intensity;
+    const useNight = this.active === "Terrain" && !this.transitioning && this.nighttimeActive && Boolean(this.nighttimeEnvironmentTarget);
+    this.hemiLight.intensity = useNight ? 0.12 : hemiConfig.intensity;
+    const terrainSun = this.current?.getObjectByName("MarsSun_DirectionalLight") as THREE.DirectionalLight | undefined;
+    if (terrainSun) {
+      terrainSun.intensity = useNight ? 0 : 2.6;
+      terrainSun.visible = !useNight;
+      terrainSun.castShadow = !useNight;
+    }
+    setTerrainNightLightsEnabled(this.terrainLightClusters, useNight);
+    this.scene.environmentIntensity = useNight ? 0.3 : 1;
+    this.scene.environmentRotation.y = useNight ? this.nighttimeSkyRotation : 0;
+    this.scene.backgroundRotation.y = useNight ? this.nighttimeSkyRotation : 0;
 
     if (this.active === "Terrain") {
-      this.scene.environment = this.environmentTarget?.texture ?? null;
-      this.scene.background = this.environmentTexture ?? new THREE.Color(0x101a20);
+      this.scene.environment = (useNight ? this.nighttimeEnvironmentTarget : this.environmentTarget)?.texture ?? null;
+      this.scene.background = (useNight ? this.nighttimeEnvironmentTexture : this.environmentTexture) ?? new THREE.Color("#101a20");
     } else {
       this.scene.environment = null;
       this.scene.background = new THREE.Color(0x0a1015);
+      this.scene.environmentIntensity = 1;
     }
+  }
+
+  private syncMasterTerrainEnvironment(state: Readonly<MissionProgressState>) {
+    const eligible = isMasterTerrainNighttimeEligible(state, this.transitioning);
+    if (!eligible) {
+      this.nighttimeActive = false;
+      this.nighttimeElapsedSeconds = 0;
+      this.nighttimePersistAccumulator = 0;
+      this.nighttimeExpiredForCycle = false;
+      this.nighttimeSessionInitializedForDay = null;
+      this.clearStoredNightSession();
+    } else if (this.active === "Terrain" && this.nighttimeEnvironmentTarget && this.nighttimeSessionInitializedForDay !== state.currentDay) {
+      const stored = this.readStoredNightSession(state.currentDay);
+      this.nighttimeSessionInitializedForDay = state.currentDay;
+      this.nighttimeExpiredForCycle = stored?.expired ?? false;
+      this.nighttimeElapsedSeconds = stored?.elapsedSeconds ?? 0;
+      this.nighttimeActive = !this.nighttimeExpiredForCycle;
+      if (this.nighttimeActive) this.persistNightSession(state.currentDay, false);
+    }
+    this.updateEnvironment();
+  }
+
+  private updateNighttimeGameplayClock(dt: number) {
+    if (!this.nighttimeActive) return;
+    const paused = document.hidden || this.transitioning || Boolean(
+      this.state.panel || this.state.showBriefingModal || this.state.showRoutePlanning ||
+      this.state.showGeologicalForm || this.state.showSurfaceObservationForm || this.state.showScienceAnalysisModal ||
+      this.state.showDroneConsoleModal || this.state.restFeedback || this.state.showCinematicOverlay ||
+      this.state.showOSDesktop || this.state.showPersonalLaptop || this.cameraPresentationManager.isPresentationActive()
+    );
+    const result = advanceNighttimeGameplayClock(this.nighttimeElapsedSeconds, dt, paused);
+    if (paused) return;
+    this.nighttimeElapsedSeconds = result.elapsedSeconds;
+    this.nighttimePersistAccumulator += dt;
+    if (!result.expired && this.nighttimePersistAccumulator < 60) return;
+    this.nighttimePersistAccumulator = 0;
+    const currentDay = this.missionManager.getState().currentDay;
+    if (!result.expired) {
+      this.persistNightSession(currentDay, false);
+      return;
+    }
+    this.nighttimeActive = false;
+    this.nighttimeElapsedSeconds = 0;
+    this.nighttimeExpiredForCycle = true;
+    this.persistNightSession(currentDay, true);
+    this.updateEnvironment();
+  }
+
+  private readStoredNightSession(day: number): { day: number; elapsedSeconds: number; expired: boolean } | null {
+    try {
+      const raw = window.localStorage.getItem("phobosia_master_terrain_night_session_v1");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { day?: unknown; elapsedSeconds?: unknown; expired?: unknown };
+      if (parsed.day !== day || typeof parsed.elapsedSeconds !== "number" || !Number.isFinite(parsed.elapsedSeconds)) return null;
+      return { day, elapsedSeconds: Math.max(0, Math.min(parsed.elapsedSeconds, NIGHTTIME_DURATION_SECONDS)), expired: parsed.expired === true };
+    } catch { return null; }
+  }
+
+  private persistNightSession(day: number, expired: boolean) {
+    try {
+      window.localStorage.setItem("phobosia_master_terrain_night_session_v1", JSON.stringify({ day, elapsedSeconds: this.nighttimeElapsedSeconds, expired }));
+    } catch { /* Storage may be unavailable in private or embedded sessions. */ }
+  }
+
+  private clearStoredNightSession() {
+    try { window.localStorage.removeItem("phobosia_master_terrain_night_session_v1"); }
+    catch { /* Storage may be unavailable in private or embedded sessions. */ }
   }
 
   async start() {
@@ -1697,6 +1801,12 @@ export class Game {
 
     // 2. Configure comprehensive realistic lighting and shadow system (Sun or SpotLights + ambient fill)
     configureModuleLighting(model, additions, module);
+    if (module === "Terrain") {
+      this.terrainLightClusters = createMasterTerrainLightClusters(model, additions);
+      console.info("[Master Terrain Environment] Authored fixture audit", this.terrainLightClusters.audit);
+      console.info("[Master Terrain Environment] Night shadow lights", this.terrainLightClusters.shadowLightNames);
+      this.syncMasterTerrainEnvironment(this.missionManager.getState());
+    }
     if (this.state.missionDay === 8 && this.missionManager.getSol8Progress().powerFailureActive) this.sol8PowerEffects.disableModuleLights(model, module);
     if (this.state.missionDay === 7 && !this.missionManager.getSol7Progress().stormEnded) this.sol7Storm.applyToModule(model, module);
 
@@ -2061,6 +2171,7 @@ export class Game {
 
       this.pending = undefined;
       this.transitioning = false;
+      this.syncMasterTerrainEnvironment(this.missionManager.getState());
       this.set({
         module: labels[route.module],
         transition: "",
@@ -2643,6 +2754,12 @@ export class Game {
     if (this.disposed) return;
     requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.updateNighttimeGameplayClock(dt);
+    if (this.active === "Terrain" && this.nighttimeActive) {
+      this.nighttimeSkyRotation = (this.nighttimeSkyRotation + NIGHTTIME_SKY_ROTATION_RADIANS_PER_SECOND * dt) % (Math.PI * 2);
+      this.scene.environmentRotation.y = this.nighttimeSkyRotation;
+      this.scene.backgroundRotation.y = this.nighttimeSkyRotation;
+    }
     const now = Date.now();
     const evaElapsedSeconds = Math.max(0, (now - this.evaLastTickAt) / 1000);
     this.evaLastTickAt = now;
@@ -2752,6 +2869,7 @@ export class Game {
 
   dispose() {
     if (this.sol5DroneActive) this.missionManager.abortSol5SimulationAttempt(false);
+    if (this.nighttimeActive) this.persistNightSession(this.missionManager.getState().currentDay, false);
     this.sol5DroneActive = false;
     this.roverSystem?.exit();
     this.roverKeys.clear();
@@ -2788,9 +2906,13 @@ export class Game {
     this.scene.environment = null;
     this.environmentTarget?.dispose();
     this.environmentTexture?.dispose();
+    this.nighttimeEnvironmentTarget?.dispose();
+    this.nighttimeEnvironmentTexture?.dispose();
 
     this.loaded.forEach(root =>
       root.traverse(o => {
+        const light = o as THREE.SpotLight;
+        if (light.isSpotLight && light.name.endsWith("_NightSpot")) light.shadow.map?.dispose();
         const mesh = o as THREE.Mesh;
         mesh.geometry?.dispose();
         const material = mesh.material;
