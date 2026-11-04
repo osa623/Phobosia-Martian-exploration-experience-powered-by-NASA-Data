@@ -644,7 +644,9 @@ export class MissionManager {
   public saveState(): void {
     if (typeof window === "undefined" && !(typeof globalThis !== "undefined" && globalThis.localStorage)) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      const serialized = JSON.stringify(this.state);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      localStorage.setItem(`${STORAGE_KEY}_sol_${this.state.currentDay}`, serialized);
     } catch {
       // Ignore storage errors in restricted iframe/private mode
     }
