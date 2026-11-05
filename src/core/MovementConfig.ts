@@ -62,5 +62,5 @@ export const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
 /** EVA movement uses the same controller with a configurable 20% speed reduction. */
 export const EVA_MOVEMENT_CONFIG: Pick<MovementConfig, "walkSpeed" | "runSpeed"> = {
   walkSpeed: DEFAULT_MOVEMENT_CONFIG.walkSpeed * 1.8,
-  runSpeed: DEFAULT_MOVEMENT_CONFIG.runSpeed * 30.8
+  runSpeed: DEFAULT_MOVEMENT_CONFIG.runSpeed * 2.8
 };

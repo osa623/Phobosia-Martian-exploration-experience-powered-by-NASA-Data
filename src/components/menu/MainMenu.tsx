@@ -6,7 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameViewport } from "@/components/game/GameViewport";
 import { DAYS_CONFIG, type MissionDayNumber, type MissionProgressState } from "@/core/MissionManager";
-import "./MainMenu.css";
+import "../../components/menu/MainMenu.css";
 
 const SAVE_KEYS = ["phobosia_mission_progress_v4", "phobosia_mission_progress_v3", "phobosia_mission_progress_v2"];
 const SOL_SAVE_PREFIX = "phobosia_mission_progress_v4_sol_";
@@ -136,7 +136,7 @@ export function MainMenu() {
       if (globe) {
         const scale = w / h < 1.35 ? 0.78 : Math.min(1.08, Math.max(0.92, h / 860));
         globePivot.scale.setScalar(scale);
-        globePivot.position.set(w / h < 1.35 ? 0.6 : 2.45, w / h < 1.35 ? -0.65 : -1.25, 0);
+        globePivot.position.set(w / h < 1.35 ? 0.2 : 2.45, w / h < 1.35 ? -0.55 : -1.65, 1);
         key.position.set(globePivot.position.x - 3.5, globePivot.position.y + 4, 6);
         key.target.position.copy(globePivot.position);
       }
@@ -158,7 +158,7 @@ export function MainMenu() {
       globe.position.sub(center);
       const max = Math.max(size.x, size.y, size.z);
       if (!Number.isFinite(max) || max <= 0) { setAssetError("The Mars model has invalid dimensions."); finishAsset(); return; }
-      globe.scale.setScalar(5.1 / max);
+      globe.scale.setScalar(7.1 / max);
       const proceduralMap = createMarsTexture();
       globe.traverse(object => {
         const mesh = object as THREE.Mesh;

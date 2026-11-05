@@ -308,23 +308,41 @@ export function configureModuleLighting(
     }
 
     const sunWorldPosition = sunReference.getWorldPosition(new THREE.Vector3());
-    const sunWorldQuaternion = sunReference.getWorldQuaternion(new THREE.Quaternion());
-    const authoredDown = new THREE.Vector3(0, -1, 0).applyQuaternion(sunWorldQuaternion).normalize();
-    const raycaster = new THREE.Raycaster(sunWorldPosition, authoredDown);
-    const groundHit = raycaster.intersectObject(terrainSurface, true)[0];
     const terrainBounds = new THREE.Box3().setFromObject(terrainSurface);
-    const terrainCenter = terrainBounds.getCenter(new THREE.Vector3());
-    const targetWorldPosition = groundHit?.point ?? terrainCenter;
+    const casterBounds = new THREE.Box3().makeEmpty();
+    moduleRoot.traverse(node => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.visible || mesh === terrainSurface ||
+        /terrain|panorama|collider|trigger|spawn|target|cinematic|reallight|^light_?\d+/i.test(mesh.name)) return;
+      casterBounds.expandByObject(mesh);
+    });
+    if (casterBounds.isEmpty()) {
+      console.error("[Mars Lighting] No visible outdoor structures were found for the Sun shadow bounds.");
+      return;
+    }
+
+    // Sun_Object is an identity-rotated locator in the authored GLB, so its
+    // position is the reliable direction reference. Aim toward the measured
+    // structure bounds, then sample the actual terrain at that ground point.
+    const outpostCenter = casterBounds.getCenter(new THREE.Vector3());
+    const rayOrigin = new THREE.Vector3(outpostCenter.x, terrainBounds.max.y + 10, outpostCenter.z);
+    const groundHit = new THREE.Raycaster(rayOrigin, new THREE.Vector3(0, -1, 0))
+      .intersectObject(terrainSurface, true)[0];
+    const targetWorldPosition = groundHit?.point ?? new THREE.Vector3(outpostCenter.x, terrainBounds.min.y, outpostCenter.z);
 
     let sun = additions.getObjectByName("MarsSun_DirectionalLight") as THREE.DirectionalLight | undefined;
     if (!sun) {
       const existing = moduleRoot.getObjectByName("MarsSun_DirectionalLight");
       if (existing?.type === "DirectionalLight") sun = existing as THREE.DirectionalLight;
     }
-    if (!sun) sun = new THREE.DirectionalLight(0xffe2c2, 2.6);
+    if (!sun) sun = new THREE.DirectionalLight(0xffe2c2, 5.2);
     sun.name = "MarsSun_DirectionalLight";
-    if (sun.parent !== additions) additions.attach(sun);
-    sun.position.copy(additions.worldToLocal(sunWorldPosition.clone()));
+    // Parent the light to the authored locator so it follows any later
+    // Sun_Object translation or rotation without a per-frame scene search.
+    if (sun.parent !== sunReference) sunReference.attach(sun);
+    sun.position.set(0, 0, 0);
+    sun.rotation.set(0, 0, 0);
+    sun.scale.set(1, 1, 1);
 
     let targetObj = additions.getObjectByName("MarsSun_Target");
     if (!targetObj) {
@@ -336,21 +354,28 @@ export function configureModuleLighting(
     sun.target = targetObj;
 
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    // Outdoor shadows cover the habitat footprint and nearby ground. A denser
+    // map keeps long building silhouettes readable without changing the EXR.
+    sun.shadow.mapSize.set(4096, 4096);
     const camera = sun.shadow.camera;
-    camera.up.copy(new THREE.Vector3(0, 0, 1).applyQuaternion(sunWorldQuaternion).normalize());
+    camera.up.set(0, 1, 0);
     const lightDirection = targetWorldPosition.clone().sub(sunWorldPosition).normalize();
     const cameraRight = lightDirection.clone().cross(camera.up).normalize();
+    if (cameraRight.lengthSq() < 1e-8) cameraRight.set(1, 0, 0);
     const cameraUp = cameraRight.clone().cross(lightDirection).normalize();
+    // Low sun angles project building shadows a long way across the plain.
+    // Include that receiver area in the orthographic shadow camera as well as
+    // the structures themselves, otherwise the terrain clips the silhouettes.
+    const shadowBounds = casterBounds.clone().expandByScalar(120);
     const corners = [
-      new THREE.Vector3(terrainBounds.min.x, terrainBounds.min.y, terrainBounds.min.z),
-      new THREE.Vector3(terrainBounds.min.x, terrainBounds.min.y, terrainBounds.max.z),
-      new THREE.Vector3(terrainBounds.min.x, terrainBounds.max.y, terrainBounds.min.z),
-      new THREE.Vector3(terrainBounds.min.x, terrainBounds.max.y, terrainBounds.max.z),
-      new THREE.Vector3(terrainBounds.max.x, terrainBounds.min.y, terrainBounds.min.z),
-      new THREE.Vector3(terrainBounds.max.x, terrainBounds.min.y, terrainBounds.max.z),
-      new THREE.Vector3(terrainBounds.max.x, terrainBounds.max.y, terrainBounds.min.z),
-      new THREE.Vector3(terrainBounds.max.x, terrainBounds.max.y, terrainBounds.max.z)
+      new THREE.Vector3(shadowBounds.min.x, shadowBounds.min.y, shadowBounds.min.z),
+      new THREE.Vector3(shadowBounds.min.x, shadowBounds.min.y, shadowBounds.max.z),
+      new THREE.Vector3(shadowBounds.min.x, shadowBounds.max.y, shadowBounds.min.z),
+      new THREE.Vector3(shadowBounds.min.x, shadowBounds.max.y, shadowBounds.max.z),
+      new THREE.Vector3(shadowBounds.max.x, shadowBounds.min.y, shadowBounds.min.z),
+      new THREE.Vector3(shadowBounds.max.x, shadowBounds.min.y, shadowBounds.max.z),
+      new THREE.Vector3(shadowBounds.max.x, shadowBounds.max.y, shadowBounds.min.z),
+      new THREE.Vector3(shadowBounds.max.x, shadowBounds.max.y, shadowBounds.max.z)
     ];
     let halfWidth = 0;
     let halfHeight = 0;
@@ -359,18 +384,18 @@ export function configureModuleLighting(
       halfWidth = Math.max(halfWidth, Math.abs(offset.dot(cameraRight)));
       halfHeight = Math.max(halfHeight, Math.abs(offset.dot(cameraUp)));
     }
-    const terrainSize = terrainBounds.getSize(new THREE.Vector3());
+    const shadowSize = shadowBounds.getSize(new THREE.Vector3());
     camera.near = 0.1;
-    camera.far = Math.max(1, sunWorldPosition.distanceTo(targetWorldPosition) + terrainSize.length());
+    camera.far = Math.max(1, sunWorldPosition.distanceTo(targetWorldPosition) + shadowSize.length() + 20);
     camera.left = -halfWidth;
     camera.right = halfWidth;
     camera.top = halfHeight;
     camera.bottom = -halfHeight;
     camera.updateProjectionMatrix();
-    sun.shadow.bias = -0.0003;
-    sun.shadow.normalBias = 0.02;
+    sun.shadow.bias = -0.00005;
+    sun.shadow.normalBias = 0.001;
+    sun.shadow.needsUpdate = true;
 
-    if (!sun.parent) additions.add(sun);
     return;
   }
 
@@ -630,7 +655,7 @@ export function configureMeshShadows(moduleRoot: THREE.Object3D, module: ModuleN
     }
 
     // Light fixture emissive strips/glow meshes: do not shadow themselves
-    if (/light|strip|lamp|emission/i.test(mesh.name)) {
+    if (/strip|lamp|emission|^reallight|^light_?\d+/i.test(mesh.name)) {
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       return;
@@ -641,6 +666,14 @@ export function configureMeshShadows(moduleRoot: THREE.Object3D, module: ModuleN
       if (mesh.name === "PHOBOSIA_MarsTerrain_2km") {
         mesh.castShadow = false;
         mesh.receiveShadow = true;
+        return;
+      }
+
+      // Markers and distant panorama shells are neither outdoor structures nor
+      // useful shadow casters. Keep their mesh visibility and interaction intact.
+      if (/panorama|trigger|spawn|target|cinematic/i.test(mesh.name)) {
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
         return;
       }
 

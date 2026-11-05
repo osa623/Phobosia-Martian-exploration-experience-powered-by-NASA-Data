@@ -991,17 +991,32 @@ test('STAB-003: ScreenRenderer correctly matches screen identifiers across all o
 test('LIGHT-001: configureModuleLighting creates shadow-casting Sun for Terrain covering base', () => {
   const root = new THREE.Group();
   const additions = new THREE.Group();
+  root.add(additions);
+  const sunReference = new THREE.Object3D();
+  sunReference.name = 'Sun_Object';
+  sunReference.position.set(0, 60, 40);
+  root.add(sunReference);
+  const terrain = new THREE.Mesh(new THREE.BoxGeometry(800, 1, 800), new THREE.MeshStandardMaterial());
+  terrain.name = 'PHOBOSIA_MarsTerrain_2km';
+  terrain.position.y = -0.5;
+  root.add(terrain);
+  const habitat = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 10), new THREE.MeshStandardMaterial());
+  habitat.position.set(2, 4, -3);
+  root.add(habitat);
   configureModuleLighting(root, additions, 'Terrain');
 
-  const sun = additions.getObjectByName('MarsSun_DirectionalLight');
+  const sun = root.getObjectByName('MarsSun_DirectionalLight');
   assert(sun, 'MarsSun_DirectionalLight should exist');
   assert.strictEqual(sun.isDirectionalLight, true);
   assert.strictEqual(sun.castShadow, true);
-  assert.strictEqual(sun.shadow.mapSize.width, 2048);
-  assert.strictEqual(sun.shadow.mapSize.height, 2048);
+  assert.strictEqual(sun.shadow.mapSize.width, 1024);
+  assert.strictEqual(sun.shadow.mapSize.height, 1024);
   assert(sun.target, 'Sun must have a target');
-  assert.strictEqual(sun.shadow.camera.left, -115);
-  assert.strictEqual(sun.shadow.camera.right, 115);
+  const target = sun.target.getWorldPosition(new THREE.Vector3());
+  assert(Math.abs(target.x - habitat.position.x) < 0.01, 'Sun target should align with the outpost bounds');
+  assert(Math.abs(target.y) < 0.01, 'Sun target should use the sampled terrain surface');
+  assert(sun.shadow.camera.right > 0 && sun.shadow.camera.right < 100, 'Shadow bounds should cover the outpost without fitting the full 2 km terrain');
+  assert(sun.shadow.camera.left < 0 && sun.shadow.camera.top > 0 && sun.shadow.camera.bottom < 0);
 });
 
 test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights for indoor modules', () => {

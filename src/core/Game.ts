@@ -156,6 +156,8 @@ export class Game {
   private nighttimePersistAccumulator = 0;
   private nighttimeSessionInitializedForDay: number | null = null;
   private nighttimeSkyRotation = 0;
+  private terrainSunIntensityTarget = 2.6;
+  private terrainSunTransitionInitialized = false;
   private hemiLight: THREE.HemisphereLight;
 
   // Cinematic screen camera transition state
@@ -472,12 +474,18 @@ export class Game {
     this.hemiLight.intensity = useNight ? 0.12 : hemiConfig.intensity;
     const terrainSun = this.current?.getObjectByName("MarsSun_DirectionalLight") as THREE.DirectionalLight | undefined;
     if (terrainSun) {
-      terrainSun.intensity = useNight ? 0 : 2.6;
-      terrainSun.visible = !useNight;
-      terrainSun.castShadow = !useNight;
+      this.terrainSunIntensityTarget = useNight ? 0 : 5.2;
+      if (!this.terrainSunTransitionInitialized) {
+        terrainSun.intensity = this.terrainSunIntensityTarget;
+        this.terrainSunTransitionInitialized = true;
+      }
+      terrainSun.visible = terrainSun.intensity > 0.002 || this.terrainSunIntensityTarget > 0;
+      terrainSun.castShadow = terrainSun.intensity > 0.08 || this.terrainSunIntensityTarget > 0;
     }
     setTerrainNightLightsEnabled(this.terrainLightClusters, useNight);
-    this.scene.environmentIntensity = useNight ? 0.3 : 1;
+    // Keep the daytime EXR as the sky/reflection source, but let the authored
+    // directional sun establish stronger contrast on the terrain and structures.
+    this.scene.environmentIntensity = useNight ? 0.3 : (this.active === "Terrain" ? 0.18 : 1);
     this.scene.environmentRotation.y = useNight ? this.nighttimeSkyRotation : 0;
     this.scene.backgroundRotation.y = useNight ? this.nighttimeSkyRotation : 0;
 
@@ -2750,10 +2758,21 @@ export class Game {
     this.set({ roverActive: false, roverSpeed: 0, prompt: "[R] ENTER TERRAIN ROVER", controlHint: "W A S D move · Shift jog · Space jump · E interact · Esc unlock" });
   }
 
+  private updateTerrainSunTransition(dt: number) {
+    const sun = this.active === "Terrain"
+      ? this.current?.getObjectByName("MarsSun_DirectionalLight") as THREE.DirectionalLight | undefined
+      : undefined;
+    if (!sun) return;
+    sun.intensity = THREE.MathUtils.damp(sun.intensity, this.terrainSunIntensityTarget, 1.25, dt);
+    sun.visible = sun.intensity > 0.002 || this.terrainSunIntensityTarget > 0;
+    sun.castShadow = this.terrainSunIntensityTarget > 0 || sun.intensity > 0.08;
+  }
+
   private loop = () => {
     if (this.disposed) return;
     requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    this.updateTerrainSunTransition(dt);
     this.updateNighttimeGameplayClock(dt);
     if (this.active === "Terrain" && this.nighttimeActive) {
       this.nighttimeSkyRotation = (this.nighttimeSkyRotation + NIGHTTIME_SKY_ROTATION_RADIANS_PER_SECOND * dt) % (Math.PI * 2);
@@ -2913,6 +2932,8 @@ export class Game {
       root.traverse(o => {
         const light = o as THREE.SpotLight;
         if (light.isSpotLight && light.name.endsWith("_NightSpot")) light.shadow.map?.dispose();
+        const directional = o as THREE.DirectionalLight;
+        if (directional.isDirectionalLight && directional.name === "MarsSun_DirectionalLight") directional.shadow.map?.dispose();
         const mesh = o as THREE.Mesh;
         mesh.geometry?.dispose();
         const material = mesh.material;
