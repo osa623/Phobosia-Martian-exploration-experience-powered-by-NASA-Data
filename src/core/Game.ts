@@ -38,6 +38,7 @@ import { EVAResources, type EVAResourceStorage } from "./EVAResources";
 import { RoverSystem } from "../systems/rover/RoverSystem";
 import { Sol07StormController } from "../missions/sol-07/Sol07StormController";
 import { Sol08PowerEffects } from "../missions/sol-08/Sol08PowerEffects";
+import { SOL10_TRIGGER_CHECKS } from "../missions/sol-10/taskDefinitions";
 import {
   TRIGGER_TO_GROUP_MAP,
   MODULE_TO_ZONE_MAP,
@@ -1791,7 +1792,7 @@ export class Game {
       this.roverKeys.clear();
     }
 
-    if (module === "Terrain" && this.state.missionDay === 8) {
+    if (module === "Terrain" && (this.state.missionDay === 8 || this.state.missionDay === 10)) {
       for (const id of ["PowerUnit_A", "PowerUnit_B", "PowerUnit_AB_Main", "Commuication_fix_Trigger"]) {
         const object = model.getObjectByName(id);
         if (object) this.interactive.push(this.makeTarget(object, id));
@@ -2429,7 +2430,9 @@ export class Game {
 
     // 6. Screen Actions / Cinematic Transition to PHOBOSIA OS Desktop
     const sol8Interactives = ["HAB_MONITOR_01", "Engineering_PowerUnit_Trigger", "MC_SYSTEMS_01", "MC_MAIN_01", "PowerUnit_A", "PowerUnit_B", "PowerUnit_AB_Main", "Commuication_fix_Trigger"];
-    const title = screenActions[this.nearby.identifier] ?? (this.state.missionDay === 8 && sol8Interactives.includes(this.nearby.identifier) ? this.nearby.identifier : undefined);
+    const interactedTriggerId = this.nearby?.identifier ?? "";
+    const sol10Trigger = this.state.missionDay === 10 && SOL10_TRIGGER_CHECKS.some(check => check.triggerId === interactedTriggerId);
+    const title = screenActions[this.nearby.identifier] ?? (this.state.missionDay === 8 && sol8Interactives.includes(this.nearby.identifier) ? this.nearby.identifier : sol10Trigger ? this.nearby.identifier : undefined);
     if (title) {
       document.exitPointerLock();
 

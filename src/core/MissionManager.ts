@@ -1,7 +1,7 @@
 /**
- * PHOBOSIA — Mission System & State Progression Engine (Days 1–9)
+ * PHOBOSIA — Mission System & State Progression Engine (Days 1–10)
  *
- * Implements the authoritative Days 1-9 mission sequence, step validation,
+ * Implements the authoritative Days 1-10 mission sequence, step validation,
  * observation/verification/survey record persistence, and guarded rest-based day progression.
  */
 
@@ -17,9 +17,11 @@ import { SOL07_TASKS, createInitialSol7Progress, type Sol7Progress, type Sol7Tas
 import { SOL08_TASKS, createInitialSol08Progress, validateSol08Connections, type Sol08Connection, type Sol08Progress, type Sol08PuzzleId, type Sol08TaskId } from "../missions/sol-08/taskDefinitions";
 import sol08Mission from "../jsons/Missions/sol-08.json";
 import sol09Mission from "../jsons/Missions/sol-09.json";
+import sol10Mission from "../jsons/Missions/sol-10.json";
+import { SOL10_TRIGGER_CHECKS, type Sol10TriggerVerification, type Sol10VerificationStatus } from "../missions/sol-10/taskDefinitions";
 import { SOL09_TASKS, createInitialSol09Progress, type Sol09Progress, type Sol09RackId, type Sol09TaskId } from "../missions/sol-09/taskDefinitions";
 
-export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 export type ObjectiveState = "not_started" | "in_progress" | "completed" | "waiting_for_rest";
 
@@ -29,6 +31,8 @@ export interface MissionStep {
   description: string;
   targetModule?: string;
   targetTrigger?: string;
+  triggerId?: string;
+  interfaceId?: string;
   completed: boolean;
   requiresCompletedTasks?: string[];
 }
@@ -278,6 +282,7 @@ export interface MissionProgressState {
   sol7: Sol7Progress;
   sol8: Sol08Progress;
   sol9: Sol09Progress;
+  sol10: { reviewedReportSols: number[]; triggerVerifications: Record<string, Sol10TriggerVerification> };
 }
 
 export interface Sol6MissionProgress {
@@ -292,7 +297,11 @@ export interface Sol6MissionProgress {
 }
 
 const createInitialSol6Progress = (): Sol6MissionProgress => ({ equipmentPrepared: false, evaActive: false, targetReached: false, fieldObservations: [], sample: null, analysis: null, cultivation: null, report: null });
+const createInitialSol10Progress = (): MissionProgressState["sol10"] => ({ reviewedReportSols: [], triggerVerifications: {} });
 const sol6Steps = SOL06_TASKS.map(task => ({ stepId: task.stepId, label: task.label, description: task.description, targetTrigger: "targetTrigger" in task ? task.targetTrigger : undefined, targetModule: "targetModule" in task ? task.targetModule : undefined, requiresCompletedTasks: [...("requiresCompletedTasks" in task ? task.requiresCompletedTasks ?? [] : [])], completed: false }));
+const sol10NavigationRequirements: Record<string, string[]> = Object.fromEntries(
+  sol10Mission.tasks.map((task, index) => [task.taskId, index ? [sol10Mission.tasks[index - 1].taskId] : []])
+);
 
 export interface InvestigationRecord {
   id: string; missionId: string; sol: number; taskId: string; triggerId: string; systemId: string;
@@ -471,6 +480,25 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     })),
     allowedModules: ["Habitat", "Science", "Engineering", "MissionControl"],
     completionFeedback: "Sol 9 assessment report validated. Mission records are saved; the day does not advance automatically."
+  },
+  10: {
+    day: 10,
+    id: sol10Mission.missionId,
+    title: sol10Mission.title,
+    storyContext: sol10Mission.description,
+    briefing: sol10Mission.description,
+    primaryObjective: "Review the Phase One archive, verify the available records, and prepare the final expedition handover.",
+    steps: sol10Mission.tasks.map(task => ({
+      stepId: task.taskId,
+      label: task.title,
+      description: task.objective,
+      triggerId: task.triggerId,
+      interfaceId: task.interfaceId,
+      completed: false,
+      requiresCompletedTasks: sol10NavigationRequirements[task.taskId] ?? []
+    })),
+    allowedModules: ["MissionControl", "Habitat", "Science", "Engineering"],
+    completionFeedback: "The Phase One final expedition report and crew handover are complete."
   }
 };
 
@@ -484,8 +512,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 9 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 9
+  const total = day >= 2 && day <= 10 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 10
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -498,6 +526,7 @@ export class MissionManager {
   private sol6ValidatedMutation = false;
   private sol8ValidatedMutation = false;
   private sol9ValidatedMutation = false;
+  private sol10ValidatedMutation = false;
 
   constructor() {
     this.state = this.loadState();
@@ -514,7 +543,7 @@ export class MissionManager {
         }
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
-      if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 9) {
+      if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 10) {
             const rawSol5 = parsed.sol5 && typeof parsed.sol5 === "object"
               ? { ...createInitialSol5Progress(), ...(parsed.sol5 as Partial<Sol5MissionProgress>) }
               : createInitialSol5Progress();
@@ -574,8 +603,33 @@ export class MissionManager {
               },
               water: { ...sol9Defaults.water, ...(rawSol9.water ?? {}) }
             };
+            const sol10Defaults = createInitialSol10Progress();
+            const rawSol10 = parsed.sol10 && typeof parsed.sol10 === "object"
+              ? parsed.sol10 as Partial<MissionProgressState["sol10"]>
+              : {};
+            const allowedSol10Checks = new Map(SOL10_TRIGGER_CHECKS.map(check => [check.triggerId, check.taskId]));
+            const rawVerifications = rawSol10.triggerVerifications && typeof rawSol10.triggerVerifications === "object"
+              ? rawSol10.triggerVerifications
+              : {};
+            const triggerVerifications = Object.fromEntries(Object.entries(rawVerifications).flatMap(([triggerId, value]) => {
+              if (!value || typeof value !== "object" || allowedSol10Checks.get(triggerId) !== value.taskId || value.triggerId !== triggerId || !["verified", "flagged", "incomplete"].includes(value.status) || typeof value.notes !== "string" || typeof value.completedAt !== "string") return [];
+              return [[triggerId, value as Sol10TriggerVerification]];
+            }));
+            const sol10 = {
+              reviewedReportSols: Array.isArray(rawSol10.reviewedReportSols)
+                ? [...new Set(rawSol10.reviewedReportSols.filter(sol => Number.isInteger(sol) && sol >= 1 && sol <= 9))]
+                : sol10Defaults.reviewedReportSols,
+              triggerVerifications
+            };
             const sol9Unlocked = Boolean(savedSol8.report?.validated && !savedSol8.powerFailureActive && !savedSol8.communicationFailureActive);
-            const loadedDay: MissionDayNumber = parsed.currentDay === 9 && !sol9Unlocked ? 8 : parsed.currentDay as MissionDayNumber;
+            const sol10Unlocked = Boolean(savedSol9.report?.validated);
+            const loadedDay: MissionDayNumber = parsed.currentDay === 10 && !sol9Unlocked
+              ? 8
+              : parsed.currentDay === 10 && !sol10Unlocked
+                ? 9
+                : parsed.currentDay === 9 && !sol9Unlocked
+                  ? 8
+                  : parsed.currentDay as MissionDayNumber;
             const sol9 = loadedDay === 9
               ? { ...savedSol9, started: true }
               : { ...savedSol9, started: false };
@@ -608,7 +662,8 @@ export class MissionManager {
               sol6: rawSol6,
               sol7,
               sol8,
-              sol9
+              sol9,
+              sol10
             };
           }
         }
@@ -637,7 +692,8 @@ export class MissionManager {
       sol6: createInitialSol6Progress(),
       sol7: createInitialSol7Progress(),
       sol8: createInitialSol08Progress(),
-      sol9: createInitialSol09Progress()
+      sol9: createInitialSol09Progress(),
+      sol10: createInitialSol10Progress()
     };
   }
 
@@ -812,6 +868,55 @@ export class MissionManager {
   }
 
   public getSol09Progress(): Readonly<Sol09Progress> { return this.state.sol9; }
+
+  public recordSol10ReportReviewed(sol: number): boolean {
+    if (this.state.currentDay !== 10 || !Number.isInteger(sol) || sol < 1 || sol > 9) return false;
+    if (!this.state.sol10.reviewedReportSols.includes(sol)) this.state.sol10.reviewedReportSols.push(sol);
+    if (this.state.sol10.reviewedReportSols.length === 9 && !this.isStepComplete("SOL10_TASK_02")) {
+      this.sol10ValidatedMutation = true;
+      try { this.completeStep("SOL10_TASK_02"); }
+      finally { this.sol10ValidatedMutation = false; }
+    }
+    this.saveState();
+    this.emit();
+    return true;
+  }
+
+  public recordSol10TriggerVerification(triggerId: string, status: Sol10VerificationStatus, notes = ""): boolean {
+    if (this.state.currentDay !== 10 || !["verified", "flagged", "incomplete"].includes(status)) return false;
+    const check = SOL10_TRIGGER_CHECKS.find(item => item.triggerId === triggerId);
+    if (!check || this.state.sol10.triggerVerifications[triggerId]) return false;
+    this.sol10ValidatedMutation = true;
+    let completed = false;
+    try { completed = this.completeStep(check.taskId); }
+    finally { this.sol10ValidatedMutation = false; }
+    if (!completed) return false;
+    this.state.sol10.triggerVerifications[triggerId] = {
+      taskId: check.taskId,
+      triggerId,
+      status,
+      notes: notes.trim(),
+      completedAt: new Date().toISOString()
+    };
+    this.saveState();
+    this.emit();
+    return true;
+  }
+
+  public recordSol10SectionVerification(): boolean {
+    if (this.state.currentDay !== 10 || !SOL10_TRIGGER_CHECKS.every(check => this.state.sol10.triggerVerifications[check.triggerId])) return false;
+    if (this.isStepComplete("SOL10_TASK_03")) return false;
+    this.sol10ValidatedMutation = true;
+    let completed = false;
+    try { completed = this.completeStep("SOL10_TASK_03"); }
+    finally { this.sol10ValidatedMutation = false; }
+    if (!completed) return false;
+    this.saveState();
+    this.emit();
+    return true;
+  }
+
+  public getSol10Progress(): Readonly<MissionProgressState["sol10"]> { return this.state.sol10; }
 
   private recordSol09Step(taskId: Sol09TaskId, triggerId: string, finding: string, provenance: string): boolean {
     if (this.state.currentDay !== 9 || !this.state.sol9.started || !finding.trim() || !provenance.trim()) return false;
@@ -1199,7 +1304,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 9) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 10) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1365,12 +1470,13 @@ export class MissionManager {
     if (this.state.currentDay === 6 && !this.sol6ValidatedMutation) return false;
     if (this.state.currentDay === 8 && stepId.startsWith("SOL08_") && !this.sol8ValidatedMutation) return false;
     if (this.state.currentDay === 9 && stepId.startsWith("SOL09_") && !this.sol9ValidatedMutation) return false;
+    if (this.state.currentDay === 10 && (stepDef.triggerId || stepId === "SOL10_TASK_02" || stepId === "SOL10_TASK_03") && !this.sol10ValidatedMutation) return false;
 
     if ((this.state.currentDay === 5 || this.state.currentDay === 6) && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) {
       return false;
     }
     if (this.state.currentDay === 8 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
-    if (this.state.currentDay === 9 && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
+    if ((this.state.currentDay === 9 || this.state.currentDay === 10) && (stepDef.requiresCompletedTasks ?? []).some(required => !this.state.completedStepIds.includes(required))) return false;
     if (this.state.currentDay === 5) {
       if (stepId === "SOL05_PREFLIGHT_BRIEFING" && !this.state.sol5.briefingConfirmed) return false;
       if (stepId === "SOL05_ACTIVATE_SIMULATION" && (!this.state.sol5.simulationActivated || this.state.sol5.attemptStatus !== "active")) return false;
@@ -1399,7 +1505,7 @@ export class MissionManager {
       }
 
       this.evaluateObjectiveCompletion();
-      if ((this.state.currentDay >= 2 && this.state.currentDay <= 5) || this.state.currentDay === 8 || this.state.currentDay === 9) {
+      if ((this.state.currentDay >= 2 && this.state.currentDay <= 5) || this.state.currentDay === 8 || this.state.currentDay === 9 || this.state.currentDay === 10) {
         this.state.notification = this.getCurrentNavigationNotification();
       }
       this.emit();
@@ -1888,15 +1994,7 @@ export class MissionManager {
       return { canAdvance: false, reason: "Sol 8 requires both independent recovery states to be resolved and the final recovery report validated before resting." };
     }
 
-    // Sol 9 is a terminal assessment day in this build; never auto-advance it.
-    if (this.state.currentDay === 9) {
-      return {
-        canAdvance: false,
-        reason: this.state.sol9.report?.validated
-          ? "Sol 9 report validated. The mission is complete and this build does not automatically advance to another Sol."
-          : "Complete the Sol 9 assessment and submit its validated report before ending the mission."
-      };
-    }
+    if (this.state.currentDay === 10) return { canAdvance: false, reason: "Sol 10 is the final Phase One day. Complete the final report; no later Sol is configured." };
 
     return { canAdvance: true, reason: "Day objective validated. Ready to advance." };
   }
@@ -1915,8 +2013,8 @@ export class MissionManager {
       return { success: false, message: check.reason };
     }
 
-    if (this.state.currentDay >= 9) {
-      return { success: false, message: "Day 9 is the final day of Phase 3." };
+    if (this.state.currentDay >= 10) {
+      return { success: false, message: "Sol 10 is the final configured day." };
     }
 
     this.isAdvancingDay = true;
@@ -1982,7 +2080,8 @@ export class MissionManager {
       sol6: createInitialSol6Progress(),
       sol7: createInitialSol7Progress(),
       sol8: createInitialSol08Progress(),
-      sol9: createInitialSol09Progress()
+      sol9: createInitialSol09Progress(),
+      sol10: createInitialSol10Progress()
     };
     this.emit();
   }

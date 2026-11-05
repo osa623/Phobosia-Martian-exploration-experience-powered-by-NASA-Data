@@ -15,12 +15,15 @@ import sol08Mission from "../../jsons/Missions/sol-08.json";
 import sol09Mission from "../../jsons/Missions/sol-09.json";
 import sol09Navigation from "../../jsons/Instructions/sol-09-navigation.json";
 import sol08Navigation from "../../jsons/Instructions/sol-08-navigation.json";
+import sol10Mission from "../../jsons/Missions/sol-10.json";
+import sol10Navigation from "../../jsons/Instructions/sol-10-navigation.json";
+import { SOL10_TRIGGER_CHECKS } from "../../missions/sol-10/taskDefinitions";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation | typeof sol10Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission | typeof sol10Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
@@ -28,7 +31,8 @@ const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol0
   6: { mission: sol06Mission, navigation: sol06Navigation },
   7: { mission: sol07Mission, navigation: sol07Navigation },
   8: { mission: sol08Mission, navigation: sol08Navigation },
-  9: { mission: sol09Mission, navigation: sol09Navigation }
+  9: { mission: sol09Mission, navigation: sol09Navigation },
+  10: { mission: sol10Mission, navigation: sol10Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -112,7 +116,19 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL09_TASK_07: "LAB_CULTIVATION_01",
   SOL09_TASK_08: "LAB_CULTIVATION_01",
   SOL09_TASK_09: "LAB_CULTIVATION_01",
-  SOL09_TASK_10: "MC_MAIN_01"
+  SOL09_TASK_10: "MC_MAIN_01",
+  SOL10_TASK_01: "MC_MAIN_01",
+  SOL10_TASK_02: "MC_MAIN_01",
+  SOL10_TASK_03: "MC_MAIN_01",
+  SOL10_TASK_04: "LAB_RESEARCH_ANALYSIS_01",
+  SOL10_TASK_05: "LAB_CULTIVATION_01",
+  SOL10_TASK_06: "Engineering_LifeSupport_Trigger",
+  SOL10_TASK_07: "MC_MAIN_01",
+  SOL10_TASK_08: "MC_MAIN_01",
+  SOL10_TASK_09: "MC_MAIN_01",
+  SOL10_TASK_10: "MC_MAIN_01",
+  SOL10_TASK_11: "MC_MAIN_01",
+  ...Object.fromEntries(SOL10_TRIGGER_CHECKS.map(check => [check.taskId, check.triggerId]))
 };
 
 export interface ResolvedMissionNavigation {

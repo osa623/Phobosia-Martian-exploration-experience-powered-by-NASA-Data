@@ -47,7 +47,7 @@ function readSave(): { save: SaveInfo | null; error: string } {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const value = JSON.parse(raw) as Partial<MissionProgressState>;
-      if (!Number.isInteger(value.currentDay) || (value.currentDay ?? 0) < 1 || (value.currentDay ?? 10) > 9 || !Array.isArray(value.completedStepIds))
+      if (!Number.isInteger(value.currentDay) || (value.currentDay ?? 0) < 1 || (value.currentDay ?? 11) > 10 || !Array.isArray(value.completedStepIds))
         return { save: null, error: "An existing mission record is invalid and cannot be resumed." };
       return { save: { key, state: value as MissionProgressState }, error: "" };
     }
@@ -59,7 +59,7 @@ function readSave(): { save: SaveInfo | null; error: string } {
 
 function readSolSaves(): SaveInfo[] {
   const entries: SaveInfo[] = [];
-  for (let sol = 1; sol <= 9; sol++) {
+  for (let sol = 1; sol <= 10; sol++) {
     const key = `${SOL_SAVE_PREFIX}${sol}`;
     try {
       const raw = localStorage.getItem(key);
@@ -220,7 +220,7 @@ export function MainMenu() {
   }
 
   const confirmNew = () => {
-    if (save || solSaves.length) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 9; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); }
+    if (save || solSaves.length) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 10; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); }
     setGameMode("new");
   };
   if (gameMode) return <GameViewport key={gameMode} />;
