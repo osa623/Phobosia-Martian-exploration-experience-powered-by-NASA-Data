@@ -12,7 +12,7 @@
     "test": "node node_modules/typescript/bin/tsc --module commonjs --target es2022 --esModuleInterop --resolveJsonModule --rootDir src --outDir dist/ src/core/Discovery.ts src/core/Day1Config.ts src/core/CameraPresentation.ts src/core/GameAudioManager.ts src/core/EVAAccess.ts src/core/EVAResources.ts src/core/MovementConfig.ts src/core/Player.ts src/core/MissionManager.ts src/core/MasterTerrainEnvironment.ts src/core/Collision.ts src/core/ScreenRenderer.ts src/core/ScreenConfigRegistry.ts src/core/HabitatScreenRenderer.ts src/core/EngineeringScreenRenderer.ts src/core/ResearchScreenRenderer.ts src/core/MissionControlScreenRenderer.ts src/core/CentralHubScreenRenderer.ts src/core/AirlockScreenRenderer.ts src/core/ModuleLighting.ts src/missions/sol-05/droneSimulation.ts src/missions/sol-05/targetMapping.ts src/missions/sol-07/Sol07StormController.ts src/missions/sol-08/taskDefinitions.ts src/missions/sol-08/Sol08PowerEffects.ts src/missions/sol-08/Sol08ScreenRenderer.ts src/systems/navigation/missionNavigation.ts src/systems/operating-system/triggerAccess.ts && node tests/master_terrain_environment_tests.js && node tests/mission_tests.js && node tests/investigation_tests.js && node tests/sol5_tests.js && node tests/trigger_access_tests.js && node tests/audio_tests.js && node tests/eva_access_tests.js && node tests/eva_resource_tests.js && node tests/sol7_integration_tests.js && node tests/sol8_integration_tests.js && node tests/sol09_integration_tests.js"
   },
   "dependencies": {
-    "next": "15.2.4",
+    "next": "^15.5.28",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "three": "0.174.0"
