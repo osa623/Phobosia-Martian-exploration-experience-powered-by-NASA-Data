@@ -6,7 +6,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GameViewport } from "@/components/game/GameViewport";
 import { DAYS_CONFIG, type MissionDayNumber, type MissionProgressState } from "@/core/MissionManager";
-import "../../components/menu/MainMenu.css";
 
 const SAVE_KEYS = ["phobosia_mission_progress_v4", "phobosia_mission_progress_v3", "phobosia_mission_progress_v2"];
 const SOL_SAVE_PREFIX = "phobosia_mission_progress_v4_sol_";
