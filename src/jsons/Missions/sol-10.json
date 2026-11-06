@@ -1,0 +1,1433 @@
+{
+  "missionId": "PHOBOSIA_SOL_10",
+  "sol": 10,
+  "title": "Final Expedition Verification & Scientific Handover",
+  "subtitle": "Verifying Phase One Records and Preparing the Outpost for the Next Crew",
+  "missionType": "scientific_verification_and_expedition_reporting",
+  "status": "locked",
+  "description": "Conduct the final verification of the Phase One Mars expedition. Review the existing records, evidence, observations and operational information collected during SOL 1 through SOL 9. Visit the relevant existing outpost sections and inspect their registered physical interaction points. Identify whether each applicable record is consistent, incomplete, inconsistent or requires further investigation. Review the individual SOL reports, compare related scientific records, preserve the relationships between scientific targets, soil samples, cultivation experiments, environmental and emission-control records, and equipment records. Finally, prepare and submit a comprehensive Phase One Final Expedition Report for the incoming astronaut and future expedition operations.",
+  "missionPrinciples": {
+    "scientificIntegrity": true,
+    "preserveHistoricalEvidence": true,
+    "noFabricatedMeasurements": true,
+    "distinguishSimulationFromSourceData": true,
+    "preserveOriginalSOLReports": true,
+    "verificationDoesNotRewriteOriginalObservations": true,
+    "useExistingPhysicalDisplays": true,
+    "useExistingTriggers": true,
+    "useExistingOSFramework": true,
+    "noNewPhysicalScreens": true,
+    "noNewGlobalInteractionFramework": true,
+    "noNewUnnecessaryModules": true,
+    "incomingCrewHandoverRequired": true
+  },
+  "prerequisites": [
+    {
+      "type": "mission_completed",
+      "missionId": "PHOBOSIA_SOL_09",
+      "required": true,
+      "description": "SOL 1 through SOL 9 must be completed according to the existing campaign progression."
+    },
+    {
+      "type": "mission_data_available",
+      "missionIdRange": {
+        "from": 1,
+        "to": 9
+      },
+      "required": true,
+      "description": "Previously collected mission records, observations, evidence and individual SOL reports must remain accessible for final verification."
+    }
+  ],
+  "initialMissionState": {
+    "verification": {
+      "status": "not_started",
+      "totalApplicableRecords": 0,
+      "verifiedRecords": 0,
+      "flaggedRecords": 0,
+      "pendingRecords": 0,
+      "notApplicableRecords": 0,
+      "lastVerificationTimestamp": null,
+      "recordsSource": "existing_persisted_SOL_01_TO_SOL_09_records",
+      "doNotAssumeAllRegisteredTriggersAreMandatory": true
+    },
+    "expeditionArchive": {
+      "status": "available_for_review",
+      "sourceMissionRange": {
+        "from": 1,
+        "to": 9
+      },
+      "preserveOriginalReports": true,
+      "preserveOriginalEvidence": true,
+      "allowReadOnlyReview": true,
+      "allowOriginalRecordMutation": false
+    },
+    "scientificTargetArchive": {
+      "status": "requires_review",
+      "sourceMission": "PHOBOSIA_SOL_03",
+      "preserveTargetIdentity": true,
+      "resolveRelatedObservationsFromPersistedRecords": true
+    },
+    "soilSampleArchive": {
+      "status": "requires_review",
+      "sourceMission": "PHOBOSIA_SOL_06",
+      "preserveSampleIdentity": true,
+      "preserveTargetProvenance": true,
+      "resolveTargetRelationshipFromPersistedRecords": true
+    },
+    "cultivationArchive": {
+      "status": "requires_review",
+      "sourceMissions": [
+        "PHOBOSIA_SOL_06",
+        "PHOBOSIA_SOL_09"
+      ],
+      "preserveIndependentCultivationRecords": true,
+      "preserveRackIdentity": true,
+      "preserveSoilSampleRelationship": true
+    },
+    "environmentalAndEmissionArchive": {
+      "status": "requires_review",
+      "source": "existing_persisted_environmental_and_emission_control_records",
+      "doNotInventMeasurements": true
+    },
+    "equipmentArchive": {
+      "status": "requires_review",
+      "source": "existing_persisted_equipment_and_engineering_records"
+    },
+    "finalReport": {
+      "status": "not_generated",
+      "reportId": "PHOBOSIA_PHASE_ONE_FINAL_EXPEDITION_REPORT",
+      "generatedFrom": "authoritative_existing_records",
+      "submissionStatus": "not_submitted",
+      "preservePreviousSOLReports": true
+    },
+    "incomingCrewHandover": {
+      "status": "not_prepared",
+      "intendedRecipient": "incoming_astronaut",
+      "source": "verified_phase_one_records"
+    }
+  },
+  "missionZones": [
+    {
+      "zoneId": "Habitat",
+      "purpose": "Review relevant existing Habitat records, personal mission records and any applicable operational information. Only inspect records that are registered and relevant to the Phase One handover."
+    },
+    {
+      "zoneId": "MissionControl",
+      "purpose": "Access the central expedition archive, inspect individual SOL reports, review verification progress, compare records and prepare the final expedition report."
+    },
+    {
+      "zoneId": "Research_Zone",
+      "purpose": "Verify scientific observations, selected targets, soil sample provenance, laboratory findings and cultivation records using existing displays and records."
+    },
+    {
+      "zoneId": "Engineering",
+      "purpose": "Verify existing engineering, equipment, water-system, power and other operational records that are relevant to the Phase One expedition."
+    },
+    {
+      "zoneId": "Central_Hub",
+      "purpose": "Use existing navigation and access routes to reach the relevant outpost sections. Do not create new interaction points."
+    },
+    {
+      "zoneId": "Airlock",
+      "purpose": "Inspect only if an existing SOL 1–9 record or registered SOL 10 verification requirement explicitly references an Airlock-related record."
+    },
+    {
+      "zoneId": "Master_Terrain",
+      "purpose": "Inspect only if an existing scientific observation, environmental record or registered verification item requires an outdoor record review. No new field expedition is required."
+    }
+  ],
+  "existingInteractionBindings": {
+    "missionControlMainConsole": {
+      "description": "Use the existing Mission Control Main Operations Console as the central access point for the Phase One archive and final report workflow.",
+      "triggerId": "MC_MAIN_01",
+      "triggerResolution": "confirm_against_existing_trigger_registry",
+      "screenResolution": "confirm_against_existing_screen_registry",
+      "interaction": "existing_E_interaction",
+      "createNewPhysicalScreen": false,
+      "createNewTrigger": false
+    },
+    "sectionVerificationTriggers": {
+      "description": "Discover all relevant existing physical interaction triggers from the actual project registry. Resolve each trigger to its registered screen, SOL/task context and authoritative record source.",
+      "triggerIds": "resolve_dynamically_from_existing_trigger_registry",
+      "screenIds": "resolve_dynamically_from_existing_screen_registry",
+      "filter": "only_existing_triggers_relevant_to_SOL_01_TO_SOL_09_records_and_SOL_10_verification",
+      "interaction": "existing_E_interaction",
+      "createNewPhysicalScreen": false,
+      "createNewTrigger": false,
+      "doNotInventTriggerIds": true,
+      "doNotInventScreenIds": true,
+      "doNotAssumeEveryTriggerIsMandatory": true
+    }
+  },
+  "interfaces": [
+    {
+      "interfaceId": "SOL10_EXPEDITION_ARCHIVE",
+      "triggerId": "MC_MAIN_01",
+      "location": "Existing Mission Control Main Operations Console",
+      "purpose": "Browse and inspect individual SOL 1–9 reports and their source records."
+    },
+    {
+      "interfaceId": "SOL10_SCIENTIFIC_ANALYSIS",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "location": "Existing Research Lab Scientific Analysis Station",
+      "purpose": "Review target and observation records through the existing scientific analysis display."
+    },
+    {
+      "interfaceId": "SOL10_CULTIVATION_RECORDS",
+      "triggerId": "LAB_CULTIVATION_01",
+      "location": "Existing Research Lab Cultivation Environment Display",
+      "purpose": "Review persisted cultivation history and its available sample provenance."
+    },
+    {
+      "interfaceId": "SOL10_ENGINEERING_RECORDS",
+      "triggerId": "Engineering_LifeSupport_Trigger",
+      "location": "Existing Engineering Life Support Display",
+      "purpose": "Review available engineering and environmental records without inferring unrecorded values."
+    },
+    {
+      "interfaceId": "SOL10_FINAL_REPORT",
+      "triggerId": "MC_MAIN_01",
+      "location": "Existing Mission Control Main Operations Console",
+      "purpose": "Generate, review and submit the Phase One Final Expedition Report."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_HAB_MONITOR_01",
+      "triggerId": "HAB_MONITOR_01",
+      "location": "Habitat — Main Status Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Habitat Main Monitor."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_HAB_WATER_NUTRITION_01",
+      "triggerId": "HAB_WATER_NUTRITION_01",
+      "location": "Habitat — Water and Nutrition Station",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Water and Nutrition."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_MONITORING_TRIGGER",
+      "triggerId": "Engineering_Monitoring_Trigger",
+      "location": "Engineering Unit — Monitoring Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Engineering Monitoring."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_POWERUNIT_TRIGGER",
+      "triggerId": "Engineering_PowerUnit_Trigger",
+      "location": "Engineering Unit — Power Distribution Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Power Unit."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_DIAGNOSTICS_TRIGGER",
+      "triggerId": "Engineering_Diagnostics_Trigger",
+      "location": "Engineering Unit — Diagnostics Workbench",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Diagnostics Workbench."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_INFODISPLAY_TRIGGER",
+      "triggerId": "Engineering_InfoDisplay_Trigger",
+      "location": "Engineering Unit — Storage Display",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Storage and Inventory."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
+      "triggerId": "LAB_RESEARCH_MONITORING_01",
+      "location": "Research Lab — Monitoring Station",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Research Monitoring."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
+      "triggerId": "LAB_SEED_STORAGE_01",
+      "location": "Research Lab — Seed Storage",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Seed Storage."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
+      "triggerId": "LAB_WATER_NUTRITION_01",
+      "location": "Research Lab — Nutrient Preparation Station",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Water and Nutrition Mixing."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
+      "triggerId": "LAB_WATER_SERVICE_01",
+      "location": "Research Lab — Water Quality Station",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Water Quality and Service."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_MC_SYSTEMS_01",
+      "triggerId": "MC_SYSTEMS_01",
+      "location": "Mission Control — Systems Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Communications and Systems."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_MC_NAVIGATION_01",
+      "triggerId": "MC_NAVIGATION_01",
+      "location": "Mission Control — Observation Planning Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Navigation and Observation Sites."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_ENV_STATUS_DISPLAY",
+      "triggerId": "Env_Status_Display",
+      "location": "Central Connector — Environment Display",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Environment Status."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_INTERNAL_COMMUNICATION_DISPLAY",
+      "triggerId": "Internal_Communication_Display",
+      "location": "Central Connector — Communications Display",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Internal Communications."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_MODULE_STATUS_DISPLAY",
+      "triggerId": "Module_Status_Display",
+      "location": "Central Connector — Module Status Display",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Module Status."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+      "triggerId": "Airlock_Control_Console_Trigger",
+      "location": "Airlock — Egress Control Console",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Airlock Control Console."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_A",
+      "triggerId": "PowerUnit_A",
+      "location": "Mars Terrain — Solar Panel A",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Solar Panel A Repair."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_B",
+      "triggerId": "PowerUnit_B",
+      "location": "Mars Terrain — Solar Panel B",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Solar Panel B Repair."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_AB_MAIN",
+      "triggerId": "PowerUnit_AB_Main",
+      "location": "Mars Terrain — Main Solar Connection",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Main Solar Connection Repair."
+    },
+    {
+      "interfaceId": "SOL10_TRIGGER_COMMUICATION_FIX_TRIGGER",
+      "triggerId": "Commuication_fix_Trigger",
+      "location": "Mars Terrain — Communication Repair Point",
+      "purpose": "Sol 10 physical interaction task for verifying the persisted module status at External Communication Repair."
+    }
+  ],
+  "osApplications": {
+    "SOL10_EXPEDITION_ARCHIVE": {
+      "applicationName": "Phase One Expedition Archive",
+      "applicationType": "existing_phobosIA_os_application",
+      "location": "MissionControl",
+      "entryPoint": "MC_MAIN_01",
+      "description": "A Mission Control application for reviewing the individual SOL 1–9 reports, source evidence, mission records, verification states and cross-SOL relationships.",
+      "layout": {
+        "style": "existing_phobosIA_os_visual_language",
+        "theme": "dark_scientific_command_archive",
+        "navigation": "application_internal_navigation",
+        "responsive": true,
+        "reuseExistingOSWindowAndApplicationFramework": true,
+        "avoidIndependentFullscreenRenderer": true
+      },
+      "mainDashboard": {
+        "sections": [
+          {
+            "id": "expedition_overview",
+            "title": "Phase One Overview",
+            "description": "Show the overall SOL 1–9 archive and SOL 10 verification status.",
+            "widgets": [
+              "sol_report_availability",
+              "verification_progress",
+              "verified_record_count",
+              "flagged_record_count",
+              "pending_record_count",
+              "final_report_readiness"
+            ]
+          },
+          {
+            "id": "sol_report_browser",
+            "title": "SOL Report Browser",
+            "description": "Allow the player to open each available SOL report separately.",
+            "source": "existing_persisted_SOL_reports",
+            "solRange": {
+              "from": 1,
+              "to": 9
+            },
+            "displayFields": [
+              "sol_number",
+              "mission_title",
+              "mission_purpose",
+              "completion_status",
+              "report_status",
+              "record_count",
+              "evidence_count",
+              "verification_status"
+            ],
+            "individualSOLSelection": true,
+            "preserveOriginalReportContent": true,
+            "doNotGenerateMockReports": true
+          },
+          {
+            "id": "record_category_archive",
+            "title": "Scientific and Operational Record Archive",
+            "description": "Provide independent access to the actual record categories collected during SOL 1–9.",
+            "categories": [
+              "scientific_targets",
+              "soil_samples",
+              "cultivation_records",
+              "environmental_records",
+              "emission_control_records",
+              "equipment_records",
+              "engineering_records",
+              "mission_observations",
+              "supporting_evidence"
+            ],
+            "preserveRecordIdentity": true,
+            "preserveSourceSOL": true,
+            "preserveSourceTask": true
+          },
+          {
+            "id": "cross_sol_comparison",
+            "title": "Cross-SOL Comparison",
+            "description": "Compare records only when they share an explicit scientific, operational or provenance relationship.",
+            "comparisonRules": [
+              "Use actual persisted record identifiers.",
+              "Show source SOL and source task for every compared record.",
+              "Do not compare unrelated records based only on similar labels.",
+              "Preserve target-to-sample-to-cultivation relationships.",
+              "Distinguish measured values from qualitative observations.",
+              "Do not invent trends or conclusions."
+            ]
+          },
+          {
+            "id": "verification_dashboard",
+            "title": "Verification Dashboard",
+            "description": "Display all applicable SOL 10 verification items and their current states.",
+            "statuses": [
+              "pending",
+              "verified",
+              "flagged",
+              "incomplete",
+              "not_applicable"
+            ],
+            "allowRecordInspection": true,
+            "allowVerificationNotes": true,
+            "preserveOriginalObservation": true
+          },
+          {
+            "id": "final_report_workspace",
+            "title": "Final Expedition Report",
+            "description": "Generate and review the Phase One handover report from authoritative records.",
+            "reportId": "PHOBOSIA_PHASE_ONE_FINAL_EXPEDITION_REPORT",
+            "allowPreview": true,
+            "allowSectionReview": true,
+            "allowFinalSubmission": true,
+            "showOutstandingIssuesBeforeSubmission": true
+          }
+        ]
+      },
+      "applicationExit": {
+        "preserveSelectedSOL": true,
+        "preserveArchiveFilters": true,
+        "preserveVerificationState": true,
+        "restoreExistingOSNavigation": true,
+        "doNotAdvanceSOL": true
+      }
+    },
+    "SOL10_RECORD_VERIFICATION": {
+      "applicationName": "Outpost Record Verification",
+      "applicationType": "existing_phobosIA_os_application",
+      "location": "Existing registered physical interaction points defined by the operating-system trigger registry",
+      "entryPoint": "The active physical trigger context (triggerId)",
+      "description": "A SOL-specific verification view that opens from each existing relevant physical trigger. It must display only the records associated with that actual trigger, screen, SOL and task, while allowing the player to review the original record and record a separate verification result.",
+      "layout": {
+        "style": "existing_phobosIA_os_visual_language",
+        "theme": "dark_scientific_verification",
+        "navigation": "application_internal_navigation",
+        "responsive": true,
+        "reuseExistingOSWindowAndApplicationFramework": true,
+        "avoidIndependentFullscreenRenderer": true
+      },
+      "recordResolution": {
+        "source": "Persisted MissionManager records keyed to the active triggerId, source SOL, taskId, and evidence references",
+        "resolveUsing": [
+          "actual_trigger_id",
+          "actual_screen_id",
+          "source_sol_id",
+          "source_task_id",
+          "record_id"
+        ],
+        "doNotUseUnrelatedSOLFallback": true,
+        "preserveIntentionalCrossSOLRelationships": true
+      },
+      "verificationStatuses": [
+        {
+          "id": "verified",
+          "label": "Verified",
+          "description": "The player reviewed the original record and confirmed that its available information is consistent."
+        },
+        {
+          "id": "flagged",
+          "label": "Flagged for Review",
+          "description": "The player identified a discrepancy, inconsistency or issue that requires attention."
+        },
+        {
+          "id": "incomplete",
+          "label": "Incomplete",
+          "description": "The available record is insufficient to complete verification."
+        },
+        {
+          "id": "not_applicable",
+          "label": "Not Applicable",
+          "description": "The record or verification field does not apply to the associated SOL/task."
+        }
+      ],
+      "verificationRules": [
+        "Opening a screen does not automatically verify its records.",
+        "The player must review the actual record before submitting a verification result.",
+        "Verification must not modify or overwrite the original observation.",
+        "A flagged record must remain visible in the archive and final report.",
+        "An incomplete record must not be silently marked verified.",
+        "Not-applicable must be used only when the actual record schema or task context supports it.",
+        "Do not require every registered trigger to be visited unless it is explicitly relevant and mandatory.",
+        "Repeatedly opening a screen must not create duplicate verification records.",
+        "Verification must be idempotent for the same record and verification state."
+      ],
+      "verificationRecordFields": [
+        "source_record_id",
+        "source_sol_id",
+        "source_task_id",
+        "source_trigger_id",
+        "source_screen_id",
+        "verification_status",
+        "verification_timestamp",
+        "verification_notes",
+        "reviewed_by_role"
+      ],
+      "unknownDataHandling": {
+        "doNotReplaceUnknownWithZero": true,
+        "doNotInventMissingValues": true,
+        "distinguishNotRecordedFromUnavailable": true,
+        "distinguishLoadingFromRetrievalError": true,
+        "omitFieldsThatDoNotApply": true
+      }
+    },
+    "SOL10_FINAL_REPORT_WORKSPACE": {
+      "applicationName": "Phase One Final Expedition Report",
+      "applicationType": "existing_phobosIA_os_application",
+      "location": "MissionControl",
+      "entryPoint": "MC_MAIN_01",
+      "description": "A report workspace that compiles the actual SOL 1–9 mission records and SOL 10 verification results into a structured scientific expedition handover document.",
+      "layout": {
+        "style": "existing_phobosIA_os_visual_language",
+        "theme": "dark_scientific_report_workspace",
+        "navigation": "application_internal_navigation",
+        "responsive": true,
+        "reuseExistingOSWindowAndApplicationFramework": true,
+        "avoidIndependentFullscreenRenderer": true
+      },
+      "reportGeneration": {
+        "source": "authoritative_existing_records",
+        "sourceSOLRange": {
+          "from": 1,
+          "to": 9
+        },
+        "includeSOL10Verification": true,
+        "preserveOriginalReports": true,
+        "preserveEvidenceReferences": true,
+        "preserveRecordRelationships": true,
+        "deduplicateByActualRecordIdentity": true,
+        "regenerateFromSourceRecords": true,
+        "doNotUseHardcodedCampaignNarrative": true,
+        "doNotFabricateMeasurements": true
+      },
+      "reportSections": [
+        "expedition_overview",
+        "sol_01_to_sol_09_mission_summaries",
+        "scientific_target_summary",
+        "soil_sample_and_provenance_summary",
+        "cultivation_summary",
+        "environmental_and_emission_control_summary",
+        "equipment_and_outpost_status",
+        "cross_sol_scientific_analysis",
+        "sol_10_verification_results",
+        "outstanding_issues_and_limitations",
+        "incoming_crew_recommendations",
+        "final_handover_statement"
+      ],
+      "applicationExit": {
+        "preserveReportDraft": true,
+        "preserveCurrentReportSection": true,
+        "restoreExistingOSNavigation": true,
+        "doNotAdvanceSOL": true
+      }
+    }
+  },
+  "recordCategories": {
+    "scientificTargets": {
+      "source": "existing_SOL_03_target_records",
+      "displayIndependently": true,
+      "preserveTargetIdentity": true,
+      "includeRelatedObservations": true,
+      "includeRelatedSamples": true
+    },
+    "soilSamples": {
+      "source": "existing_SOL_06_soil_sample_records",
+      "displayIndependently": true,
+      "preserveSampleIdentity": true,
+      "preserveOriginalTargetReference": true,
+      "showCollectionEvidence": true
+    },
+    "cultivation": {
+      "source": "existing_SOL_06_and_SOL_09_cultivation_records",
+      "displayIndependently": true,
+      "preserveCultivationRecordIdentity": true,
+      "preserveRackIdentity": true,
+      "preserveOriginalSoilSampleReference": true,
+      "doNotMergeWithSoilSampleRecord": true
+    },
+    "environmentalAndEmissionControl": {
+      "source": "existing_persisted_environmental_and_emission_control_records",
+      "displayIndependently": true,
+      "includeOnlyRecordedValues": true,
+      "preserveUnitsAndSource": true
+    },
+    "equipmentAndEngineering": {
+      "source": "existing_persisted_equipment_and_engineering_records",
+      "displayIndependently": true,
+      "includeOnlyRecordedOperations": true,
+      "preserveFaultAndRepairHistory": true
+    }
+  },
+  "tasks": [
+    {
+      "taskId": "SOL10_TASK_01",
+      "title": "Open the Phase One Expedition Archive",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Open the existing Mission Control Main Operations Console and access the Phase One Expedition Archive.",
+      "completionCondition": "The existing SOL 1–9 report archive has been loaded from the authoritative persisted records."
+    },
+    {
+      "taskId": "SOL10_TASK_02",
+      "title": "Review Individual SOL Reports",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Open and review the reports for SOL 1 through SOL 9 individually. Confirm that each report is associated with the correct SOL and that its original records and evidence references remain accessible.",
+      "completionCondition": "Every available SOL 1–9 report has been reviewed individually and its review state has been persisted without modifying the original report."
+    },
+    {
+      "taskId": "SOL10_VERIFY_HAB_MONITOR_01",
+      "title": "Verify Habitat Main Monitor Status",
+      "zone": "Habitat",
+      "mandatory": true,
+      "triggerId": "HAB_MONITOR_01",
+      "interfaceId": "SOL10_TRIGGER_HAB_MONITOR_01",
+      "objective": "Use the existing Habitat Main Monitor physical interaction point in Habitat — Main Status Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with HAB_MONITOR_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_HAB_WATER_NUTRITION_01",
+      "title": "Verify Water and Nutrition Status",
+      "zone": "Habitat",
+      "mandatory": true,
+      "triggerId": "HAB_WATER_NUTRITION_01",
+      "interfaceId": "SOL10_TRIGGER_HAB_WATER_NUTRITION_01",
+      "objective": "Use the existing Water and Nutrition physical interaction point in Habitat — Water and Nutrition Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with HAB_WATER_NUTRITION_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_MONITORING_TRIGGER",
+      "title": "Verify Engineering Monitoring Status",
+      "zone": "Engineering",
+      "mandatory": true,
+      "triggerId": "Engineering_Monitoring_Trigger",
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_MONITORING_TRIGGER",
+      "objective": "Use the existing Engineering Monitoring physical interaction point in Engineering Unit — Monitoring Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Engineering_Monitoring_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_POWERUNIT_TRIGGER",
+      "title": "Verify Power Unit Status",
+      "zone": "Engineering",
+      "mandatory": true,
+      "triggerId": "Engineering_PowerUnit_Trigger",
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_POWERUNIT_TRIGGER",
+      "objective": "Use the existing Power Unit physical interaction point in Engineering Unit — Power Distribution Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Engineering_PowerUnit_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_LIFESUPPORT_TRIGGER",
+      "title": "Verify Engineering Life Support Status",
+      "zone": "Engineering",
+      "mandatory": true,
+      "triggerId": "Engineering_LifeSupport_Trigger",
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_LIFESUPPORT_TRIGGER",
+      "objective": "Use the existing Engineering Life Support physical interaction point in Engineering Unit — Life Support Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Engineering_LifeSupport_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_DIAGNOSTICS_TRIGGER",
+      "title": "Verify Diagnostics Workbench Status",
+      "zone": "Engineering",
+      "mandatory": true,
+      "triggerId": "Engineering_Diagnostics_Trigger",
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_DIAGNOSTICS_TRIGGER",
+      "objective": "Use the existing Diagnostics Workbench physical interaction point in Engineering Unit — Diagnostics Workbench. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Engineering_Diagnostics_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_INFODISPLAY_TRIGGER",
+      "title": "Verify Storage and Inventory Status",
+      "zone": "Engineering",
+      "mandatory": true,
+      "triggerId": "Engineering_InfoDisplay_Trigger",
+      "interfaceId": "SOL10_TRIGGER_ENGINEERING_INFODISPLAY_TRIGGER",
+      "objective": "Use the existing Storage and Inventory physical interaction point in Engineering Unit — Storage Display. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Engineering_InfoDisplay_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_RESEARCH_MONITORING_01",
+      "title": "Verify Research Monitoring Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_RESEARCH_MONITORING_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
+      "objective": "Use the existing Research Monitoring physical interaction point in Research Lab — Monitoring Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_RESEARCH_MONITORING_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01",
+      "title": "Verify Scientific Analysis Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_ANALYSIS_01",
+      "objective": "Use the existing Scientific Analysis physical interaction point in Research Lab — Scientific Analysis Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_RESEARCH_ANALYSIS_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_SEED_STORAGE_01",
+      "title": "Verify Seed Storage Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_SEED_STORAGE_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
+      "objective": "Use the existing Seed Storage physical interaction point in Research Lab — Seed Storage. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_SEED_STORAGE_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_WATER_NUTRITION_01",
+      "title": "Verify Water and Nutrition Mixing Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_WATER_NUTRITION_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
+      "objective": "Use the existing Water and Nutrition Mixing physical interaction point in Research Lab — Nutrient Preparation Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_WATER_NUTRITION_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_WATER_SERVICE_01",
+      "title": "Verify Water Quality and Service Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_WATER_SERVICE_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
+      "objective": "Use the existing Water Quality and Service physical interaction point in Research Lab — Water Quality Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_WATER_SERVICE_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_CULTIVATION_01",
+      "title": "Verify Cultivation Environment Status",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "triggerId": "LAB_CULTIVATION_01",
+      "interfaceId": "SOL10_TRIGGER_LAB_CULTIVATION_01",
+      "objective": "Use the existing Cultivation Environment physical interaction point in Research Lab — Cultivation Bay Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with LAB_CULTIVATION_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_MAIN_01",
+      "title": "Verify Mission Control Main Section Status",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "triggerId": "MC_MAIN_01",
+      "interfaceId": "SOL10_TRIGGER_MC_MAIN_01",
+      "objective": "Use the existing Mission Control Main Section physical interaction point in Mission Control — Main Operations Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with MC_MAIN_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_SYSTEMS_01",
+      "title": "Verify Communications and Systems Status",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "triggerId": "MC_SYSTEMS_01",
+      "interfaceId": "SOL10_TRIGGER_MC_SYSTEMS_01",
+      "objective": "Use the existing Communications and Systems physical interaction point in Mission Control — Systems Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with MC_SYSTEMS_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_NAVIGATION_01",
+      "title": "Verify Navigation and Observation Sites Status",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "triggerId": "MC_NAVIGATION_01",
+      "interfaceId": "SOL10_TRIGGER_MC_NAVIGATION_01",
+      "objective": "Use the existing Navigation and Observation Sites physical interaction point in Mission Control — Observation Planning Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with MC_NAVIGATION_01 and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENV_STATUS_DISPLAY",
+      "title": "Verify Environment Status Status",
+      "zone": "Central_Hub",
+      "mandatory": true,
+      "triggerId": "Env_Status_Display",
+      "interfaceId": "SOL10_TRIGGER_ENV_STATUS_DISPLAY",
+      "objective": "Use the existing Environment Status physical interaction point in Central Connector — Environment Display. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Env_Status_Display and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_INTERNAL_COMMUNICATION_DISPLAY",
+      "title": "Verify Internal Communications Status",
+      "zone": "Central_Hub",
+      "mandatory": true,
+      "triggerId": "Internal_Communication_Display",
+      "interfaceId": "SOL10_TRIGGER_INTERNAL_COMMUNICATION_DISPLAY",
+      "objective": "Use the existing Internal Communications physical interaction point in Central Connector — Communications Display. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Internal_Communication_Display and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_MODULE_STATUS_DISPLAY",
+      "title": "Verify Module Status Status",
+      "zone": "Central_Hub",
+      "mandatory": true,
+      "triggerId": "Module_Status_Display",
+      "interfaceId": "SOL10_TRIGGER_MODULE_STATUS_DISPLAY",
+      "objective": "Use the existing Module Status physical interaction point in Central Connector — Module Status Display. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Module_Status_Display and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+      "title": "Verify Airlock Control Console Status",
+      "zone": "Airlock",
+      "mandatory": true,
+      "triggerId": "Airlock_Control_Console_Trigger",
+      "interfaceId": "SOL10_TRIGGER_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+      "objective": "Use the existing Airlock Control Console physical interaction point in Airlock — Egress Control Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Airlock_Control_Console_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_A",
+      "title": "Verify Solar Panel A Repair Status",
+      "zone": "Master_Terrain",
+      "mandatory": true,
+      "triggerId": "PowerUnit_A",
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_A",
+      "objective": "Use the existing Solar Panel A Repair physical interaction point in Mars Terrain — Solar Panel A. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with PowerUnit_A and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_B",
+      "title": "Verify Solar Panel B Repair Status",
+      "zone": "Master_Terrain",
+      "mandatory": true,
+      "triggerId": "PowerUnit_B",
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_B",
+      "objective": "Use the existing Solar Panel B Repair physical interaction point in Mars Terrain — Solar Panel B. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with PowerUnit_B and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_AB_MAIN",
+      "title": "Verify Main Solar Connection Repair Status",
+      "zone": "Master_Terrain",
+      "mandatory": true,
+      "triggerId": "PowerUnit_AB_Main",
+      "interfaceId": "SOL10_TRIGGER_POWERUNIT_AB_MAIN",
+      "objective": "Use the existing Main Solar Connection Repair physical interaction point in Mars Terrain — Main Solar Connection. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with PowerUnit_AB_Main and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_VERIFY_COMMUICATION_FIX_TRIGGER",
+      "title": "Verify External Communication Repair Status",
+      "zone": "Master_Terrain",
+      "mandatory": true,
+      "triggerId": "Commuication_fix_Trigger",
+      "interfaceId": "SOL10_TRIGGER_COMMUICATION_FIX_TRIGGER",
+      "objective": "Use the existing External Communication Repair physical interaction point in Mars Terrain — Communication Repair Point. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "completionCondition": "The player interacted with Commuication_fix_Trigger and persisted a Sol 10 verification result for this trigger."
+    },
+    {
+      "taskId": "SOL10_TASK_03",
+      "title": "Verify Existing Outpost Section Records",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Visit the relevant existing physical interaction triggers associated with SOL 1–9 records. Open each applicable existing OS screen and inspect the records associated with that specific trigger, screen, SOL and task. Identify consistent records, discrepancies, missing information and incomplete records.",
+      "completionCondition": "All applicable mandatory verification items discovered from the actual project configuration have a persisted verification state. Unrelated triggers are not treated as mandatory."
+    },
+    {
+      "taskId": "SOL10_TASK_04",
+      "title": "Verify Scientific Targets and Observations",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Review the scientific targets selected during the earlier SOLs and compare them with the actual observations and evidence collected during the expedition.",
+      "completionCondition": "The existing target identities, related observations and evidence references have been reviewed and their verification states persisted."
+    },
+    {
+      "taskId": "SOL10_TASK_05",
+      "title": "Verify Soil Sample Provenance and Cultivation Records",
+      "zone": "Research_Zone",
+      "mandatory": true,
+      "objective": "Review the SOL 3 scientific target, the corresponding SOL 6 soil sample and the separate cultivation records. Confirm that the original target, collected sample and cultivation experiment remain correctly linked.",
+      "completionCondition": "The target-to-sample-to-cultivation relationship has been reviewed using actual persisted record identifiers. Original records remain unchanged."
+    },
+    {
+      "taskId": "SOL10_TASK_06",
+      "title": "Verify Environmental, Emission-Control and Equipment Records",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Review the relevant environmental, emission-control, equipment and engineering records that were actually generated during SOL 1–9. Identify verified, flagged, incomplete and not-applicable records.",
+      "completionCondition": "All applicable records in these categories have a persisted verification state, with unsupported or absent measurements left unfilled."
+    },
+    {
+      "taskId": "SOL10_TASK_07",
+      "title": "Perform Cross-SOL Record Comparison",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Compare related records from different SOLs using their actual identifiers and documented relationships. Review changes, consistent findings, discrepancies and unresolved differences.",
+      "completionCondition": "All required comparisons are based on explicitly related records and include their source SOL, task and evidence references."
+    },
+    {
+      "taskId": "SOL10_TASK_08",
+      "title": "Review Verification Results and Outstanding Issues",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Review the verification dashboard. Inspect all flagged, incomplete and not-applicable items and confirm that their statuses accurately reflect the source records.",
+      "completionCondition": "The verification summary is persisted and all outstanding issues are visible before report finalization."
+    },
+    {
+      "taskId": "SOL10_TASK_09",
+      "title": "Generate the Phase One Final Expedition Report",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Generate a structured report summarising SOL 1 through SOL 9, their individual activities and records, scientific targets, soil samples, cultivation, environmental and emission-control information, equipment status, cross-SOL comparisons and SOL 10 verification results.",
+      "completionCondition": "A report preview has been generated from authoritative persisted records, with source references, verification states and data limitations."
+    },
+    {
+      "taskId": "SOL10_TASK_10",
+      "title": "Prepare the Incoming Crew Handover",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Prepare a practical handover for the incoming astronaut. Summarise what has already been investigated, which records and targets are important, which systems have been checked, what remains unresolved and what should be investigated next.",
+      "completionCondition": "The incoming crew handover section is included in the report and is based on verified records and explicitly documented limitations."
+    },
+    {
+      "taskId": "SOL10_TASK_11",
+      "title": "Submit the Phase One Final Expedition Report",
+      "zone": "MissionControl",
+      "mandatory": true,
+      "objective": "Review the final report, confirm its completeness and submit it through the existing Mission Control report workflow.",
+      "completionCondition": "The final report submission event is validated and persisted. The original SOL 1–9 records and progress remain unchanged."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "SOL10_OBJ_ARCHIVE_ACCESS",
+      "title": "Access Phase One Archive",
+      "type": "screen_interaction",
+      "required": true,
+      "completionCondition": "The existing SOL 1–9 report archive is accessible."
+    },
+    {
+      "id": "SOL10_OBJ_SOL_REPORT_REVIEW",
+      "title": "Review Individual SOL Reports",
+      "type": "data_review",
+      "required": true,
+      "completionCondition": "Available SOL 1–9 reports have been individually reviewed."
+    },
+    {
+      "id": "SOL10_OBJ_SECTION_VERIFICATION",
+      "title": "Verify Relevant Outpost Records",
+      "type": "existing_trigger_record_verification",
+      "required": true,
+      "completionCondition": "All applicable mandatory verification items discovered from existing configuration have a persisted verification state."
+    },
+    {
+      "id": "SOL10_OBJ_TARGET_VERIFICATION",
+      "title": "Verify Scientific Targets",
+      "type": "scientific_record_review",
+      "required": true,
+      "completionCondition": "Scientific target identities and related observations have been reviewed."
+    },
+    {
+      "id": "SOL10_OBJ_SOIL_CULTIVATION_PROVENANCE",
+      "title": "Verify Soil and Cultivation Provenance",
+      "type": "cross_sol_record_review",
+      "required": true,
+      "completionCondition": "The SOL 3 target, SOL 6 soil sample and associated cultivation records remain traceable."
+    },
+    {
+      "id": "SOL10_OBJ_ENVIRONMENT_EQUIPMENT",
+      "title": "Verify Environmental and Equipment Records",
+      "type": "operational_record_review",
+      "required": true,
+      "completionCondition": "Applicable environmental, emission-control and equipment records have verification states."
+    },
+    {
+      "id": "SOL10_OBJ_CROSS_SOL_COMPARISON",
+      "title": "Compare Expedition Records",
+      "type": "cross_sol_analysis",
+      "required": true,
+      "completionCondition": "Required related-record comparisons have been reviewed and saved."
+    },
+    {
+      "id": "SOL10_OBJ_ISSUE_REVIEW",
+      "title": "Review Outstanding Issues",
+      "type": "verification_summary_review",
+      "required": true,
+      "completionCondition": "Flagged and incomplete records are visible and accurately represented."
+    },
+    {
+      "id": "SOL10_OBJ_FINAL_REPORT",
+      "title": "Generate Final Expedition Report",
+      "type": "report_generation",
+      "required": true,
+      "completionCondition": "A structured final report preview is generated from authoritative records."
+    },
+    {
+      "id": "SOL10_OBJ_CREW_HANDOVER",
+      "title": "Prepare Incoming Crew Handover",
+      "type": "report_handover",
+      "required": true,
+      "completionCondition": "The report includes an evidence-based incoming crew handover."
+    },
+    {
+      "id": "SOL10_OBJ_REPORT_SUBMISSION",
+      "title": "Submit Phase One Report",
+      "type": "report_submission",
+      "required": true,
+      "completionCondition": "The final report submission event is validated and persisted."
+    }
+  ],
+  "eventDefinitions": {
+    "SOL10_ARCHIVE_OPENED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_SOL_REPORTS_REVIEWED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_SECTION_VERIFICATION_COMPLETED": {
+      "source": "SOL10_RECORD_VERIFICATION",
+      "requiresValidatedResult": true
+    },
+    "SOL10_TARGET_RECORDS_VERIFIED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_SOIL_CULTIVATION_PROVENANCE_VERIFIED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_OPERATIONAL_RECORDS_VERIFIED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_CROSS_SOL_COMPARISON_COMPLETED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_VERIFICATION_REVIEW_COMPLETED": {
+      "source": "SOL10_EXPEDITION_ARCHIVE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_FINAL_REPORT_GENERATED": {
+      "source": "SOL10_FINAL_REPORT_WORKSPACE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_CREW_HANDOVER_PREPARED": {
+      "source": "SOL10_FINAL_REPORT_WORKSPACE",
+      "requiresValidatedResult": true
+    },
+    "SOL10_FINAL_REPORT_SUBMITTED": {
+      "source": "MissionControl",
+      "requiresValidatedResult": true
+    }
+  },
+  "navigation": {
+    "enabled": true,
+    "useExistingNavigationSystem": true,
+    "destinations": [
+      {
+        "destinationId": "SOL10_MISSION_CONTROL_ARCHIVE",
+        "zone": "MissionControl",
+        "description": "Existing Mission Control Main Operations Console for opening individual SOL reports and the Phase One archive."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_HAB_MONITOR_01",
+        "zone": "Habitat",
+        "triggerId": "HAB_MONITOR_01",
+        "interfaceId": "SOL10_TRIGGER_HAB_MONITOR_01",
+        "description": "Existing physical interaction point: Habitat Main Monitor (HAB_MONITOR_01) at Habitat — Main Status Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_HAB_WATER_NUTRITION_01",
+        "zone": "Habitat",
+        "triggerId": "HAB_WATER_NUTRITION_01",
+        "interfaceId": "SOL10_TRIGGER_HAB_WATER_NUTRITION_01",
+        "description": "Existing physical interaction point: Water and Nutrition (HAB_WATER_NUTRITION_01) at Habitat — Water and Nutrition Station."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENGINEERING_MONITORING_TRIGGER",
+        "zone": "Engineering",
+        "triggerId": "Engineering_Monitoring_Trigger",
+        "interfaceId": "SOL10_TRIGGER_ENGINEERING_MONITORING_TRIGGER",
+        "description": "Existing physical interaction point: Engineering Monitoring (Engineering_Monitoring_Trigger) at Engineering Unit — Monitoring Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENGINEERING_POWERUNIT_TRIGGER",
+        "zone": "Engineering",
+        "triggerId": "Engineering_PowerUnit_Trigger",
+        "interfaceId": "SOL10_TRIGGER_ENGINEERING_POWERUNIT_TRIGGER",
+        "description": "Existing physical interaction point: Power Unit (Engineering_PowerUnit_Trigger) at Engineering Unit — Power Distribution Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENGINEERING_LIFESUPPORT_TRIGGER",
+        "zone": "Engineering",
+        "triggerId": "Engineering_LifeSupport_Trigger",
+        "interfaceId": "SOL10_TRIGGER_ENGINEERING_LIFESUPPORT_TRIGGER",
+        "description": "Existing physical interaction point: Engineering Life Support (Engineering_LifeSupport_Trigger) at Engineering Unit — Life Support Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENGINEERING_DIAGNOSTICS_TRIGGER",
+        "zone": "Engineering",
+        "triggerId": "Engineering_Diagnostics_Trigger",
+        "interfaceId": "SOL10_TRIGGER_ENGINEERING_DIAGNOSTICS_TRIGGER",
+        "description": "Existing physical interaction point: Diagnostics Workbench (Engineering_Diagnostics_Trigger) at Engineering Unit — Diagnostics Workbench."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENGINEERING_INFODISPLAY_TRIGGER",
+        "zone": "Engineering",
+        "triggerId": "Engineering_InfoDisplay_Trigger",
+        "interfaceId": "SOL10_TRIGGER_ENGINEERING_INFODISPLAY_TRIGGER",
+        "description": "Existing physical interaction point: Storage and Inventory (Engineering_InfoDisplay_Trigger) at Engineering Unit — Storage Display."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_RESEARCH_MONITORING_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_RESEARCH_MONITORING_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
+        "description": "Existing physical interaction point: Research Monitoring (LAB_RESEARCH_MONITORING_01) at Research Lab — Monitoring Station."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_ANALYSIS_01",
+        "description": "Existing physical interaction point: Scientific Analysis (LAB_RESEARCH_ANALYSIS_01) at Research Lab — Scientific Analysis Station."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_SEED_STORAGE_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_SEED_STORAGE_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
+        "description": "Existing physical interaction point: Seed Storage (LAB_SEED_STORAGE_01) at Research Lab — Seed Storage."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_WATER_NUTRITION_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_WATER_NUTRITION_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
+        "description": "Existing physical interaction point: Water and Nutrition Mixing (LAB_WATER_NUTRITION_01) at Research Lab — Nutrient Preparation Station."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_WATER_SERVICE_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_WATER_SERVICE_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
+        "description": "Existing physical interaction point: Water Quality and Service (LAB_WATER_SERVICE_01) at Research Lab — Water Quality Station."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_LAB_CULTIVATION_01",
+        "zone": "Research_Zone",
+        "triggerId": "LAB_CULTIVATION_01",
+        "interfaceId": "SOL10_TRIGGER_LAB_CULTIVATION_01",
+        "description": "Existing physical interaction point: Cultivation Environment (LAB_CULTIVATION_01) at Research Lab — Cultivation Bay Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_MC_MAIN_01",
+        "zone": "MissionControl",
+        "triggerId": "MC_MAIN_01",
+        "interfaceId": "SOL10_TRIGGER_MC_MAIN_01",
+        "description": "Existing physical interaction point: Mission Control Main Section (MC_MAIN_01) at Mission Control — Main Operations Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_MC_SYSTEMS_01",
+        "zone": "MissionControl",
+        "triggerId": "MC_SYSTEMS_01",
+        "interfaceId": "SOL10_TRIGGER_MC_SYSTEMS_01",
+        "description": "Existing physical interaction point: Communications and Systems (MC_SYSTEMS_01) at Mission Control — Systems Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_MC_NAVIGATION_01",
+        "zone": "MissionControl",
+        "triggerId": "MC_NAVIGATION_01",
+        "interfaceId": "SOL10_TRIGGER_MC_NAVIGATION_01",
+        "description": "Existing physical interaction point: Navigation and Observation Sites (MC_NAVIGATION_01) at Mission Control — Observation Planning Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_ENV_STATUS_DISPLAY",
+        "zone": "Central_Hub",
+        "triggerId": "Env_Status_Display",
+        "interfaceId": "SOL10_TRIGGER_ENV_STATUS_DISPLAY",
+        "description": "Existing physical interaction point: Environment Status (Env_Status_Display) at Central Connector — Environment Display."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_INTERNAL_COMMUNICATION_DISPLAY",
+        "zone": "Central_Hub",
+        "triggerId": "Internal_Communication_Display",
+        "interfaceId": "SOL10_TRIGGER_INTERNAL_COMMUNICATION_DISPLAY",
+        "description": "Existing physical interaction point: Internal Communications (Internal_Communication_Display) at Central Connector — Communications Display."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_MODULE_STATUS_DISPLAY",
+        "zone": "Central_Hub",
+        "triggerId": "Module_Status_Display",
+        "interfaceId": "SOL10_TRIGGER_MODULE_STATUS_DISPLAY",
+        "description": "Existing physical interaction point: Module Status (Module_Status_Display) at Central Connector — Module Status Display."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+        "zone": "Airlock",
+        "triggerId": "Airlock_Control_Console_Trigger",
+        "interfaceId": "SOL10_TRIGGER_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+        "description": "Existing physical interaction point: Airlock Control Console (Airlock_Control_Console_Trigger) at Airlock — Egress Control Console."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_POWERUNIT_A",
+        "zone": "Master_Terrain",
+        "triggerId": "PowerUnit_A",
+        "interfaceId": "SOL10_TRIGGER_POWERUNIT_A",
+        "description": "Existing physical interaction point: Solar Panel A Repair (PowerUnit_A) at Mars Terrain — Solar Panel A."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_POWERUNIT_B",
+        "zone": "Master_Terrain",
+        "triggerId": "PowerUnit_B",
+        "interfaceId": "SOL10_TRIGGER_POWERUNIT_B",
+        "description": "Existing physical interaction point: Solar Panel B Repair (PowerUnit_B) at Mars Terrain — Solar Panel B."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_POWERUNIT_AB_MAIN",
+        "zone": "Master_Terrain",
+        "triggerId": "PowerUnit_AB_Main",
+        "interfaceId": "SOL10_TRIGGER_POWERUNIT_AB_MAIN",
+        "description": "Existing physical interaction point: Main Solar Connection Repair (PowerUnit_AB_Main) at Mars Terrain — Main Solar Connection."
+      },
+      {
+        "destinationId": "SOL10_VERIFY_COMMUICATION_FIX_TRIGGER",
+        "zone": "Master_Terrain",
+        "triggerId": "Commuication_fix_Trigger",
+        "interfaceId": "SOL10_TRIGGER_COMMUICATION_FIX_TRIGGER",
+        "description": "Existing physical interaction point: External Communication Repair (Commuication_fix_Trigger) at Mars Terrain — Communication Repair Point."
+      }
+    ],
+    "resolveCoordinatesFromExistingNavigationData": true,
+    "resolveTriggerIdsFromExistingRegistry": true,
+    "resolveScreenIdsFromExistingRegistry": true,
+    "doNotInventTriggerCoordinates": true,
+    "doNotCreateNewNavigationMarkers": true,
+    "doNotMakeNavigationCompleteObjectives": true,
+    "showCurrentVerificationDestination": true,
+    "allowPlayerToReviewArchiveWithoutChangingVerificationStatus": true
+  },
+  "report": {
+    "reportId": "PHOBOSIA_PHASE_ONE_FINAL_EXPEDITION_REPORT",
+    "title": "PHOBOSIA Phase One — Final Scientific Expedition & Crew Handover Report",
+    "audience": "Incoming astronaut and future Phase Two expedition personnel",
+    "sourceSOLRange": {
+      "from": 1,
+      "to": 9
+    },
+    "includeSOL10Verification": true,
+    "requiredSections": [
+      "expedition_overview",
+      "sol_01_mission_summary",
+      "sol_02_mission_summary",
+      "sol_03_mission_summary",
+      "sol_04_mission_summary",
+      "sol_05_mission_summary",
+      "sol_06_mission_summary",
+      "sol_07_mission_summary",
+      "sol_08_mission_summary",
+      "sol_09_mission_summary",
+      "scientific_target_summary",
+      "soil_sample_and_provenance_summary",
+      "cultivation_records",
+      "environmental_records",
+      "emission_control_records",
+      "equipment_and_engineering_records",
+      "cross_sol_comparative_analysis",
+      "sol_10_verification_summary",
+      "flagged_and_incomplete_records",
+      "data_sources_and_limitations",
+      "incoming_crew_recommendations",
+      "final_handover_statement"
+    ],
+    "solBySolSummaryFields": [
+      "sol_number",
+      "mission_title",
+      "mission_purpose",
+      "objectives_completed",
+      "activities_performed",
+      "relevant_modules",
+      "observations",
+      "records_collected",
+      "evidence_references",
+      "findings",
+      "unresolved_issues",
+      "verification_status"
+    ],
+    "scientificReportingRules": [
+      "Generate every SOL summary from its actual persisted mission records and original report.",
+      "Keep SOL 1, SOL 2, SOL 3 and all other SOL reports separately accessible.",
+      "Do not merge all SOL data into one untraceable summary.",
+      "Every important finding must retain its source SOL, task and record reference.",
+      "Preserve original scientific target identities.",
+      "Preserve the SOL 3 target to SOL 6 soil sample relationship.",
+      "Keep soil sample records separate from cultivation records.",
+      "Keep cultivation, environmental, emission-control, equipment and scientific target records independently identifiable.",
+      "Do not invent scientific measurements, trends, observations or conclusions.",
+      "Distinguish NASA-derived source data from simulated gameplay telemetry and fictional story events.",
+      "Clearly identify verified findings, observations, interpretations, recommendations and unresolved questions.",
+      "Preserve flagged and incomplete records in the final report.",
+      "Do not silently convert missing or unknown information into verified information.",
+      "Do not overwrite original SOL 1–9 reports or evidence.",
+      "The report must be reproducible from the same authoritative source records."
+    ],
+    "incomingCrewRequirements": [
+      "Explain what the previous expedition investigated.",
+      "Identify the scientific targets selected and their current status.",
+      "Identify soil samples collected and their original target provenance.",
+      "Summarise cultivation experiments separately from soil collection.",
+      "Summarise environmental and emission-control records.",
+      "Summarise equipment and engineering checks.",
+      "Identify verified systems and outstanding issues.",
+      "Recommend which records the incoming astronaut should inspect first.",
+      "Identify investigations that should continue during Phase Two.",
+      "Clearly distinguish confirmed results from unresolved hypotheses."
+    ],
+    "finalizationRules": [
+      "Show report completeness before submission.",
+      "Show all flagged and incomplete verification items.",
+      "Allow the player to inspect outstanding items.",
+      "Do not mark the report fully verified if mandatory verification items remain incomplete.",
+      "If flagged issues are allowed to remain at submission, preserve them visibly in the report and handover.",
+      "Use the existing report persistence mechanism where available.",
+      "Do not introduce a separate document-management subsystem unless the existing architecture requires it."
+    ]
+  },
+  "completion": {
+    "allMandatoryTasksRequired": true,
+    "requiredEvents": [
+      "SOL10_ARCHIVE_OPENED",
+      "SOL10_SOL_REPORTS_REVIEWED",
+      "SOL10_SECTION_VERIFICATION_COMPLETED",
+      "SOL10_TARGET_RECORDS_VERIFIED",
+      "SOL10_SOIL_CULTIVATION_PROVENANCE_VERIFIED",
+      "SOL10_OPERATIONAL_RECORDS_VERIFIED",
+      "SOL10_CROSS_SOL_COMPARISON_COMPLETED",
+      "SOL10_VERIFICATION_REVIEW_COMPLETED",
+      "SOL10_FINAL_REPORT_GENERATED",
+      "SOL10_CREW_HANDOVER_PREPARED",
+      "SOL10_FINAL_REPORT_SUBMITTED"
+    ],
+    "verificationRules": [
+      "A record can be verified only after it has been reviewed.",
+      "A flagged record does not automatically block report submission if the existing mission policy permits documented unresolved issues.",
+      "Incomplete mandatory verification items must remain visible and must not be silently marked complete.",
+      "Not-applicable records must be excluded from applicable verification totals.",
+      "The final report must accurately state whether the expedition handover is fully verified or contains outstanding issues."
+    ],
+    "preserveAllPreviousSOLProgress": true,
+    "preserveOriginalSOLReports": true,
+    "onComplete": {
+      "setMissionStatus": "completed",
+      "persistMissionResults": true,
+      "persistFinalReport": true,
+      "persistVerificationResults": true,
+      "unlockNextMission": false,
+      "advanceDayAutomatically": false,
+      "phaseOneStatus": "completed",
+      "nextPhaseStatus": "awaiting_phase_two"
+    }
+  },
+  "persistence": {
+    "useExistingMissionPersistence": true,
+    "preserveSOL01ToSOL09Records": true,
+    "preserveSOL01ToSOL09Progress": true,
+    "preserveOriginalReports": true,
+    "persistVerificationResults": true,
+    "persistVerificationHistory": true,
+    "persistFlaggedRecords": true,
+    "persistIncompleteRecords": true,
+    "persistFinalReport": true,
+    "persistReportSourceReferences": true,
+    "persistIncomingCrewHandover": true,
+    "reloadMustRestoreCompletedActions": true,
+    "preventDuplicateVerificationRecords": true,
+    "preventDuplicateReportEntries": true,
+    "preventDuplicateCompletionEvents": true,
+    "doNotDestructivelyMigrateExistingSaves": true
+  },
+  "performance": {
+    "reuseExistingOSFramework": true,
+    "reuseExistingThreeJSRenderer": true,
+    "avoidAdditionalWebGLContexts": true,
+    "preferExistingUIComponents": true,
+    "avoidHeavyNewDependencies": true,
+    "avoidUnnecessary3DAssets": true,
+    "avoidUnboundedAnimationLoops": true,
+    "disposeTemporaryResources": true,
+    "targetHardware": "NVIDIA MX350 2GB VRAM and 12GB system RAM"
+  },
+  "dataProvenance": {
+    "NASAData": {
+      "description": "Only data actually sourced from NASA datasets or services and already integrated into the project.",
+      "preserveSourceReference": true,
+      "doNotInventValues": true
+    },
+    "MissionSimulation": {
+      "description": "Simulated operational values and gameplay events generated by the existing PHOBOSIA simulation.",
+      "labelAsSimulation": true
+    },
+    "ScientificObservations": {
+      "description": "Player-collected observations and evidence from SOL 1–9.",
+      "preserveOriginalRecord": true,
+      "retainSOLAndTaskReference": true
+    },
+    "VerificationRecords": {
+      "description": "SOL 10 review results. These are separate from original observations.",
+      "storeSeparately": true
+    },
+    "UnknownData": {
+      "description": "Information that was not collected, is not present in the source, or cannot be verified.",
+      "doNotReplaceWithZero": true,
+      "doNotFabricate": true,
+      "useContextAppropriateStatus": true
+    }
+  },
+  "dataIntegrity": {
+    "noFabricatedMeasurements": true,
+    "noFabricatedScientificConclusions": true,
+    "noInventedSceneObjects": true,
+    "noInventedTriggerIds": true,
+    "noInventedScreenIds": true,
+    "noInventedCoordinates": true,
+    "noDuplicateGlobalSystems": true,
+    "noGlobalSchemaModificationWithoutApproval": true,
+    "preserveExistingMissionHistory": true,
+    "preserveSOL01ToSOL09Progress": true,
+    "preserveOriginalEvidence": true,
+    "preserveTargetSampleCultivationRelationships": true,
+    "preserveExistingOSFramework": true,
+    "verificationMustNotRewriteOriginalRecords": true
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "project": "PHOBOSIA",
+  "zone": "AIRLOCK",
+  "configVersion": "1.0.0",
+  "dataPolicy": {
+    "mode": "SIMULATED_DEMO",
+    "liveTelemetry": false,
+    "disclaimer": "SIMULATED AIRLOCK DATA - NOT LIVE NASA TELEMETRY",
+    "scientificIntegrity": "Display simulated values as demonstration data unless connected to an actual application data source."
+  },
+  "rendering": {
+    "rendererId": "AirlockScreenRenderer",
+    "renderMode": "PHYSICAL_SCREEN",
+    "independentScreenRendering": true,
+    "fullscreenOSSeparation": true,
+    "screenContentSource": "JSON",
+    "updateStrategy": "UPDATE_CHANGED_CONTENT_ONLY",
+    "textureStrategy": "REUSE_CANVAS_TEXTURES",
+    "preserveBlenderMeshNames": true,
+    "allowScreenSpecificOrientation": true,
+    "missingDataPolicy": "USE_FALLBACK_AND_LOG",
+    "missingMeshPolicy": "LOG_ERROR_AND_CONTINUE"
+  },
+  "visualTheme": {
+    "style": "MARS_OUTPOST_AIRLOCK_OPERATIONS",
+    "background": "#08111B",
+    "panelBackground": "#111F2C",
+    "primaryText": "#E7F0F7",
+    "secondaryText": "#92A9BC",
+    "accent": "#E5A04B",
+    "success": "#5BC69A",
+    "warning": "#F0BD55",
+    "critical": "#F16B66",
+    "grid": "#24394B",
+    "fontFamily": "monospace",
+    "highContrast": true,
+    "avoidNeonEffects": true
+  },
+  "orientationDefaults": {
+    "mirrorHorizontal": false,
+    "mirrorVertical": false,
+    "rotationDegrees": 0,
+    "verifyAgainstBlender": true,
+    "doNotGuessMissingCoordinates": true
+  },
+  "screens": [
+    {
+      "screenId": "AL_CONTROL_CONSOLE",
+      "meshName": "Airlock_Control_Console",
+      "rendererId": "AirlockScreenRenderer",
+      "subsystem": "AIRLOCK_CONTROL",
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y"
+      },
+      "purpose": "Primary airlock control console displaying depressurization status, seal integrity, atmosphere readings, and EVA readiness.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "AIRLOCK CONTROL CONSOLE",
+          "subtitle": "DEPRESSURIZATION & EVA OPERATIONS",
+          "status": "SEALED"
+        },
+        "primaryMetrics": [
+          {
+            "id": "cabin_pressure",
+            "label": "CABIN PRESSURE",
+            "source": "airlockState.cabinPressureKPa",
+            "fallback": 70.3,
+            "unit": "kPa"
+          },
+          {
+            "id": "seal_integrity",
+            "label": "SEAL INTEGRITY",
+            "source": "airlockState.sealIntegrityPercent",
+            "fallback": 99.8,
+            "unit": "%"
+          },
+          {
+            "id": "o2_level",
+            "label": "O₂ LEVEL",
+            "source": "airlockState.oxygenPercent",
+            "fallback": 20.9,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "depressurization_status",
+            "type": "STATUS_CARD",
+            "title": "DEPRESSURIZATION STATUS",
+            "fallback": {
+              "priority": "NORMAL",
+              "message": "Airlock sealed. Cabin pressure nominal. Ready for depressurization cycle.",
+              "status": "STANDBY"
+            }
+          },
+          {
+            "id": "seal_diagnostics",
+            "type": "COMPONENT_STATUS",
+            "title": "SEAL DIAGNOSTICS",
+            "fallback": [
+              {
+                "name": "Inner Hatch Seal",
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Outer Hatch Seal",
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Pressure Equalization",
+                "status": "STANDBY"
+              },
+              {
+                "name": "Emergency Override",
+                "status": "ARMED"
+              }
+            ]
+          },
+          {
+            "id": "atmosphere_readings",
+            "type": "METRIC_GRID",
+            "title": "ATMOSPHERE READINGS",
+            "fallback": [
+              {
+                "label": "Temperature",
+                "value": 21.2,
+                "unit": "°C"
+              },
+              {
+                "label": "Humidity",
+                "value": 36,
+                "unit": "%"
+              },
+              {
+                "label": "CO₂",
+                "value": 0.04,
+                "unit": "%"
+              },
+              {
+                "label": "N₂",
+                "value": 78.1,
+                "unit": "%"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Simulated airlock control data",
+          "right": "SIMULATED DATA"
+        }
+      }
+    }
+  ],
+  "version": 7,
+  "sol": 7,
+  "missionId": "PHOBOSIA_SOL_07",
+  "dataMode": "SOL_07_ASSESSMENT",
+  "sol7AssessmentOnly": true
+}

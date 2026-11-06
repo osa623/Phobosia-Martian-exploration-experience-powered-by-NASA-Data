@@ -43,7 +43,7 @@ const { DAYS_CONFIG, MASTER_TERRAIN_TARGETS, PREDEFINED_INTERPRETATIONS, getMiss
 const { MissionManager } = require('../dist/core/MissionManager.js');
 const { resolveNextMissionNavigation, normalizeValidatedTaskIds } = require('../dist/systems/navigation/missionNavigation.js');
 const THREE = require('three');
-const { reprojectPlanarUVs, buildCentralHubColliders, buildScienceLabColliders, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight } = require('../dist/core/Collision.js');
+const { reprojectPlanarUVs, buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, buildScienceLabColliders, buildHabitatColliderSection, buildDroneSectionColliders, getSurfaceHeight } = require('../dist/core/Collision.js');
 
 function completeSol2(mm) {
   const tasks = [
@@ -130,6 +130,54 @@ function completeSol5(mm) {
   assert(mm.getState().sol5.images.every(image => image.targetId === targetId));
   return mm;
 }
+
+function completeSol6(mm) {
+  const targetId = mm.getSelectedSiteId();
+  assert(targetId, 'Sol 6 must inherit the validated Sol 3 target');
+  assert.strictEqual(mm.confirmSol6Briefing().success, true);
+  assert.strictEqual(mm.prepareSol6Equipment().success, true);
+  assert.strictEqual(mm.markSol6EVAActivated(true), true);
+  assert.strictEqual(mm.markSol6TargetReached(targetId), true);
+  const observation = mm.saveSol6FieldObservation({ targetId, locationReference: 'selected target scene object', category: 'visible surface appearance', observation: 'Visible surface variation is recorded from the scene without assigning a geological classification.', interpretation: 'The variation may warrant later closer inspection.', uncertainty: 'No verified measurements or instrument data are available.' });
+  assert(observation, 'Field observation should persist');
+  const sample = mm.collectSol6Sample('selected target scene object', 'simulated sample container reference');
+  assert(sample && sample.targetId === targetId, 'Sample must retain selected-target provenance');
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_RETURN_TO_AIRLOCK', 'The task list advances to Airlock return immediately after sample collection');
+  // Model an interrupted/older save where the secured sample exists but its
+  // collection task ID was not persisted. Airlock arrival must reconcile it.
+  const completedIds = mm.getState().completedStepIds;
+  completedIds.splice(completedIds.indexOf('SOL06_COLLECT_SOIL_SAMPLE'), 1);
+  // The Airlock suit-removal interaction also repairs a missed arrival callback.
+  assert.strictEqual(mm.markSol6EVAActivated(false), true);
+  assert.strictEqual(mm.isStepComplete('SOL06_COLLECT_SOIL_SAMPLE'), true, 'Secured sample evidence repairs the missing task completion');
+  assert.strictEqual(mm.isStepComplete('SOL06_RETURN_TO_AIRLOCK'), true, 'Suit removal confirms the player reached the Airlock when the transition callback was missed');
+  assert.strictEqual(mm.isStepComplete('SOL06_REMOVE_EVA_SUIT'), true, 'Airlock suit removal completes its task');
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_TRANSFER_SAMPLE', 'After suit removal, the next task is sample transfer');
+  assert.strictEqual(mm.transferSol6Sample().success, true);
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_ANALYSE_SAMPLE', 'Sample receipt advances directly to preliminary analysis');
+  const analysis = mm.saveSol6Analysis({ visualAppearance: 'Player-authored visual description.', grainSizeOrTexture: 'Not instrument measured.', colourDescription: 'Player-authored colour note.', supportedIndicators: 'No laboratory indicators are configured.', limitationsAndUncertainty: 'No chemical or biological dataset is available.', playerInterpretation: 'Tentative player interpretation only.', reportUncertainty: '' });
+  assert(analysis, 'Panel analysis fields save even while its separate report field is empty');
+  assert.strictEqual(Object.hasOwn(analysis, 'reportUncertainty'), false, 'Unrelated report input is not stored in the analysis record');
+  const experiment = mm.startSol6Cultivation();
+  assert(experiment && experiment.status === 'IN_PROGRESS' && experiment.result === null);
+  assert.strictEqual(mm.submitSol6Report('Physical composition, field coordinates and laboratory measurements are not independently verified.').success, true);
+  return mm;
+}
+
+function completeSol7(mm) {
+  const tasks = ['SOL07_HABITAT_STORM_ALERT', 'SOL07_MISSION_CONTROL_SYSTEMS', 'SOL07_CENTRAL_HUB_STATUS', 'SOL07_VERIFY_EVA_LOCKDOWN', 'SOL07_RESEARCH_POWER'];
+  for (const id of tasks) assert.strictEqual(mm.recordSol7Assessment(id), true, `${id} should complete in order`);
+  const unavailable = 'Unavailable: no verified source value configured.';
+  const power = Object.fromEntries(['solarGeneration','availableReserve','estimatedReserveDuration','solarPanelA','solarPanelB','mainSolarLine','distribution','lifeSupport','scienceCultivation'].map(key => [key, unavailable]));
+  assert.strictEqual(mm.recordSol7PowerAssessment(power), true);
+  assert.strictEqual(mm.submitSol7Report().success, true);
+  return mm;
+}
+
+function seedSol7SurfacePrerequisiteForSol8Test(mm) {
+  // Isolated downstream Sol 8 tests use a synthetic fixture; runtime Sol 7 does not create a surface observation.
+  mm.getState().surfaceObservation = { id: 'TEST_SOL7_SURFACE_RECORD', day: 7, targetId: 'TEST_TARGET', source: 'PHOBOSIA simulated surface observation', observedCategories: { surfacePattern: 'test', surfaceMaterialAppearance: 'test', terrainProfile: 'test', areaOfInterest: 'test' }, followUpQuestion: 'test', summary: 'test fixture', isSimulated: true, saved: true };
+}
 const { ScreenRenderer } = require('../dist/core/ScreenRenderer.js');
 const { HabitatScreenRenderer } = require('../dist/core/HabitatScreenRenderer.js');
 const { EngineeringScreenRenderer } = require('../dist/core/EngineeringScreenRenderer.js');
@@ -157,6 +205,17 @@ function test(name, fn) {
     process.exitCode = 1;
   }
 }
+
+test('Sol 6 mission and navigation JSON share the complete required task set', () => {
+  const mission = require('../dist/jsons/Missions/sol-06.json');
+  const navigation = require('../dist/jsons/Instructions/sol-06-navigation.json');
+  const required = mission.missionCompletion.requiredTasks;
+  assert.strictEqual(required.length, 12);
+  assert.deepStrictEqual(mission.tasks.filter(task => task.mandatory).map(task => task.taskId), required);
+  assert.deepStrictEqual(navigation.instructions.map(instruction => instruction.taskId), required);
+  assert.strictEqual(mission.persistentMissionData.targetIds.includes('TARGET_GAMMA_SOUTH_ESCARPMENT'), true);
+  assert.strictEqual(mission.interfaces.find(item => item.interfaceId === 'AIRLOCK_RETURN_TRANSITION').triggerId, 'Spwaning_Position');
+});
 
 test('Sol 1-4 routing covers all six physical-screen sections and preserves every screen association', () => {
   const sections = { airlock: 'airlock-screen-data.json', centralHub: 'central-hub-screens.json', engineering: 'engineeringScreenData.json', habitat: 'habitatScreenData.json', missionControl: 'mission-control-screens.json', research: 'research-zone-screens.json' };
@@ -587,8 +646,8 @@ test('Sol 5 requires the official Sol 3 target and validates inspection, prepare
     assert(mm.getSol5Progress().images.every(image => image.targetId === target.id), 'Target-specific evidence remains available for Sol 6');
   }
 });
-// P3-002: Day 6 Geological Site Survey requires GeologicalSurveyRecord
-test('Day 6 Geological Site Survey validates steps and requires GeologicalSurveyRecord before rest', () => {
+// P3-002: Sol 6 requires validated target, field records, sample, lab chain and report.
+test('Sol 6 validates its target-dependent field, sample, analysis, cultivation and report workflow', () => {
   mockStorage.clear();
   let mm = new MissionManager();
   // Fast forward to Day 6
@@ -608,15 +667,46 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
 
   assert.strictEqual(mm.getState().currentDay, 6);
 
-  // Review target
-  mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'MC_NAVIGATION_01' });
-  assert.strictEqual(mm.isStepComplete('D6_OBJ_01_REVIEW_TARGET'), true);
+  assert.deepStrictEqual(mm.getMissionTaskProgress(), { completed: 0, total: 12, remaining: 12 });
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_REVIEW_MISSION_BRIEFING');
+  const sol6Mission = require('../src/jsons/Missions/sol-06.json');
+  const sol6Navigation = require('../src/jsons/Instructions/sol-06-navigation.json');
+  assert.deepStrictEqual(sol6Mission.tasks.map(task => task.taskId), sol6Mission.missionCompletion.requiredTasks, 'Sol 6 task list matches its mandatory completion sequence');
+  assert.deepStrictEqual(sol6Navigation.instructions.map(task => task.taskId), sol6Mission.missionCompletion.requiredTasks, 'Sol 6 instructions cover the task list in the same order');
+  assert.strictEqual(mm.completeStep('SOL06_REVIEW_MISSION_BRIEFING'), false, 'Generic task completion cannot bypass Sol 6 validation');
+  assert.strictEqual(mm.confirmSol6Briefing().success, true, 'Briefing resolves the canonical Sol 3 target and matching Sol 4/5 records');
+  assert.strictEqual(mm.getCurrentNavigationInstruction().taskId, 'SOL06_PREPARE_FIELD_EQUIPMENT');
+  assert.strictEqual(mm.markSol6TargetReached(MASTER_TERRAIN_TARGETS[1].id), false, 'A different target cannot satisfy field arrival');
+  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false, 'Rest is blocked before the report and sample workflow');
+  mm = completeSol6(mm);
+  assert.strictEqual(mm.getMissionTaskProgress().completed, 12);
+  assert.strictEqual(mm.getState().sol6.sample.targetId, mm.getSelectedSiteId());
+  assert.strictEqual(mm.getState().sol6.sample.transferred, true);
+  assert.strictEqual(mm.getState().sol6.analysis.sampleId, mm.getState().sol6.sample.sampleId);
+  assert.strictEqual(mm.getState().sol6.cultivation.status, 'IN_PROGRESS');
+  assert.strictEqual(mm.getState().sol6.cultivation.result, null, 'No cultivation result is generated during Sol 6');
+  assert.strictEqual(mm.getState().sol6.report.targetId, mm.getSelectedSiteId());
+  assert.strictEqual(mm.getCurrentNavigationInstruction().isCompletion, true);
+  const reloaded = new MissionManager();
+  assert.strictEqual(reloaded.getSelectedSiteId(), mm.getSelectedSiteId(), 'Official target persists during Sol 6');
+  assert.strictEqual(reloaded.getSol6Progress().sample.sampleId, mm.getSol6Progress().sample.sampleId, 'Sample identity persists across reload');
+  assert.strictEqual(reloaded.getSol6Progress().cultivation.result, null, 'Pending experiment remains pending after reload');
+  assert.strictEqual(reloaded.getSol6Progress().report.sampleId, mm.getSol6Progress().report.sampleId, 'Report remains linked to its saved sample');
+  assert.strictEqual(mm.canRestAndAdvance().canAdvance, true);
+  const adv = mm.advanceDay(true);
+  assert.strictEqual(adv.success, true);
+  assert.strictEqual(adv.newDay, 7);
+});
 
-  // Reach terrain survey area
-  mm.handleContextEvent({ type: 'module_entered', module: 'Terrain' });
-  assert.strictEqual(mm.isStepComplete('D6_OBJ_02_REACH_TARGET'), true);
+/* Legacy Sol 6 entry points are no longer sufficient for mission completion. */
+test('Sol 6 rejects direct generic task completion when no validated Sol 3 target exists', () => {
+  mockStorage.clear();
+  const mm = new MissionManager();
+  assert.strictEqual(mm.completeStep('SOL06_REVIEW_MISSION_BRIEFING'), false);
+  assert.strictEqual(mm.getSol6Progress().report, null);
+});
 
-  // Rest should be blocked while survey record is missing
+/*
   assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
 
   // Save Geological Survey Record
@@ -644,9 +734,10 @@ test('Day 6 Geological Site Survey validates steps and requires GeologicalSurvey
   assert.strictEqual(adv.newDay, 7);
   assert.strictEqual(mm.getState().currentDay, 7);
 });
+*/
 
-// P3-003: Day 7 Surface Observation lifecycle & Airlock transition
-test('Day 7 Surface Observation validates airlock transit and saves SurfaceObservationRecord', () => {
+// P3-003: Sol 7 Dust Storm lifecycle
+test('Sol 7 Dust Storm validates ordered assessments, EVA lockdown and final report without advancing Sol 8', () => {
   mockStorage.clear();
   let mm = new MissionManager();
   // Fast forward to Day 7
@@ -663,63 +754,28 @@ test('Day 7 Surface Observation validates airlock transit and saves SurfaceObser
   mm.advanceDay(true);
   mm = completeSol5(mm);
   mm.advanceDay(true);
-  mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
-  mm.completeStep('D6_OBJ_02_REACH_TARGET');
-  mm.saveGeologicalSurvey({
-    targetId: 'TARGET_ALPHA_CRATER_RIM',
-    observedCategories: {
-      surfaceTexture: 'Vesicular Basalt',
-      fragmentDistribution: 'Scattered Clasts',
-      terrainShape: 'Low Incline',
-      dustCoverage: 'Thin Mantle'
-    },
-    summary: 'Sol 06 Survey'
-  });
+  completeSol6(mm);
   mm.advanceDay(true); // to Day 7
 
   assert.strictEqual(mm.getState().currentDay, 7);
 
-  // Review briefing marks D7_OBJ_01_REVIEW_TASK complete
-  mm.markBriefingSeen();
-  assert.strictEqual(mm.isStepComplete('D7_OBJ_01_REVIEW_TASK'), true);
-
-  // Use Airlock to enter Terrain
-  mm.handleContextEvent({ type: 'module_entered', module: 'Terrain' });
-  assert.strictEqual(mm.isStepComplete('D7_OBJ_02_USE_AIRLOCK'), true);
-
-  // Rest blocked before save
   assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
-
-  // Save surface observation
-  const surfRecord = mm.saveSurfaceObservation({
-    targetId: 'TARGET_BETA_DUNE_BASIN',
-    observedCategories: {
-      surfacePattern: 'Laminated Bedding & Cross-Stratification',
-      surfaceMaterialAppearance: 'Dark Iron-Magnesium Silicate Matrix',
-      terrainProfile: 'Undulating Dune Swale Transition',
-      areaOfInterest: 'High-reflectance mineralized vein'
-    },
-    followUpQuestion: 'Does the sulfate veneer indicate transient aqueous deposition?',
-    summary: 'Site Beta surface observation completed.'
-  });
-
-  assert(surfRecord !== null);
-  assert.strictEqual(surfRecord.day, 7);
-  assert.strictEqual(surfRecord.isSimulated, true);
-  assert.strictEqual(surfRecord.relatedGeologicalSurveyId !== null, true);
-  assert.strictEqual(mm.isStepComplete('D7_OBJ_03_PERFORM_SCAN'), true);
-  assert.strictEqual(mm.isStepComplete('D7_OBJ_04_SAVE_OBSERVATION'), true);
+  assert.strictEqual(mm.submitSol7Report().success, false);
+  completeSol7(mm);
+  assert.strictEqual(mm.getSol7Progress().report.validated, true);
+  assert.strictEqual(mm.getSol7Progress().stormEnded, true);
+  assert.ok(mm.getSol7PostStormPowerAssessment());
   assert.strictEqual(mm.getState().objectiveState, 'completed');
 
-  // Advance to Day 8
+  // The report itself must not advance to Sol 8; only the existing rest flow can do that.
+  assert.strictEqual(mm.getState().currentDay, 7);
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
   assert.strictEqual(adv.newDay, 8);
-  assert.strictEqual(mm.getState().currentDay, 8);
 });
 
-// P3-004: Day 8 Research Lab Analysis requires Day 7 source record & interpretation
-test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linked analysis', () => {
+// P3-004: Day 8 Research Lab Analysis requires a Day 7 source record & interpretation
+test('Day 8 Research Lab Analysis strictly requires a Day 7 test fixture and saves linked analysis', () => {
   mockStorage.clear();
   let mm = new MissionManager();
   // Fast forward through Days 1 to 7
@@ -736,33 +792,13 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   mm.advanceDay(true);
   mm = completeSol5(mm);
   mm.advanceDay(true);
-  mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
-  mm.completeStep('D6_OBJ_02_REACH_TARGET');
-  const d6Record = mm.saveGeologicalSurvey({
-    targetId: 'TARGET_ALPHA_CRATER_RIM',
-    observedCategories: {
-      surfaceTexture: 'Vesicular Basalt',
-      fragmentDistribution: 'Scattered Clasts',
-      terrainShape: 'Talus Incline',
-      dustCoverage: 'Thin Mantle'
-    },
-    summary: 'Day 6 Field Survey'
-  });
+  const completedDay6 = completeSol6(mm);
+  const d6Record = completedDay6.getState().geologicalSurvey;
   mm.advanceDay(true);
-  mm.completeStep('D7_OBJ_01_REVIEW_TASK');
-  mm.completeStep('D7_OBJ_02_USE_AIRLOCK');
-  const d7Record = mm.saveSurfaceObservation({
-    targetId: 'TARGET_BETA_DUNE_BASIN',
-    observedCategories: {
-      surfacePattern: 'Cross-Stratification',
-      surfaceMaterialAppearance: 'Silicate Matrix',
-      terrainProfile: 'Dune Swale',
-      areaOfInterest: 'Mineralized vein'
-    },
-    followUpQuestion: 'Does the sulfate veneer indicate transient aqueous deposition?',
-    summary: 'Day 7 Surface Observation'
-  });
-  mm.advanceDay(true); // to Day 8
+  completeSol7(mm);
+  mm.advanceDay(true);
+  seedSol7SurfacePrerequisiteForSol8Test(mm);
+  const d7Record = mm.getState().surfaceObservation;
 
   assert.strictEqual(mm.getState().currentDay, 8);
 
@@ -771,19 +807,10 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   assert.strictEqual(mm.isStepComplete('D8_OBJ_01_OPEN_SOURCE_RECORD'), true);
   assert.strictEqual(mm.isStepComplete('D8_OBJ_02_REVIEW_COMPARISON'), true);
 
-  // Save Analysis without valid interpretation should fail
-  const badAnalysis = mm.saveScienceAnalysis({
-    selectedInterpretationId: 'NON_EXISTENT_INTERPRETATION',
-    summary: 'Bad interpretation'
-  });
+  const badAnalysis = mm.saveScienceAnalysis({ selectedInterpretationId: 'NON_EXISTENT_INTERPRETATION', summary: 'Bad interpretation' });
   assert.strictEqual(badAnalysis, null);
   assert.strictEqual(mm.isStepComplete('D8_OBJ_04_SAVE_ANALYSIS'), false);
-
-  // Save Analysis with valid predefined interpretation
-  const goodAnalysis = mm.saveScienceAnalysis({
-    selectedInterpretationId: 'INTERPRETATION_SURFACE_PATTERN_REVIEW',
-    summary: 'Tentative observation analysis.'
-  });
+  const goodAnalysis = mm.saveScienceAnalysis({ selectedInterpretationId: 'INTERPRETATION_SURFACE_PATTERN_REVIEW', summary: 'Tentative observation analysis.' });
   assert(goodAnalysis !== null);
   assert.strictEqual(goodAnalysis.day, 8);
   assert.strictEqual(goodAnalysis.sourceObservationId, d7Record.id);
@@ -792,106 +819,39 @@ test('Day 8 Research Lab Analysis strictly requires Day 7 record and saves linke
   assert.strictEqual(mm.isStepComplete('D8_OBJ_03_SELECT_INTERPRETATION'), true);
   assert.strictEqual(mm.isStepComplete('D8_OBJ_04_SAVE_ANALYSIS'), true);
   assert.strictEqual(mm.getState().objectiveState, 'completed');
-
-  // Advance to Day 9
   const adv = mm.advanceDay(true);
   assert.strictEqual(adv.success, true);
   assert.strictEqual(adv.newDay, 9);
   assert.strictEqual(mm.getState().currentDay, 9);
 });
 
-// P3-005: Day 9 Drone Survey Lifecycle & Non-advancement beyond Day 9
-test('Day 9 Remote Drone Survey validates FPV capture, restores astronaut controls, and strictly concludes Phase 3', () => {
+// P3-005: Sol 9 cultivation and water recovery lifecycle
+test('Sol 9 starts after Sol 8 recovery and uses the cultivation and water assessment tasks', () => {
   mockStorage.clear();
-  let mm = new MissionManager();
-  // Fast forward to Day 9
-  mm.completeStep('DAY1_REVIEW_CONTROLS');
-  mm.completeStep('DAY1_VISIT_CENTRAL_HUB');
-  mm.completeStep('DAY1_INSPECT_BASE_AREAS');
-  mm.completeStep('DAY1_CONFIRM_ORIENTATION');
-  mm.advanceDay(true); // 2
-  completeSol2(mm);
-  mm.advanceDay(true); // 3
-  completeSol3(mm);
-  mm.advanceDay(true); // 4
-  completeSol4(mm);
-  mm.advanceDay(true); // 5
-  mm = completeSol5(mm);
-  mm.advanceDay(true); // 6
-  mm.completeStep('D6_OBJ_01_REVIEW_TARGET');
-  mm.completeStep('D6_OBJ_02_REACH_TARGET');
-  mm.saveGeologicalSurvey({
-    targetId: 'TARGET_ALPHA_CRATER_RIM',
-    observedCategories: { surfaceTexture: 'Basalt', fragmentDistribution: 'Clasts', terrainShape: 'Talus', dustCoverage: 'Mantle' },
-    summary: 'D6'
-  });
-  mm.advanceDay(true); // 7
-  mm.completeStep('D7_OBJ_01_REVIEW_TASK');
-  mm.completeStep('D7_OBJ_02_USE_AIRLOCK');
-  mm.saveSurfaceObservation({
-    targetId: 'TARGET_BETA_DUNE_BASIN',
-    observedCategories: { surfacePattern: 'Bedding', surfaceMaterialAppearance: 'Matrix', terrainProfile: 'Dune', areaOfInterest: 'Vein' },
-    followUpQuestion: 'Aqueous origin?',
-    summary: 'D7'
-  });
-  mm.advanceDay(true); // 8
-  mm.completeStep('D8_OBJ_01_OPEN_SOURCE_RECORD');
-  mm.completeStep('D8_OBJ_02_REVIEW_COMPARISON');
-  mm.saveScienceAnalysis({
-    selectedInterpretationId: 'INTERPRETATION_SURFACE_PATTERN_REVIEW',
-    summary: 'D8 Analysis'
-  });
-  mm.advanceDay(true); // 9
-
+  mockStorage.set('phobosia_mission_progress_v4', JSON.stringify({
+    currentDay: 9,
+    objectiveState: 'in_progress',
+    completedStepIds: [],
+    completedIntroductionIds: [],
+    observationRecords: [],
+    selectedRouteTarget: null,
+    dayBriefingSeen: true,
+    campaignFinished: false,
+    sol8: { started: true, powerFailureActive: false, communicationFailureActive: false, report: { validated: true, submittedAt: new Date().toISOString(), sections: {} } },
+    sol9: { started: true }
+  }));
+  const mm = new MissionManager();
   assert.strictEqual(mm.getState().currentDay, 9);
 
-  // Review Mission Control drone console
+  // Legacy Day 9 drone interactions must not complete or replace Sol 9 tasks.
   mm.handleContextEvent({ type: 'trigger_interacted', identifier: 'MC_SYSTEMS_01' });
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_01_REVIEW_DRONE_TASK'), true);
-
-  // Activate FPV
-  mm.completeStep('D9_OBJ_02_ACTIVATE_FPV');
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_02_ACTIVATE_FPV'), true);
-
-  // Rest blocked while survey record missing or FPV un-exited
+  assert.strictEqual(mm.isStepComplete('SOL09_TASK_01'), false);
+  assert.strictEqual(mm.isStepComplete('SOL09_TASK_02'), false);
+  assert.strictEqual(mm.getSol09Progress().started, true);
   assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
-
-  // Save Drone Survey Record
-  const droneRecord = mm.saveDroneSurvey({
-    targetId: 'TARGET_GAMMA_SOUTH_ESCARPMENT',
-    observedCategories: {
-      viewpointTerrainShape: 'Dissected canyon rim',
-      visibleSurfacePattern: 'Polygonal thermal contraction fissures',
-      followUpArea: 'South escarpment shadow boundary',
-      routeRevisit: 'Fault line aerial corridor'
-    },
-    summary: 'Day 9 remote drone survey completed.'
-  });
-
-  assert(droneRecord !== null);
-  assert.strictEqual(droneRecord.day, 9);
-  assert.strictEqual(droneRecord.isSimulated, true);
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_03_INSPECT_TARGET'), true);
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_04_SAVE_DRONE_RECORD'), true);
-
-  // Still blocked until FPV is exited
-  assert.strictEqual(mm.canRestAndAdvance().canAdvance, false);
-
-  // Exit FPV and restore astronaut controls
-  mm.completeStep('D9_OBJ_05_EXIT_FPV');
-  assert.strictEqual(mm.isStepComplete('D9_OBJ_05_EXIT_FPV'), true);
-  assert.strictEqual(mm.getState().objectiveState, 'completed');
-
-  // Verify Day 9 strictly concludes Phase 3 and CANNOT advance to Day 10
-  const check = mm.canRestAndAdvance();
-  assert.strictEqual(check.canAdvance, false);
-  assert(check.reason.includes('Day 9 Complete') && check.reason.includes('Phase 3'));
-
-  const adv = mm.advanceDay();
-  assert.strictEqual(adv.success, false);
+  assert.strictEqual(mm.advanceDay().success, false);
   assert.strictEqual(mm.getState().currentDay, 9);
 });
-
 // --- STABILIZATION MILESTONE TESTS ---
 
 test('STAB-001: reprojectPlanarUVs correctly computes normalized UVs across mesh bounds', () => {
@@ -1031,17 +991,32 @@ test('STAB-003: ScreenRenderer correctly matches screen identifiers across all o
 test('LIGHT-001: configureModuleLighting creates shadow-casting Sun for Terrain covering base', () => {
   const root = new THREE.Group();
   const additions = new THREE.Group();
+  root.add(additions);
+  const sunReference = new THREE.Object3D();
+  sunReference.name = 'Sun_Object';
+  sunReference.position.set(0, 60, 40);
+  root.add(sunReference);
+  const terrain = new THREE.Mesh(new THREE.BoxGeometry(800, 1, 800), new THREE.MeshStandardMaterial());
+  terrain.name = 'PHOBOSIA_MarsTerrain_2km';
+  terrain.position.y = -0.5;
+  root.add(terrain);
+  const habitat = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 10), new THREE.MeshStandardMaterial());
+  habitat.position.set(2, 4, -3);
+  root.add(habitat);
   configureModuleLighting(root, additions, 'Terrain');
 
-  const sun = additions.getObjectByName('MarsSun_DirectionalLight');
+  const sun = root.getObjectByName('MarsSun_DirectionalLight');
   assert(sun, 'MarsSun_DirectionalLight should exist');
   assert.strictEqual(sun.isDirectionalLight, true);
   assert.strictEqual(sun.castShadow, true);
-  assert.strictEqual(sun.shadow.mapSize.width, 2048);
-  assert.strictEqual(sun.shadow.mapSize.height, 2048);
+  assert.strictEqual(sun.shadow.mapSize.width, 1024);
+  assert.strictEqual(sun.shadow.mapSize.height, 1024);
   assert(sun.target, 'Sun must have a target');
-  assert.strictEqual(sun.shadow.camera.left, -115);
-  assert.strictEqual(sun.shadow.camera.right, 115);
+  const target = sun.target.getWorldPosition(new THREE.Vector3());
+  assert(Math.abs(target.x - habitat.position.x) < 0.01, 'Sun target should align with the outpost bounds');
+  assert(Math.abs(target.y) < 0.01, 'Sun target should use the sampled terrain surface');
+  assert(sun.shadow.camera.right > 0 && sun.shadow.camera.right < 100, 'Shadow bounds should cover the outpost without fitting the full 2 km terrain');
+  assert(sun.shadow.camera.left < 0 && sun.shadow.camera.top > 0 && sun.shadow.camera.bottom < 0);
 });
 
 test('LIGHT-002: configureModuleLighting creates key shadow-casting SpotLights for indoor modules', () => {
@@ -2287,6 +2262,49 @@ test('STAB-006: buildCentralHubColliders builds colliders for Collider_Section01
   section01.traverse((child) => {
     assert.strictEqual(child.visible, false, `Child ${child.name} must have visibility set to false`);
   });
+});
+
+test('HUB-COLLIDERS: every authored rotated Central Hub primitive keeps its oriented collision bounds', () => {
+  const root = new THREE.Group();
+  const authored = [];
+  for (let i = 0; i < 6; i++) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.5), new THREE.MeshBasicMaterial());
+    mesh.name = `Collider_${i + 1}`;
+    mesh.position.set(i - 2.5, 0.8, 1);
+    mesh.rotation.y = (i + 1) * 0.21;
+    root.add(mesh);
+    authored.push(mesh);
+  }
+  root.updateWorldMatrix(true, true);
+  const colliders = buildCentralHubOrientedColliders(root);
+  assert.strictEqual(colliders.length, 6, 'all six root-level non-section collider meshes are registered');
+  for (let i = 0; i < colliders.length; i++) {
+    const collider = colliders[i];
+    const mesh = authored[i];
+    assert.strictEqual(mesh.visible, false, `${mesh.name} is hidden as a collision-only proxy`);
+    assert(collider.orientation.angleTo(mesh.getWorldQuaternion(new THREE.Quaternion())) < 1e-6, `${mesh.name} rotation is retained`);
+    const localInside = new THREE.Vector3(collider.halfExtents.x * 0.9, 0, 0).applyQuaternion(collider.orientation).add(collider.center);
+    const localOutside = new THREE.Vector3(collider.halfExtents.x + 0.01, 0, 0).applyQuaternion(collider.orientation).add(collider.center);
+    assert(orientedBoxContainsPoint(localInside, collider), `${mesh.name} blocks inside its actual oriented volume`);
+    assert(!orientedBoxContainsPoint(localOutside, collider), `${mesh.name} does not over-block outside its rotated volume`);
+  }
+});
+
+test('HUB-COLLIDERS: circular Central Hub section preserves its cylinder footprint and transformed position', () => {
+  const root = new THREE.Group();
+  root.position.set(3, 0, -2);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.02, 32), new THREE.MeshBasicMaterial());
+  mesh.name = 'Collider_Section02';
+  mesh.position.set(2, 0.5, 4);
+  root.add(mesh);
+  root.updateWorldMatrix(true, true);
+  const colliders = buildCentralHubCylinderColliders(root);
+  assert.equal(colliders.length, 1);
+  assert.equal(mesh.visible, false);
+  const collider = colliders[0];
+  assert(Math.abs(collider.center.x - 5) < 1e-6 && Math.abs(collider.center.z - 2) < 1e-6, 'world position includes the parent transform');
+  assert(verticalCylinderContainsPoint(new THREE.Vector3(5, collider.minY + 0.5, 2), collider));
+  assert(!verticalCylinderContainsPoint(new THREE.Vector3(5 + collider.radiusX * 1.1, collider.minY + 0.5, 2), collider), 'circular collider does not block beyond its radius');
 });
 
 // =========================================================================

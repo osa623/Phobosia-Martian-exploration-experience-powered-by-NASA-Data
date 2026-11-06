@@ -53,6 +53,12 @@ export interface GameState {
   primaryObjective: string;
   controlHint: string;
   isOutdoorTerrain: boolean;
+  evaSuitActive: boolean;
+  evaMovementState: "IDLE" | "WALKING" | "RUNNING";
+  evaOxygenPercent: number;
+  evaBatteryPercent: number;
+  evaHeadingDegrees: number;
+  evaTerrainElevation: number | null;
   showRoutePlanning: boolean;
   selectedRouteTargetId: string | null;
   notification: string | null;
@@ -76,6 +82,9 @@ export interface GameState {
   showDroneConsoleModal: boolean;
 
   droneModeActive: boolean;
+  roverActive: boolean;
+  roverSpeed: number;
+  roverView: "FIRST PERSON" | "THIRD PERSON";
   droneTelemetry: DroneTelemetryData;
   sol5DroneActive: boolean;
   sol5LandingPromptActive: boolean;
@@ -87,6 +96,7 @@ export interface GameState {
   // Cinematic screen interaction + PHOBOSIA OS Desktop
   showCinematicOverlay: boolean;
   showOSDesktop: boolean;
+  showPersonalLaptop: boolean;
   osInitialApp?: string;
 
   // Day 1 Camera Presentation Banner

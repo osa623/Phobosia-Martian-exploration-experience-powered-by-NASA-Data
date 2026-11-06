@@ -14,35 +14,13 @@ import centralHubLegacy from "@/jsons/Screens/central-hub-screens.json";
 import airlockLegacy from "@/jsons/Screens/airlock-screen-data.json";
 import sol03Mission from "@/jsons/Missions/sol-03.json";
 import { Sol5MissionPanel } from "@/missions/sol-05/components/Sol5MissionPanel";
+import { Sol6MissionPanel } from "@/missions/SOL_06/components/Sol6MissionPanel";
+import { Sol7MissionPanel } from "@/missions/sol-07/components/Sol7MissionPanel";
+import { Sol08MissionPanel } from "@/missions/sol-08/components/Sol08MissionPanel";
+import { Sol09MissionPanel } from "@/missions/sol-09/components/Sol09MissionPanel";
+import { Sol10MissionPanel } from "@/missions/sol-10/components/Sol10MissionPanel";
 import { resolveTriggerScreens } from "./triggerAccess";
-
-type Section = "habitat" | "engineering" | "research" | "missionControl" | "centralHub" | "airlock";
-interface ScreenRecord { id: string; mesh: string; title: string; purpose?: string; data?: unknown; content?: any }
-interface TriggerSpec { title: string; location: string; section?: Section; screens: string[]; tasks?: string[]; workstation?: boolean }
-
-const TRIGGERS: Record<string, TriggerSpec> = {
-  HAB_MONITOR_01: { title: "Habitat Main Monitor", location: "Habitat — Main Status Console", section: "habitat", screens: ["Habitat_Main_Status_Display", "Habitat_LifeSupport_Display", "Habitat_Emergency_Status_Display"], tasks: ["SOL02_HABITAT_STATUS"] },
-  HAB_WATER_NUTRITION_01: { title: "Water and Nutrition", location: "Habitat — Water and Nutrition Station", section: "habitat", screens: ["Habitat_WaterNutrition_Display"], tasks: ["SOL02_WATER_NUTRITION"] },
-  HAB_WORKSTATION_01: { title: "Habitat Workstation", location: "Habitat — Crew Workstation", screens: ["Habitat_Workstation_Display"], workstation: true },
-  Engineering_Monitoring_Trigger: { title: "Engineering Monitoring", location: "Engineering Unit — Monitoring Console", section: "engineering", screens: ["MonitoringSection_Indicator_Screen", "MonitoringSection_Operational_Screen", "MonitoringSection_Screen"], tasks: ["SOL02_ENGINEERING_MONITORING", "SOL02_READINESS_ASSESSMENT"] },
-  Engineering_PowerUnit_Trigger: { title: "Power Unit", location: "Engineering Unit — Power Distribution Console", section: "engineering", screens: ["PowerUnitScreenMain", "PowerUnitScreenMain02", "PowerUnitScreen000", "PowerUnitScreen000.001"], tasks: ["SOL02_POWER_REVIEW"] },
-  Engineering_LifeSupport_Trigger: { title: "Engineering Life Support", location: "Engineering Unit — Life Support Console", section: "engineering", screens: ["LifeSupportUnitScreenMain04", "LifeSupportUnitScreenMain02.001", "LifeSupportUnitScreenMain03"], tasks: ["SOL02_ENGINEERING_LIFESUPPORT"] },
-  Engineering_Diagnostics_Trigger: { title: "Diagnostics Workbench", location: "Engineering Unit — Diagnostics Workbench", section: "engineering", screens: ["DiagnosticsWorkbenchScreen_01"], tasks: ["SOL02_DIAGNOSTICS"] },
-  Engineering_InfoDisplay_Trigger: { title: "Storage and Inventory", location: "Engineering Unit — Storage Display", section: "engineering", screens: ["Storage_Screen"] },
-  LAB_RESEARCH_MONITORING_01: { title: "Research Monitoring", location: "Research Lab — Monitoring Station", section: "research", screens: ["ResearchMonitoring_MainScreen"] },
-  LAB_RESEARCH_ANALYSIS_01: { title: "Scientific Analysis", location: "Research Lab — Scientific Analysis Station", section: "research", screens: ["ResearchMonitoring_SystemScreen"], tasks: ["SOL03_SELECT_DATASET", "SOL04_TERRAIN_DATA_REVIEW"] },
-  LAB_SEED_STORAGE_01: { title: "Seed Storage", location: "Research Lab — Seed Storage", section: "research", screens: ["SeedStorage_InventoryScreen"] },
-  LAB_WATER_NUTRITION_01: { title: "Water and Nutrition Mixing", location: "Research Lab — Nutrient Preparation Station", section: "research", screens: ["WaterNutrition_MixingScreen"] },
-  LAB_WATER_SERVICE_01: { title: "Water Quality and Service", location: "Research Lab — Water Quality Station", section: "research", screens: ["WaterNutrition_QualityScreen"] },
-  LAB_CULTIVATION_01: { title: "Cultivation Environment", location: "Research Lab — Cultivation Bay Console", section: "research", screens: ["Cultivation_EnvironmentScreen"] },
-  MC_MAIN_01: { title: "Mission Control Main Section", location: "Mission Control — Main Operations Console", section: "missionControl", screens: ["MissionControl_ObjectivesScreen", "MissionControl_OutpostStatusScreen", "MissionControl_OverviewScreen"], tasks: ["SOL03_MISSION_CONTEXT", "SOL03_SUBMIT_TARGET_RECORD", "SOL04_MISSION_CONTEXT", "SOL04_SUBMIT_PREPARATION_REPORT"] },
-  MC_SYSTEMS_01: { title: "Communications and Systems", location: "Mission Control — Systems Console", section: "missionControl", screens: ["MissionControl_CommunicationsScreen", "MissionControl_SystemsScreen"], tasks: ["SOL03_SYSTEM_CONSTRAINTS"] },
-  MC_NAVIGATION_01: { title: "Navigation and Observation Sites", location: "Mission Control — Observation Planning Console", section: "missionControl", screens: ["MissionControl_DroneOperationScreen", "MissionControl_ObservationSitesScreen", "MissionControl_TerrainMapScreen"], tasks: ["SOL03_OBSERVATION_SITE_REVIEW", "SOL03_SELECT_TARGET", "SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_DRONE_MISSION_PLAN"] },
-  Env_Status_Display: { title: "Environment Status", location: "Central Connector — Environment Display", section: "centralHub", screens: ["Env_Status_Display"] },
-  Internal_Communication_Display: { title: "Internal Communications", location: "Central Connector — Communications Display", section: "centralHub", screens: ["Internal_Communication_Display"] },
-  Module_Status_Display: { title: "Module Status", location: "Central Connector — Module Status Display", section: "centralHub", screens: ["Module_Status_Display"] },
-  Airlock_Control_Console_Trigger: { title: "Airlock Control Console", location: "Airlock — Egress Control Console", section: "airlock", screens: ["Airlock_Control_Console"] }
-};
+import { TRIGGERS, type ScreenRecord, type Section } from "./triggerRegistry";
 
 const SECTION_CONFIG: Record<Section, { legacy: any; screenKey: string }> = {
   habitat: { legacy: habitatLegacy, screenKey: "screens" }, engineering: { legacy: engineeringLegacy, screenKey: "screens" },
@@ -150,6 +128,11 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
         <main className="[min-width:0] [flex:1] [overflow-y:auto] [padding:14px]">
           {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} showSol3TargetGallery={state.missionDay === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {state.missionDay}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
           {state.missionDay === 5 && triggerId === "MC_NAVIGATION_01" && <section className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.18)] [padding-top:16px]"><Sol5MissionPanel game={game} state={state} /></section>}
+          {state.missionDay === 6 && ["MC_NAVIGATION_01", "MC_MAIN_01", "LAB_RESEARCH_ANALYSIS_01", "LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"].includes(triggerId) && <Sol6MissionPanel manager={game?.missionManager} triggerId={triggerId} />}
+          {state.missionDay === 7 && <Sol7MissionPanel manager={game?.missionManager} game={game ?? undefined} triggerId={triggerId} />}
+          {state.missionDay === 8 && <Sol08MissionPanel game={game} triggerId={triggerId} />}
+          {state.missionDay === 9 && ["HAB_WATER_NUTRITION_01", "LAB_CULTIVATION_01", "Engineering_LifeSupport_Trigger", "MC_MAIN_01"].includes(triggerId) && <Sol09MissionPanel game={game} triggerId={triggerId} />}
+          {state.missionDay === 10 && <Sol10MissionPanel game={game} triggerId={triggerId} />}
           {allowedTasks.length > 0 && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.18)] [margin-top:10px] [padding-top:10px]"><MissionInvestigationPanel game={game} initialTaskId={allowedTasks[0]} availableTaskIds={allowedTasks} showSavedRecords={allowedTasks.includes("SOL02_READINESS_ASSESSMENT") || allowedTasks.includes("SOL03_SUBMIT_TARGET_RECORD")} /></section>}
           {triggerId === "HAB_MONITOR_01" && <section className="[margin:8px_12px] [border-top:1px_solid_rgba(85,_205,_232,_0.15)] [padding:12px]"><div className="font-mono [color:#55cde8] [font-size:10px]">OUTPOST OVERVIEW</div><p className="[color:#dce8ed]">Sol {state.missionDay} · {mission.title} · {missionState?.objectiveState ?? state.objectiveState}</p><p className="[color:#9fb4c0] [font-size:12px]">{mission.primaryObjective}</p><p className="[color:#d4ad72] [font-size:12px]">{game?.missionManager.getMissionTaskProgress().remaining ?? 0} required mission tasks remain. System-specific records stay in their own consoles.</p>{state.notification && <p role="status" className="[border-left:2px_solid_#e88747] [padding-left:8px] [color:#e8c18d] [font-size:12px]">Mission notification: {state.notification}</p>}</section>}
         </main>

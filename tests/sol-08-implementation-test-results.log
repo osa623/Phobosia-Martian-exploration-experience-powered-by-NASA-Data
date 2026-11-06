@@ -1,0 +1,27 @@
+PHOBOSIA SOL 8 IMPLEMENTATION TEST LOG
+Date: 2026-11-03
+
+Sol 8 integration suite: PASS — 10/10 checks. Command: `node tests/sol8_integration_tests.js` after compiling the project's test TypeScript sources.
+
+| Test | Category | Expected | Actual | Result | Failure / mapping detail | Blocks Sol 8? |
+|---|---|---|---|---|---|---|
+| Sol 8 starts through Sol 7 completion lifecycle | Mission lifecycle | Sol 7 completion advances to Sol 8, activates two independent failures, retains 20% simulated reserve and prior records; Sol 9 remains inactive | All assertions passed | PASS | MissionManager state and saved Sol 6/Sol 7 records | No |
+| Panel graph validation rejects incomplete, reversed and wrong-polarity edges | Circuit validation | Only the configured full directed graph validates; panel configurations remain separate | All assertions passed | PASS | `taskDefinitions.ts` graph validator | No |
+| Repairs require their real trigger and are independent by panel | Repair trigger mapping | Wrong trigger rejected; Panel A does not complete B; each validated circuit completes only its task | All assertions passed | PASS | `PowerUnit_A`, `PowerUnit_B`, `PowerUnit_AB_Main` | No |
+| Power restoration leaves communication active until its named outdoor trigger | Independent failures | Main supply resolves power only; communication resolves only at `Commuication_fix_Trigger` | All assertions passed | PASS | `ENGINEERING_POWER_UNIT_CONFIRMS_MAIN_SUPPLY_RESTORED` manager path and exact communication trigger argument | No |
+| Recovery report validates without auto-starting Sol 9 | Report and progression | Required report sections validate after both failures clear; current Sol remains 8 | All assertions passed | PASS | Existing report persistence in MissionManager; no automatic Sol 9 transition | No |
+| Sol 8 physical screen sources and navigation load | Screen and navigation registration | Six section screen configs and Sol 8 navigation load; beep URL resolves | All assertions passed | PASS | `Screens/Sol_8/*`, `sol-08-navigation.json`, asset URL | No |
+| Every Sol 8 review action can complete without an empty free-text field | Interaction progression | Power review, communication diagnosis, and recovery verification submit their displayed state; existing trigger IDs route through the E interaction window | All assertions passed | PASS | `Sol08MissionPanel.tsx`, `TriggerOperatingSystem.tsx` | No |
+| Named repair triggers and emergency-light mappings resolve in configured GLBs | Scene mapping | All supplied triggers/lights are resolved or reported by exact name | Four trigger nodes found; 20/28 supplied light names found; eight exact light names absent | PASS WITH BLOCKERS | Missing: Central Connector `Light12`, `Light15`, `Light16`, `Light17`, `Light18`; Science `Light007`, `Light010`, `Light012`. Exact names were not substituted. GLB collections are not retained as collection metadata, so collection membership cannot be verified. | Yes, for restoring those 8 lights / confirming collection ownership |
+| Physical screen warnings update independently from Sol 8 state | Physical screen warning state | Both warnings render initially; power warning can clear while communication remains | All assertions passed | PASS | Shared warning renderer and independent `Sol08Progress` flags | No |
+| Configured lights restore exact captured visibility and leave unlisted lights unchanged | Lighting cleanup | One audio instance; selected visibility is restored exactly; unlisted light remains unchanged; fade reaches silence | All assertions passed | PASS | `Sol08PowerEffects` state snapshot/fade; unit scene objects | No |
+
+Other checks actually run:
+
+- `tsc --noEmit`: PASS.
+- Sol 8 test TypeScript compilation: PASS.
+- `investigation_tests.js`, `sol5_tests.js`, `trigger_access_tests.js`, `audio_tests.js`, and `eva_resource_tests.js`: PASS.
+- Full `npm.cmd test`: FAIL, exit 1. Existing `mission_tests.js` reports 85/88 checks. Two failures expect the previous Day 8 science workflow and Day 8 → Day 9 progression; the third expects an existing `MarsSun_DirectionalLight` in terrain lighting. Sol 8 intentionally occupies Day 8 and does not auto-start Sol 9; the lighting failure is unrelated.
+- `eva_access_tests.js`: FAIL at a pre-existing assertion expecting `Collider_Section01` / `Collider_Section02` in Central Connector; actual terrain GLB contains `Collider_1` through `Collider_18`. This is outside the Sol 8 changes.
+- `sol7_integration_tests.js`: FAIL at a pre-existing task-ID expectation (`SOL07_HABITAT_STORM_ALERT` vs current `SOL07_REVIEW_HABITAT_STORM_ALERT`). No Sol 7 source was changed.
+- Browser-level play testing of keyboard E activation, dragging terminals, camera and physical screen appearance was not performed in this automated run.

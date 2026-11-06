@@ -22,7 +22,9 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
-import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
+import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
 export interface EngineeringScreenData {
   moduleId: string;
@@ -111,6 +113,7 @@ export class EngineeringScreenRenderer {
   private activeBindings: EngineeringScreenBinding[] = [];
   private missionDay: number = 1;
   private configSol = 4;
+  private completedStepIds: string[] = [];
   private customConfig: boolean;
 
   constructor(customConfig?: EngineeringScreenData) {
@@ -127,19 +130,20 @@ export class EngineeringScreenRenderer {
   /**
    * Primary Entry Point: Scans Engineering Unit model and binds planar canvas textures to the 12 screens.
    */
-  public renderEngineeringUnitScreens(model: THREE.Group, missionState?: { currentDay?: number }): void {
+  public renderEngineeringUnitScreens(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.attachToEngineering(model, missionState);
   }
 
   /**
    * Alias for renderEngineeringUnitScreens adhering to project conventions.
    */
-  public attachToEngineering(model: THREE.Group, missionState?: { currentDay?: number }): void {
+  public attachToEngineering(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionDay);
 
     const targetScreenKeys = Object.keys(this.configData.screens);
@@ -162,7 +166,7 @@ export class EngineeringScreenRenderer {
       }
     });
 
-    this.renderAll();
+    this.renderAll(missionState);
   }
 
   /**
@@ -258,15 +262,17 @@ export class EngineeringScreenRenderer {
   /**
    * Redraws all active physical screens with current data.
    */
-  public renderAll(missionState?: { currentDay?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionDay);
 
     const now = Date.now();
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.lastRenderTime = now;
       binding.texture.needsUpdate = true;
     }
@@ -332,6 +338,8 @@ export class EngineeringScreenRenderer {
         this.renderMonitoringOperationalScreen(ctx, data, width, height, this.missionDay, app);
         break;
     }
+
+    if (isSol07StormPresentationActive({ currentDay: this.missionDay, completedStepIds: this.completedStepIds })) drawSol07Banner(ctx, width, height, "SOL 7 · READ-ONLY POWER ASSESSMENT", "Legacy unit telemetry is gameplay simulation; classify any reported value. No repairs.");
 
     // Outer physical bezel border & corner brackets
     ctx.strokeStyle = app.accent || "#45B8E8";
