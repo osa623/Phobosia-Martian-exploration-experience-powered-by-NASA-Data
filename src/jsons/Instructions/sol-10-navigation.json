@@ -1,0 +1,557 @@
+{
+  "sol": 10,
+  "missionId": "PHOBOSIA_SOL_10",
+  "version": 1,
+  "instructions": [
+    {
+      "taskId": "SOL10_TASK_01",
+      "title": "Open the Phase One Expedition Archive",
+      "message": "Open the existing Mission Control Main Operations Console.",
+      "guidance": "Review the persisted SOL 1–9 expedition records and preserve each original report and its evidence references.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Phase One Expedition Archive"
+      },
+      "activity": "Open the archive through the existing Mission Control interaction."
+    },
+    {
+      "taskId": "SOL10_TASK_02",
+      "title": "Review Individual SOL Reports",
+      "message": "Review the available daily reports individually in Mission Control.",
+      "guidance": "Use only persisted reports and records. Keep each report associated with its source SOL; do not infer missing reports.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Daily SOL Reports"
+      },
+      "activity": "Review the available SOL reports without changing their source records.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_HAB_MONITOR_01",
+      "title": "Verify Habitat Main Monitor Status",
+      "message": "Travel to Habitat — Main Status Console and press E at the existing Habitat Main Monitor interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Habitat Main Monitor",
+        "module": "Habitat",
+        "section": "Habitat — Main Status Console",
+        "triggerId": "HAB_MONITOR_01"
+      },
+      "activity": "Record the current status for HAB_MONITOR_01.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_02"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_HAB_WATER_NUTRITION_01",
+      "title": "Verify Water and Nutrition Status",
+      "message": "Travel to Habitat — Water and Nutrition Station and press E at the existing Water and Nutrition interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Water and Nutrition",
+        "module": "Habitat",
+        "section": "Habitat — Water and Nutrition Station",
+        "triggerId": "HAB_WATER_NUTRITION_01"
+      },
+      "activity": "Record the current status for HAB_WATER_NUTRITION_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_HAB_MONITOR_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_MONITORING_TRIGGER",
+      "title": "Verify Engineering Monitoring Status",
+      "message": "Travel to Engineering Unit — Monitoring Console and press E at the existing Engineering Monitoring interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Engineering Monitoring",
+        "module": "Engineering",
+        "section": "Engineering Unit — Monitoring Console",
+        "triggerId": "Engineering_Monitoring_Trigger"
+      },
+      "activity": "Record the current status for Engineering_Monitoring_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_HAB_WATER_NUTRITION_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_POWERUNIT_TRIGGER",
+      "title": "Verify Power Unit Status",
+      "message": "Travel to Engineering Unit — Power Distribution Console and press E at the existing Power Unit interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Power Unit",
+        "module": "Engineering",
+        "section": "Engineering Unit — Power Distribution Console",
+        "triggerId": "Engineering_PowerUnit_Trigger"
+      },
+      "activity": "Record the current status for Engineering_PowerUnit_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENGINEERING_MONITORING_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_LIFESUPPORT_TRIGGER",
+      "title": "Verify Engineering Life Support Status",
+      "message": "Travel to Engineering Unit — Life Support Console and press E at the existing Engineering Life Support interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Engineering Life Support",
+        "module": "Engineering",
+        "section": "Engineering Unit — Life Support Console",
+        "triggerId": "Engineering_LifeSupport_Trigger"
+      },
+      "activity": "Record the current status for Engineering_LifeSupport_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENGINEERING_POWERUNIT_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_DIAGNOSTICS_TRIGGER",
+      "title": "Verify Diagnostics Workbench Status",
+      "message": "Travel to Engineering Unit — Diagnostics Workbench and press E at the existing Diagnostics Workbench interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Diagnostics Workbench",
+        "module": "Engineering",
+        "section": "Engineering Unit — Diagnostics Workbench",
+        "triggerId": "Engineering_Diagnostics_Trigger"
+      },
+      "activity": "Record the current status for Engineering_Diagnostics_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENGINEERING_LIFESUPPORT_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENGINEERING_INFODISPLAY_TRIGGER",
+      "title": "Verify Storage and Inventory Status",
+      "message": "Travel to Engineering Unit — Storage Display and press E at the existing Storage and Inventory interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Storage and Inventory",
+        "module": "Engineering",
+        "section": "Engineering Unit — Storage Display",
+        "triggerId": "Engineering_InfoDisplay_Trigger"
+      },
+      "activity": "Record the current status for Engineering_InfoDisplay_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENGINEERING_DIAGNOSTICS_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_RESEARCH_MONITORING_01",
+      "title": "Verify Research Monitoring Status",
+      "message": "Travel to Research Lab — Monitoring Station and press E at the existing Research Monitoring interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Research Monitoring",
+        "module": "Science",
+        "section": "Research Lab — Monitoring Station",
+        "triggerId": "LAB_RESEARCH_MONITORING_01"
+      },
+      "activity": "Record the current status for LAB_RESEARCH_MONITORING_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENGINEERING_INFODISPLAY_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01",
+      "title": "Verify Scientific Analysis Status",
+      "message": "Travel to Research Lab — Scientific Analysis Station and press E at the existing Scientific Analysis interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Scientific Analysis",
+        "module": "Science",
+        "section": "Research Lab — Scientific Analysis Station",
+        "triggerId": "LAB_RESEARCH_ANALYSIS_01"
+      },
+      "activity": "Record the current status for LAB_RESEARCH_ANALYSIS_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_RESEARCH_MONITORING_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_SEED_STORAGE_01",
+      "title": "Verify Seed Storage Status",
+      "message": "Travel to Research Lab — Seed Storage and press E at the existing Seed Storage interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Seed Storage",
+        "module": "Science",
+        "section": "Research Lab — Seed Storage",
+        "triggerId": "LAB_SEED_STORAGE_01"
+      },
+      "activity": "Record the current status for LAB_SEED_STORAGE_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_WATER_NUTRITION_01",
+      "title": "Verify Water and Nutrition Mixing Status",
+      "message": "Travel to Research Lab — Nutrient Preparation Station and press E at the existing Water and Nutrition Mixing interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Water and Nutrition Mixing",
+        "module": "Science",
+        "section": "Research Lab — Nutrient Preparation Station",
+        "triggerId": "LAB_WATER_NUTRITION_01"
+      },
+      "activity": "Record the current status for LAB_WATER_NUTRITION_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_SEED_STORAGE_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_WATER_SERVICE_01",
+      "title": "Verify Water Quality and Service Status",
+      "message": "Travel to Research Lab — Water Quality Station and press E at the existing Water Quality and Service interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Water Quality and Service",
+        "module": "Science",
+        "section": "Research Lab — Water Quality Station",
+        "triggerId": "LAB_WATER_SERVICE_01"
+      },
+      "activity": "Record the current status for LAB_WATER_SERVICE_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_WATER_NUTRITION_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_LAB_CULTIVATION_01",
+      "title": "Verify Cultivation Environment Status",
+      "message": "Travel to Research Lab — Cultivation Bay Console and press E at the existing Cultivation Environment interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Cultivation Environment",
+        "module": "Science",
+        "section": "Research Lab — Cultivation Bay Console",
+        "triggerId": "LAB_CULTIVATION_01"
+      },
+      "activity": "Record the current status for LAB_CULTIVATION_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_WATER_SERVICE_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_MAIN_01",
+      "title": "Verify Mission Control Main Section Status",
+      "message": "Travel to Mission Control — Main Operations Console and press E at the existing Mission Control Main Section interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Mission Control Main Section",
+        "module": "MissionControl",
+        "section": "Mission Control — Main Operations Console",
+        "triggerId": "MC_MAIN_01"
+      },
+      "activity": "Record the current status for MC_MAIN_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_LAB_CULTIVATION_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_SYSTEMS_01",
+      "title": "Verify Communications and Systems Status",
+      "message": "Travel to Mission Control — Systems Console and press E at the existing Communications and Systems interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Communications and Systems",
+        "module": "MissionControl",
+        "section": "Mission Control — Systems Console",
+        "triggerId": "MC_SYSTEMS_01"
+      },
+      "activity": "Record the current status for MC_SYSTEMS_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_MC_MAIN_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_MC_NAVIGATION_01",
+      "title": "Verify Navigation and Observation Sites Status",
+      "message": "Travel to Mission Control — Observation Planning Console and press E at the existing Navigation and Observation Sites interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Navigation and Observation Sites",
+        "module": "MissionControl",
+        "section": "Mission Control — Observation Planning Console",
+        "triggerId": "MC_NAVIGATION_01"
+      },
+      "activity": "Record the current status for MC_NAVIGATION_01.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_MC_SYSTEMS_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_ENV_STATUS_DISPLAY",
+      "title": "Verify Environment Status Status",
+      "message": "Travel to Central Connector — Environment Display and press E at the existing Environment Status interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Environment Status",
+        "module": "Hub",
+        "section": "Central Connector — Environment Display",
+        "triggerId": "Env_Status_Display"
+      },
+      "activity": "Record the current status for Env_Status_Display.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_MC_NAVIGATION_01"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_INTERNAL_COMMUNICATION_DISPLAY",
+      "title": "Verify Internal Communications Status",
+      "message": "Travel to Central Connector — Communications Display and press E at the existing Internal Communications interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Internal Communications",
+        "module": "Hub",
+        "section": "Central Connector — Communications Display",
+        "triggerId": "Internal_Communication_Display"
+      },
+      "activity": "Record the current status for Internal_Communication_Display.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_ENV_STATUS_DISPLAY"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_MODULE_STATUS_DISPLAY",
+      "title": "Verify Module Status Status",
+      "message": "Travel to Central Connector — Module Status Display and press E at the existing Module Status interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Module Status",
+        "module": "Hub",
+        "section": "Central Connector — Module Status Display",
+        "triggerId": "Module_Status_Display"
+      },
+      "activity": "Record the current status for Module_Status_Display.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_INTERNAL_COMMUNICATION_DISPLAY"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_AIRLOCK_CONTROL_CONSOLE_TRIGGER",
+      "title": "Verify Airlock Control Console Status",
+      "message": "Travel to Airlock — Egress Control Console and press E at the existing Airlock Control Console interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Airlock Control Console",
+        "module": "Airlock",
+        "section": "Airlock — Egress Control Console",
+        "triggerId": "Airlock_Control_Console_Trigger"
+      },
+      "activity": "Record the current status for Airlock_Control_Console_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_MODULE_STATUS_DISPLAY"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_A",
+      "title": "Verify Solar Panel A Repair Status",
+      "message": "Travel to Mars Terrain — Solar Panel A and press E at the existing Solar Panel A Repair interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Solar Panel A Repair",
+        "module": "Terrain",
+        "section": "Mars Terrain — Solar Panel A",
+        "triggerId": "PowerUnit_A"
+      },
+      "activity": "Record the current status for PowerUnit_A.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_AIRLOCK_CONTROL_CONSOLE_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_B",
+      "title": "Verify Solar Panel B Repair Status",
+      "message": "Travel to Mars Terrain — Solar Panel B and press E at the existing Solar Panel B Repair interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Solar Panel B Repair",
+        "module": "Terrain",
+        "section": "Mars Terrain — Solar Panel B",
+        "triggerId": "PowerUnit_B"
+      },
+      "activity": "Record the current status for PowerUnit_B.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_POWERUNIT_A"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_POWERUNIT_AB_MAIN",
+      "title": "Verify Main Solar Connection Repair Status",
+      "message": "Travel to Mars Terrain — Main Solar Connection and press E at the existing Main Solar Connection Repair interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "Main Solar Connection Repair",
+        "module": "Terrain",
+        "section": "Mars Terrain — Main Solar Connection",
+        "triggerId": "PowerUnit_AB_Main"
+      },
+      "activity": "Record the current status for PowerUnit_AB_Main.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_POWERUNIT_B"
+      ]
+    },
+    {
+      "taskId": "SOL10_VERIFY_COMMUICATION_FIX_TRIGGER",
+      "title": "Verify External Communication Repair Status",
+      "message": "Travel to Mars Terrain — Communication Repair Point and press E at the existing External Communication Repair interaction point.",
+      "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
+      "destination": {
+        "name": "External Communication Repair",
+        "module": "Terrain",
+        "section": "Mars Terrain — Communication Repair Point",
+        "triggerId": "Commuication_fix_Trigger"
+      },
+      "activity": "Record the current status for Commuication_fix_Trigger.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_POWERUNIT_AB_MAIN"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_03",
+      "title": "Verify Existing Outpost Section Records",
+      "message": "Inspect applicable records at their existing physical displays.",
+      "guidance": "Only verify records that actually exist and are relevant to the handover. Mark absent mappings unresolved; reaching a display does not verify a record.",
+      "destination": {
+        "name": "Existing registered outpost displays",
+        "module": "MissionControl",
+        "section": "Record Verification"
+      },
+      "activity": "Review the original record before recording a separate verification result.",
+      "requiresCompletedTasks": [
+        "SOL10_VERIFY_COMMUICATION_FIX_TRIGGER"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_04",
+      "title": "Verify Scientific Targets and Observations",
+      "message": "Review the selected target and its related observation records in the Research Lab.",
+      "guidance": "Preserve the target identifier and cite the source SOL and task for each record. Do not add unsupported conclusions.",
+      "destination": {
+        "name": "Scientific Analysis Station",
+        "module": "Science",
+        "section": "Scientific Targets and Observations"
+      },
+      "activity": "Compare only records with an explicit target relationship.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_03"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_05",
+      "title": "Verify Soil Sample Provenance and Cultivation Records",
+      "message": "Review the existing target, soil sample and cultivation history in the Research Lab.",
+      "guidance": "Keep the target selection, collected sample and cultivation experiment as separate linked records. Report unavailable relationships honestly.",
+      "destination": {
+        "name": "Cultivation Environment Display",
+        "module": "Science",
+        "section": "Sample Provenance and Cultivation"
+      },
+      "activity": "Confirm provenance from persisted identifiers and evidence only.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_04"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_06",
+      "title": "Verify Environmental, Emission-Control and Equipment Records",
+      "message": "Review available operational records at the existing Habitat and Engineering displays.",
+      "guidance": "Use recorded values and statuses only. Do not treat missing values as zero or as a fault without supporting evidence.",
+      "destination": {
+        "name": "Existing Habitat and Engineering displays",
+        "module": "Engineering",
+        "section": "Operational Records"
+      },
+      "activity": "Record the source display and preserve unknown or unsupported fields.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_05"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_07",
+      "title": "Perform Cross-SOL Record Comparison",
+      "message": "Return to Mission Control to compare records with explicit shared identifiers or provenance links.",
+      "guidance": "Show source SOL, task and evidence for each comparison. Do not compare records based only on similar labels.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Cross-SOL Comparison"
+      },
+      "activity": "Review related records without changing their original values.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_06"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_08",
+      "title": "Review Verification Results and Outstanding Issues",
+      "message": "Review verification states and outstanding items in Mission Control.",
+      "guidance": "Keep flagged and incomplete items visible. Do not mark unknown or unreviewed information verified.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Verification Summary"
+      },
+      "activity": "Confirm the summary reflects the actual persisted verification records.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_07"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_09",
+      "title": "Generate the Phase One Final Expedition Report",
+      "message": "Generate a report preview from authoritative persisted expedition records.",
+      "guidance": "Include source references, verification states, unresolved issues and limitations. Do not fabricate measurements or findings.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Final Expedition Report"
+      },
+      "activity": "Review the generated preview and its source references.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_08"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_10",
+      "title": "Prepare the Incoming Crew Handover",
+      "message": "Prepare the incoming crew handover from verified records and documented limitations.",
+      "guidance": "Separate confirmed findings from interpretations, recommendations and unresolved questions.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Incoming Crew Handover"
+      },
+      "activity": "Add evidence-based continuation priorities to the report.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_09"
+      ]
+    },
+    {
+      "taskId": "SOL10_TASK_11",
+      "title": "Submit the Phase One Final Expedition Report",
+      "message": "Review and submit the final report through the existing Mission Control workflow.",
+      "guidance": "Keep flagged or incomplete items visible and report whether verification is complete or still has outstanding issues.",
+      "destination": {
+        "name": "Mission Control Main Operations Console",
+        "module": "MissionControl",
+        "section": "Final Report Submission"
+      },
+      "activity": "Submit only after reviewing report completeness and outstanding issues.",
+      "requiresCompletedTasks": [
+        "SOL10_TASK_10"
+      ]
+    }
+  ],
+  "completion": {
+    "title": "Sol 10 Expedition Handover Complete",
+    "message": "The Phase One report and its documented verification status have been submitted."
+  }
+}

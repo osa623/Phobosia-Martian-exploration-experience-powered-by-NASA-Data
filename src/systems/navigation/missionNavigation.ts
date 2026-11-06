@@ -6,17 +6,33 @@ import sol03Navigation from "../../jsons/Instructions/sol-03-navigation.json";
 import sol04Navigation from "../../jsons/Instructions/sol-04-navigation.json";
 import sol05Mission from "../../jsons/Missions/sol-05.json";
 import sol05Navigation from "../../jsons/Instructions/sol-05-navigation.json";
+import sol06Mission from "../../jsons/Missions/sol-06.json";
+import sol06Navigation from "../../jsons/Instructions/sol-06-navigation.json";
 import sol01Navigation from "../../jsons/Instructions/sol-01-navigation.json";
+import sol07Mission from "../../jsons/Missions/sol-07.json";
+import sol07Navigation from "../../jsons/Instructions/sol-07-navigation.json";
+import sol08Mission from "../../jsons/Missions/sol-08.json";
+import sol09Mission from "../../jsons/Missions/sol-09.json";
+import sol09Navigation from "../../jsons/Instructions/sol-09-navigation.json";
+import sol08Navigation from "../../jsons/Instructions/sol-08-navigation.json";
+import sol10Mission from "../../jsons/Missions/sol-10.json";
+import sol10Navigation from "../../jsons/Instructions/sol-10-navigation.json";
+import { SOL10_TRIGGER_CHECKS } from "../../missions/sol-10/taskDefinitions";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation | typeof sol10Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission | typeof sol10Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
-  5: { mission: sol05Mission, navigation: sol05Navigation }
+  5: { mission: sol05Mission, navigation: sol05Navigation },
+  6: { mission: sol06Mission, navigation: sol06Navigation },
+  7: { mission: sol07Mission, navigation: sol07Navigation },
+  8: { mission: sol08Mission, navigation: sol08Navigation },
+  9: { mission: sol09Mission, navigation: sol09Navigation },
+  10: { mission: sol10Mission, navigation: sol10Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
@@ -61,6 +77,58 @@ const TASK_TO_EXISTING_TRIGGER: Record<string, string> = {
   SOL05_ACTIVATE_SIMULATION: "MC_NAVIGATION_01",
   SOL05_REVIEW_IMAGES: "MC_NAVIGATION_01",
   SOL05_SUBMIT_REPORT: "MC_NAVIGATION_01"
+  ,SOL06_REVIEW_MISSION_BRIEFING: "MC_NAVIGATION_01",
+  SOL06_PREPARE_FIELD_EQUIPMENT: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_ACTIVATE_EVA_SESSION: "Mars_Observation_Preparation_Trigger",
+  SOL06_REACH_SELECTED_TARGET: "TARGET_SCENE_OBJECT",
+  SOL06_COMPLETE_FIELD_OBSERVATIONS: "TARGET_SCENE_OBJECT",
+  SOL06_COLLECT_SOIL_SAMPLE: "TARGET_SCENE_OBJECT",
+  SOL06_RETURN_TO_AIRLOCK: "Spwaning_Position",
+  SOL06_REMOVE_EVA_SUIT: "Mars_Observation_Preparation_Trigger",
+  SOL06_TRANSFER_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_ANALYSE_SAMPLE: "LAB_RESEARCH_ANALYSIS_01",
+  SOL06_START_CULTIVATION_EXPERIMENT: "LAB_CULTIVATION_01",
+  SOL06_SUBMIT_INVESTIGATION_REPORT: "MC_NAVIGATION_01",
+  SOL07_HABITAT_STORM_ALERT: "HAB_MONITOR_01",
+  SOL07_MISSION_CONTROL_SYSTEMS: "MC_SYSTEMS_01",
+  SOL07_CENTRAL_HUB_STATUS: "Module_Status_Display",
+  SOL07_VERIFY_EVA_LOCKDOWN: "Airlock_Control_Console_Trigger",
+  SOL07_RESEARCH_POWER: "LAB_RESEARCH_MONITORING_01",
+  SOL07_ENGINEERING_POWER: "Engineering_PowerUnit_Trigger",
+  SOL07_SUBMIT_STORM_REPORT: "MC_NAVIGATION_01",
+  SOL08_REVIEW_POWER_FAILURE_ALERT: "HAB_MONITOR_01",
+  SOL08_INSPECT_ENGINEERING_POWER_UNIT: "Engineering_PowerUnit_Trigger",
+  SOL08_INSPECT_COMMUNICATION_FAILURE: "MC_SYSTEMS_01",
+  SOL08_PREPARE_EVA: "Mars_Observation_Preparation_Trigger",
+  SOL08_REPAIR_SOLAR_PANEL_A: "PowerUnit_A",
+  SOL08_REPAIR_SOLAR_PANEL_B: "PowerUnit_B",
+  SOL08_REPAIR_MAIN_SOLAR_CONNECTION: "PowerUnit_AB_Main",
+  SOL08_RESTORE_MAIN_POWER_SUPPLY: "Engineering_PowerUnit_Trigger",
+  SOL08_VERIFY_POWER_RECOVERY: "Engineering_PowerUnit_Trigger",
+  SOL08_REPAIR_OUTDOOR_COMMUNICATION: "Commuication_fix_Trigger",
+  SOL08_VERIFY_AND_REPORT_RECOVERY: "MC_MAIN_01",
+  SOL09_TASK_01: "HAB_WATER_NUTRITION_01",
+  SOL09_TASK_02: "LAB_CULTIVATION_01",
+  SOL09_TASK_03: "LAB_CULTIVATION_01",
+  SOL09_TASK_04: "LAB_CULTIVATION_01",
+  SOL09_TASK_05: "Engineering_LifeSupport_Trigger",
+  SOL09_TASK_06: "Engineering_LifeSupport_Trigger",
+  SOL09_TASK_07: "LAB_CULTIVATION_01",
+  SOL09_TASK_08: "LAB_CULTIVATION_01",
+  SOL09_TASK_09: "LAB_CULTIVATION_01",
+  SOL09_TASK_10: "MC_MAIN_01",
+  SOL10_TASK_01: "MC_MAIN_01",
+  SOL10_TASK_02: "MC_MAIN_01",
+  SOL10_TASK_03: "MC_MAIN_01",
+  SOL10_TASK_04: "LAB_RESEARCH_ANALYSIS_01",
+  SOL10_TASK_05: "LAB_CULTIVATION_01",
+  SOL10_TASK_06: "Engineering_LifeSupport_Trigger",
+  SOL10_TASK_07: "MC_MAIN_01",
+  SOL10_TASK_08: "MC_MAIN_01",
+  SOL10_TASK_09: "MC_MAIN_01",
+  SOL10_TASK_10: "MC_MAIN_01",
+  SOL10_TASK_11: "MC_MAIN_01",
+  ...Object.fromEntries(SOL10_TRIGGER_CHECKS.map(check => [check.taskId, check.triggerId]))
 };
 
 export interface ResolvedMissionNavigation {
@@ -113,17 +181,18 @@ export function resolveNextMissionNavigation(sol: number, validatedRuntimeTaskId
 
   const source = FILES[sol];
   if (!source) return null;
+  const mission: any = source.mission;
 
   const completed = new Set(normalizeValidatedTaskIds(sol, validatedRuntimeTaskIds));
-  const requiredIds = new Set(source.mission.missionCompletion.requiredTasks);
-  const tasks = source.mission.tasks.filter(task => task.mandatory && requiredIds.has(task.taskId));
-  const available = tasks.find(task =>
+  const requiredIds = new Set(mission.missionCompletion?.requiredTasks ?? mission.tasks.filter((task: any) => task.mandatory).map((task: any) => task.taskId));
+  const tasks = mission.tasks.filter((task: any) => task.mandatory && requiredIds.has(task.taskId));
+  const available = tasks.find((task: any) =>
     !completed.has(task.taskId) &&
-    (task.requiresCompletedTasks ?? []).every(required => completed.has(required))
+    ((("requiresCompletedTasks" in task ? task.requiresCompletedTasks : undefined) ?? source.navigation.instructions.find(item => item.taskId === task.taskId)?.requiresCompletedTasks) ?? []).every((required: string) => completed.has(required))
   );
 
   if (!available) {
-    const allComplete = tasks.length > 0 && tasks.every(task => completed.has(task.taskId));
+    const allComplete = tasks.length > 0 && tasks.every((task: any) => completed.has(task.taskId));
     if (!allComplete) return null;
     return {
       title: source.navigation.completion.title,
@@ -135,7 +204,7 @@ export function resolveNextMissionNavigation(sol: number, validatedRuntimeTaskId
 
   const instruction: NavigationTask | undefined = source.navigation.instructions.find(item => item.taskId === available.taskId);
   if (!instruction) {
-    const location = source.mission.interfaces.find(item => item.interfaceId === available.interfaceId)?.location;
+    const location = mission.interfaces?.find((item: any) => item.interfaceId === available.interfaceId)?.location;
     return {
       taskId: available.taskId,
       title: available.title,
@@ -153,7 +222,7 @@ export function resolveNextMissionNavigation(sol: number, validatedRuntimeTaskId
   // Resolve once internally to validate that guidance has a known existing interaction.
   // Do not expose or use this ID to open the interface remotely.
   const resolvedTrigger = TASK_TO_EXISTING_TRIGGER[instruction.taskId];
-  const destinationIsMapped = Boolean(resolvedTrigger && source.mission.interfaces.some(item => item.triggerId === resolvedTrigger));
+  const destinationIsMapped = Boolean(resolvedTrigger && mission.interfaces?.some((item: any) => item.triggerId === resolvedTrigger));
   if (!destinationIsMapped) {
     return {
       taskId: instruction.taskId,

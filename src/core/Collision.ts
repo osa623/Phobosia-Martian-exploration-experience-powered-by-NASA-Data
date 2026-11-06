@@ -58,15 +58,34 @@ export function buildInteriorColliders(
 }
 
 /** Static coarse AABBs for solid mesh objects across mars_Terrain, including buildings, vehicles and rocks. */
-export function buildTerrainBuildingColliders(root: THREE.Object3D): THREE.Box3[] {
-  const skipped = /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
+export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false, excludeSolarStructures = false, excludeSatelliteCommunication = false): THREE.Box3[] {
+  const skipped = excludeRocks
+    ? /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky|rock|rover/i
+    : /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
   const colliders: THREE.Box3[] = [];
   root.updateWorldMatrix(true, true);
   root.traverse(object => {
     const mesh = object as THREE.Mesh;
     let ancestor: THREE.Object3D | null = object;
-    while (ancestor && ancestor !== root && ancestor.name !== "Drone_Zone") ancestor = ancestor.parent;
+    let belongsToSolarStructure = false;
+    let belongsToSatelliteCommunication = false;
+    while (ancestor && ancestor !== root) {
+      if (/solar|solor|solarpanel/i.test(ancestor.name)) {
+        belongsToSolarStructure = true;
+      }
+      if (/satellite|satelite|communication|commuication/i.test(ancestor.name)) belongsToSatelliteCommunication = true;
+      ancestor = ancestor.parent;
+    }
+    if (excludeSolarStructures && belongsToSolarStructure) return;
+    if (excludeSatelliteCommunication && belongsToSatelliteCommunication) return;
+    ancestor = object;
+    let authoredColliderAncestor = false;
+    while (ancestor && ancestor !== root && ancestor.name !== "Drone_Zone") {
+      if (/^Collider_(?:[1-9]|1[0-8])$/i.test(ancestor.name)) authoredColliderAncestor = true;
+      ancestor = ancestor.parent;
+    }
     if (ancestor?.name === "Drone_Zone") return;
+    if (excludeRocks && authoredColliderAncestor) return;
     if (!mesh.isMesh || !mesh.geometry || skipped.test(mesh.name) || terrain.test(mesh.name)) return;
     const box = new THREE.Box3().setFromObject(mesh);
     const size = box.getSize(new THREE.Vector3());
@@ -75,6 +94,35 @@ export function buildTerrainBuildingColliders(root: THREE.Object3D): THREE.Box3[
     colliders.push(box);
   });
   return colliders;
+}
+
+export interface NamedSceneColliderResult {
+  colliders: THREE.Box3[];
+  foundNames: string[];
+  missingNames: string[];
+  invalidNames: string[];
+}
+
+/** Build exact world-space bounds from authored collider objects, without creating substitute geometry. */
+export function buildNamedSceneColliders(root: THREE.Object3D, names: readonly string[]): NamedSceneColliderResult {
+  root.updateWorldMatrix(true, true);
+  const objects = new Map<string, THREE.Object3D>();
+  root.traverse(object => { if (names.includes(object.name)) objects.set(object.name, object); });
+  const result: NamedSceneColliderResult = { colliders: [], foundNames: [], missingNames: [], invalidNames: [] };
+  for (const name of names) {
+    const object = objects.get(name);
+    if (!object) { result.missingNames.push(name); continue; }
+    result.foundNames.push(name);
+    object.visible = false;
+    const bounds = new THREE.Box3().setFromObject(object, true);
+    const size = bounds.getSize(new THREE.Vector3());
+    if (bounds.isEmpty() || ![size.x, size.y, size.z].every(Number.isFinite) || size.lengthSq() <= 1e-8) {
+      result.invalidNames.push(name);
+      continue;
+    }
+    result.colliders.push(bounds);
+  }
+  return result;
 }
 
 /** Swept drone-point test so a fast/boosted frame cannot step through a building AABB. */
@@ -129,7 +177,7 @@ export function removeSpawnOverlaps(
 export function buildCentralHubColliders(root: THREE.Object3D): THREE.Box3[] {
   root.updateWorldMatrix(true, true);
 
-  const candidateNames = ["Collider_Section01", "Collider_Section02", "Collider_Section"];
+  const candidateNames = ["Collider_Section01", "Collider_Section"];
   const presentNames: string[] = [];
 
   root.traverse(child => {
@@ -142,6 +190,88 @@ export function buildCentralHubColliders(root: THREE.Object3D): THREE.Box3[] {
   });
 
   return buildCustomColliderSections(root, presentNames.length > 0 ? presentNames : ["Collider_Section01"]);
+}
+
+export interface OrientedBoxCollider {
+  sourceName: string;
+  center: THREE.Vector3;
+  halfExtents: THREE.Vector3;
+  orientation: THREE.Quaternion;
+  bounds: THREE.Box3;
+}
+
+/**
+ * Reads any explicitly authored Central Hub primitive collider meshes outside the
+ * complex section meshes. The current GLB has no root-level primitive proxy nodes;
+ * if such nodes are added later, their authored rotations are retained.
+ */
+export function buildCentralHubOrientedColliders(root: THREE.Object3D): OrientedBoxCollider[] {
+  root.updateWorldMatrix(true, true);
+  const colliders: OrientedBoxCollider[] = [];
+  root.traverse(object => {
+    if (!/collider/i.test(object.name) || /^Collider_Section/i.test(object.name)) return;
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.geometry?.attributes.position) return;
+    mesh.visible = false;
+    mesh.geometry.computeBoundingBox();
+    const localBounds = mesh.geometry.boundingBox;
+    if (!localBounds || localBounds.isEmpty()) return;
+
+    const localCenter = localBounds.getCenter(new THREE.Vector3());
+    const localSize = localBounds.getSize(new THREE.Vector3());
+    const worldScale = mesh.getWorldScale(new THREE.Vector3());
+    const center = localCenter.applyMatrix4(mesh.matrixWorld);
+    const halfExtents = localSize.multiply(worldScale).multiplyScalar(0.5);
+    halfExtents.set(Math.abs(halfExtents.x), Math.abs(halfExtents.y), Math.abs(halfExtents.z));
+    const orientation = mesh.getWorldQuaternion(new THREE.Quaternion());
+    const bounds = new THREE.Box3();
+    for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+      bounds.expandByPoint(new THREE.Vector3(x * halfExtents.x, y * halfExtents.y, z * halfExtents.z).applyQuaternion(orientation).add(center));
+    }
+    colliders.push({ sourceName: mesh.name, center, halfExtents, orientation, bounds });
+  });
+  return colliders;
+}
+
+export function orientedBoxContainsPoint(point: THREE.Vector3, collider: OrientedBoxCollider): boolean {
+  const local = point.clone().sub(collider.center).applyQuaternion(collider.orientation.clone().invert());
+  return Math.abs(local.x) <= collider.halfExtents.x && Math.abs(local.y) <= collider.halfExtents.y && Math.abs(local.z) <= collider.halfExtents.z;
+}
+
+export interface VerticalCylinderCollider {
+  sourceName: string;
+  center: THREE.Vector3;
+  radiusX: number;
+  radiusZ: number;
+  minY: number;
+  maxY: number;
+}
+
+/** Retains the authored circular footprint of Central Hub Collider_Section02. */
+export function buildCentralHubCylinderColliders(root: THREE.Object3D): VerticalCylinderCollider[] {
+  root.updateWorldMatrix(true, true);
+  const mesh = root.getObjectByName("Collider_Section02") as THREE.Mesh | undefined;
+  if (!mesh?.isMesh || !mesh.geometry?.attributes.position) return [];
+  mesh.visible = false;
+  mesh.geometry.computeBoundingBox();
+  const localBounds = mesh.geometry.boundingBox;
+  if (!localBounds || localBounds.isEmpty()) return [];
+  const worldBounds = new THREE.Box3().setFromObject(mesh);
+  const localCenter = localBounds.getCenter(new THREE.Vector3());
+  const center = localCenter.applyMatrix4(mesh.matrixWorld);
+  const scale = mesh.getWorldScale(new THREE.Vector3());
+  const localSize = localBounds.getSize(new THREE.Vector3());
+  const radiusX = localSize.x * Math.abs(scale.x) / 2;
+  const radiusZ = localSize.z * Math.abs(scale.z) / 2;
+  if (!(radiusX > 0) || !(radiusZ > 0) || worldBounds.isEmpty()) return [];
+  return [{ sourceName: mesh.name, center, radiusX, radiusZ, minY: worldBounds.min.y, maxY: worldBounds.min.y + 2.1 }];
+}
+
+export function verticalCylinderContainsPoint(point: THREE.Vector3, collider: VerticalCylinderCollider): boolean {
+  if (point.y < collider.minY || point.y > collider.maxY) return false;
+  const x = (point.x - collider.center.x) / collider.radiusX;
+  const z = (point.z - collider.center.z) / collider.radiusZ;
+  return x * x + z * z <= 1;
 }
 
 /**

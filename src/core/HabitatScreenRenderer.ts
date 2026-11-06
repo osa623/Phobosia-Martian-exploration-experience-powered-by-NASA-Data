@@ -15,6 +15,8 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
+import { drawSol07Banner, isSol07StormPresentationActive, renderSol07UnitScreen } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
 // Dynamic resolver for Node CommonJS tests vs Next.js Webpack bundler
 function loadHabitatScreenData(): HabitatScreenData {
@@ -102,6 +104,7 @@ export class HabitatScreenRenderer {
   private configData: HabitatScreenData;
   private activeBindings: HabitatScreenBinding[] = [];
   private missionDay: number = 1;
+  private completedStepIds: string[] = [];
   private configSol = 4;
   private customConfig: boolean;
   private readinessRecord: string | null = null;
@@ -127,6 +130,7 @@ export class HabitatScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    this.completedStepIds = missionState?.completedStepIds ?? [];
     this.selectSolConfig(this.missionDay);
     if (missionState?.observationRecords) {
       const record = missionState.observationRecords.find(item => item.day === 2 && item.type === "habitat_readiness");
@@ -242,6 +246,7 @@ export class HabitatScreenRenderer {
     if (missionState?.currentDay) {
       this.missionDay = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionDay);
     if (missionState?.observationRecords) {
       const record = missionState.observationRecords.find(item => item.day === 2 && item.type === "habitat_readiness");
@@ -251,6 +256,7 @@ export class HabitatScreenRenderer {
     const now = Date.now();
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.lastRenderTime = now;
       binding.texture.needsUpdate = true;
     }
@@ -261,6 +267,10 @@ export class HabitatScreenRenderer {
    */
   public renderBinding(binding: HabitatScreenBinding): void {
     const { ctx, width, height, screenKey } = binding;
+    if (this.missionDay === 7 && screenKey === "Habitat_Emergency_Status_Display") {
+      renderSol07UnitScreen(ctx, width, height, "habitatAlert", { currentDay: this.missionDay, completedStepIds: this.completedStepIds });
+      return;
+    }
     const screenConf = this.configData.screens[screenKey];
     if (!screenConf) return;
 
@@ -299,6 +309,7 @@ export class HabitatScreenRenderer {
     ctx.strokeRect(3, 3, width - 6, height - 6);
 
     // Corner brackets
+    if (isSol07StormPresentationActive({ currentDay: this.missionDay, completedStepIds: this.completedStepIds })) drawSol07Banner(ctx, width, height, "SOL 7 · DUST STORM ALERT", "Review the emergency notice on this display and acknowledge it before proceeding.");
     this.drawCornerBrackets(ctx, width, height, app.accent || "#45B8E8");
   }
 

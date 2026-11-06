@@ -1,0 +1,412 @@
+{
+  "moduleId": "Habitat",
+  "moduleName": "Habitat Zone",
+  "dataMode": "SOL_07_ASSESSMENT",
+  "version": 7,
+  "rendering": {
+    "renderingSystem": "HabitatScreenRenderer",
+    "renderingTarget": "PHYSICAL_3D_SCREEN",
+    "useFullscreenOS": false,
+    "useIndependentScreenRendering": true,
+    "preservePhysicalScreenMeshes": true,
+    "preserveExistingMaterials": true,
+    "preserveExistingTransforms": true,
+    "allowPerScreenOrientation": true,
+    "allowPerScreenLayout": true,
+    "allowPerScreenData": true,
+    "defaultBackground": "#07111F",
+    "defaultTextColor": "#E8F1FA",
+    "defaultAccentColor": "#45B8E8",
+    "defaultFontFamily": "monospace",
+    "defaultRefreshIntervalMs": 1000
+  },
+  "screens": {
+    "Habitat_LifeSupport_Display": {
+      "enabled": true,
+      "displayName": "Life Support Display",
+      "purpose": "Monitor the Habitat environmental and life-support systems.",
+      "physicalMesh": "Habitat_LifeSupport_Display",
+      "geometry": {
+        "dimensionUnit": "m",
+        "x": 1.88,
+        "y": 0.04,
+        "z": 1.37,
+        "xMeaning": "screen_length",
+        "yMeaning": "physical_thickness",
+        "zMeaning": "screen_height",
+        "screenWidth": 1.88,
+        "screenHeight": 1.37,
+        "aspectRatio": 1.3723,
+        "layout": "landscape"
+      },
+      "orientation": {
+        "mode": "VERIFY_FROM_EXISTING_MESH",
+        "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "modifyMeshTransform": false,
+        "requireUprightText": true,
+        "note": "Verified: Width along X, Height along Y. Screen Left is maxX (+0.125), Screen Right is minX (-0.125); mirrorHorizontal=true (flipU) ensures unmirrored, upright text."
+      },
+      "rendering": {
+        "rendererFunction": "renderHabitatLifeSupportDisplay",
+        "layout": "life_support_dashboard",
+        "fitMode": "contain",
+        "preserveAspectRatio": true,
+        "allowCropping": false,
+        "allowStretching": false,
+        "showHeader": true,
+        "showFooter": true,
+        "showStatusIndicators": true,
+        "showGrid": false,
+        "showAnimations": false,
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942",
+        "critical": "#FF5252",
+        "showUnits": true,
+        "showSectionDividers": true
+      },
+      "data": {
+        "header": "LIFE SUPPORT",
+        "systemStatus": {
+          "label": "SYSTEM STATUS",
+          "value": "OPERATIONAL",
+          "status": "NORMAL"
+        },
+        "oxygen": {
+          "label": "OXYGEN",
+          "value": 21,
+          "unit": "%",
+          "status": "NORMAL",
+          "displayType": "metric"
+        },
+        "cabinPressure": {
+          "label": "CABIN PRESSURE",
+          "value": 101.3,
+          "unit": "kPa",
+          "status": "NORMAL",
+          "displayType": "metric"
+        },
+        "temperature": {
+          "label": "CABIN TEMPERATURE",
+          "value": 21.5,
+          "unit": "°C",
+          "status": "NORMAL",
+          "displayType": "metric"
+        },
+        "humidity": {
+          "label": "RELATIVE HUMIDITY",
+          "value": 42,
+          "unit": "%",
+          "status": "NORMAL",
+          "displayType": "metric"
+        },
+        "carbonDioxide": {
+          "label": "CARBON DIOXIDE",
+          "value": 0.08,
+          "unit": "%",
+          "status": "NORMAL",
+          "displayType": "metric"
+        },
+        "airFiltration": {
+          "label": "AIR FILTRATION",
+          "value": "OPERATIONAL",
+          "status": "NORMAL",
+          "displayType": "status"
+        },
+        "activeWarnings": 0
+      },
+      "footer": {
+        "leftText": "ENVIRONMENTAL MONITORING",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+    "Habitat_Main_Status_Display": {
+      "enabled": true,
+      "displayName": "Main Status Display",
+      "purpose": "Present a high-level overview of Habitat operations.",
+      "physicalMesh": "Habitat_Main_Status_Display",
+      "geometry": {
+        "dimensionUnit": "m",
+        "x": 1.93,
+        "y": 0,
+        "z": 1.34,
+        "xMeaning": "screen_length",
+        "yMeaning": "thickness_unspecified",
+        "zMeaning": "screen_height",
+        "screenWidth": 1.93,
+        "screenHeight": 1.34,
+        "aspectRatio": 1.4403,
+        "layout": "landscape",
+        "thicknessMustBeVerified": true
+      },
+      "orientation": {
+        "mode": "VERIFY_FROM_EXISTING_MESH",
+        "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "modifyMeshTransform": false,
+        "requireUprightText": true,
+        "note": "Verified: Width along X, Height along Y. Screen Left is minX (0.206), Screen Right is maxX (0.463); mirrorHorizontal=false ensures unmirrored, upright text."
+      },
+      "rendering": {
+        "rendererFunction": "renderHabitatMainStatusDisplay",
+        "layout": "system_overview_dashboard",
+        "fitMode": "contain",
+        "preserveAspectRatio": true,
+        "allowCropping": false,
+        "allowStretching": false,
+        "showHeader": true,
+        "showFooter": true,
+        "showStatusIndicators": true,
+        "showAnimations": false,
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942",
+        "critical": "#FF5252",
+        "showSectionDividers": true
+      },
+      "data": {
+        "header": "HABITAT STATUS",
+        "overallStatus": {
+          "label": "OVERALL STATUS",
+          "value": "OPERATIONAL",
+          "status": "NORMAL"
+        },
+        "powerSystem": {
+          "label": "POWER SYSTEM",
+          "value": "NOMINAL",
+          "status": "NORMAL"
+        },
+        "environmentalSystem": {
+          "label": "ENVIRONMENTAL SYSTEM",
+          "value": "STABLE",
+          "status": "NORMAL"
+        },
+        "communications": {
+          "label": "COMMUNICATIONS",
+          "value": "CONNECTED",
+          "status": "NORMAL"
+        },
+        "habitatIntegrity": {
+          "label": "HABITAT INTEGRITY",
+          "value": "NOMINAL",
+          "status": "NORMAL"
+        },
+        "activeAlerts": {
+          "label": "ACTIVE ALERTS",
+          "value": 0,
+          "status": "NORMAL"
+        },
+        "missionDay": {
+          "source": "EXISTING_CAMPAIGN_STATE",
+          "fallback": "--",
+          "readOnly": true
+        }
+      },
+      "footer": {
+        "leftText": "HABITAT OPERATIONS",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+    "Habitat_Emergency_Status_Display": {
+      "enabled": true,
+      "displayName": "Emergency Status Display",
+      "purpose": "Show emergency conditions, affected systems, and relevant response instructions.",
+      "physicalMesh": "Habitat_Emergency_Status_Display",
+      "geometry": {
+        "dimensionUnit": "m",
+        "x": null,
+        "y": 1.37,
+        "z": 1.26,
+        "xMeaning": "unspecified",
+        "yMeaning": "screen_length",
+        "zMeaning": "screen_height",
+        "screenWidth": 1.37,
+        "screenHeight": 1.26,
+        "aspectRatio": 1.0873,
+        "layout": "near_square",
+        "note": "The supplied dimensions describe a near-square display. Verify the visible surface against the actual mesh."
+      },
+      "orientation": {
+        "mode": "VERIFY_FROM_EXISTING_MESH",
+        "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "z",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "modifyMeshTransform": false,
+        "requireUprightText": true,
+        "note": "Verified: Plane parallel to YZ. Width along Z, Height along Y. Screen Left is maxZ (-0.625), Screen Right is minZ (-0.968); mirrorHorizontal=true (flipU) ensures unmirrored, upright text."
+      },
+      "rendering": {
+        "rendererFunction": "renderHabitatEmergencyStatusDisplay",
+        "layout": "emergency_status_panel",
+        "fitMode": "contain",
+        "preserveAspectRatio": true,
+        "allowCropping": false,
+        "allowStretching": false,
+        "showHeader": true,
+        "showSeverityIndicator": true,
+        "showAffectedSystem": true,
+        "showResponseInstructions": true,
+        "showAnimations": false,
+        "refreshIntervalMs": 1000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "normal": "#42D392",
+        "warning": "#F5B942",
+        "critical": "#FF5252",
+        "allClearColor": "#42D392",
+        "warningColor": "#F5B942",
+        "criticalColor": "#FF5252",
+        "flashCriticalAlerts": false
+      },
+      "data": {
+        "header": "EMERGENCY STATUS",
+        "emergencyState": {
+          "value": "ALL_CLEAR",
+          "severity": "NONE",
+          "status": "NORMAL"
+        },
+        "affectedSystem": null,
+        "message": {
+          "title": "NO ACTIVE EMERGENCIES",
+          "description": "All monitored emergency conditions are currently clear."
+        },
+        "responseInstructions": [],
+        "acknowledgement": {
+          "required": false,
+          "acknowledged": true,
+          "interactionEnabled": false
+        },
+        "activeEmergencyCount": 0
+      },
+      "footer": {
+        "leftText": "EMERGENCY MONITORING",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    },
+    "Habitat_WaterNutrition_Display": {
+      "enabled": true,
+      "displayName": "Water and Nutrition Display",
+      "purpose": "Monitor water reserves, recycling, food inventory, and nutrition supplies.",
+      "physicalMesh": "Habitat_WaterNutrition_Display",
+      "geometry": {
+        "dimensionUnit": "m",
+        "x": 0.93,
+        "y": 0.979,
+        "z": null,
+        "xMeaning": "screen_length",
+        "yMeaning": "screen_height",
+        "zMeaning": "unspecified",
+        "screenWidth": 0.93,
+        "screenHeight": 0.979,
+        "aspectRatio": 0.95,
+        "layout": "near_square_portrait",
+        "note": "The provided X and Y values are used as visible-screen dimensions according to the user's axis definition. Verify the actual mesh before applying."
+      },
+      "orientation": {
+        "mode": "VERIFY_FROM_EXISTING_MESH",
+        "faceDirection": "MATCH_EXISTING_SCREEN_SURFACE",
+        "uAxis": "x",
+        "vAxis": "y",
+        "contentRotationDegrees": 0,
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "modifyMeshTransform": false,
+        "requireUprightText": true,
+        "note": "Width runs along X and height along Y. The mesh's horizontal UV direction is reversed from the viewer-facing surface, so mirrorHorizontal=true (flipU) keeps the canvas text upright and readable."
+      },
+      "rendering": {
+        "rendererFunction": "renderHabitatWaterNutritionDisplay",
+        "layout": "water_nutrition_dashboard",
+        "fitMode": "contain",
+        "preserveAspectRatio": true,
+        "allowCropping": false,
+        "allowStretching": false,
+        "showHeader": true,
+        "showResourceLevels": true,
+        "showStatusIndicators": true,
+        "showAnimations": false,
+        "refreshIntervalMs": 2000
+      },
+      "appearance": {
+        "background": "#07111F",
+        "primaryText": "#E8F1FA",
+        "secondaryText": "#8EA7BF",
+        "accent": "#45B8E8",
+        "normal": "#42D392",
+        "warning": "#F5B942",
+        "critical": "#FF5252",
+        "showSectionDividers": true
+      },
+      "data": {
+        "header": "WATER & NUTRITION",
+        "waterReserve": {
+          "label": "WATER RESERVE",
+          "value": 82,
+          "unit": "%",
+          "status": "NORMAL"
+        },
+        "dailyWaterConsumption": {
+          "label": "DAILY WATER CONSUMPTION",
+          "value": 3.2,
+          "unit": "L",
+          "status": "NORMAL"
+        },
+        "waterRecycling": {
+          "label": "WATER RECYCLING",
+          "efficiency": 91,
+          "unit": "%",
+          "status": "OPERATIONAL"
+        },
+        "foodInventory": {
+          "label": "FOOD INVENTORY",
+          "value": "SUFFICIENT",
+          "status": "NORMAL"
+        },
+        "nutritionSupplies": {
+          "label": "NUTRITION SUPPLIES",
+          "value": "NORMAL",
+          "status": "NORMAL"
+        },
+        "cultivation": {
+          "label": "CULTIVATION SYSTEM",
+          "value": "OPERATIONAL",
+          "status": "NORMAL"
+        }
+      },
+      "footer": {
+        "leftText": "RESOURCE MONITORING",
+        "rightText": "SIMULATED TELEMETRY"
+      }
+    }
+  },
+  "sol": 7,
+  "missionId": "PHOBOSIA_SOL_07",
+  "sol7AssessmentOnly": true
+}

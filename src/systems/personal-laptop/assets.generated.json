@@ -1,0 +1,89 @@
+{
+  "songs": [
+    {
+      "id": "songs/Before the Morning Comes.mp3",
+      "fileName": "Before the Morning Comes.mp3",
+      "title": "Before the Morning Comes",
+      "url": "/assets/laptop/songs/Before%20the%20Morning%20Comes.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Built From the Ground.mp3",
+      "fileName": "Built From the Ground.mp3",
+      "title": "Built From the Ground",
+      "url": "/assets/laptop/songs/Built%20From%20the%20Ground.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Colours of Home.mp3",
+      "fileName": "Colours of Home.mp3",
+      "title": "Colours of Home",
+      "url": "/assets/laptop/songs/Colours%20of%20Home.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Dancing Into Your Heart.mp3",
+      "fileName": "Dancing Into Your Heart.mp3",
+      "title": "Dancing Into Your Heart",
+      "url": "/assets/laptop/songs/Dancing%20Into%20Your%20Heart.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/ODESZA - A Moment Apart (1).mp3",
+      "fileName": "ODESZA - A Moment Apart (1).mp3",
+      "title": "ODESZA - A Moment Apart (1)",
+      "url": "/assets/laptop/songs/ODESZA%20-%20A%20Moment%20Apart%20(1).mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Somewhere in Your Eyes.mp3",
+      "fileName": "Somewhere in Your Eyes.mp3",
+      "title": "Somewhere in Your Eyes",
+      "url": "/assets/laptop/songs/Somewhere%20in%20Your%20Eyes.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/The Room You Left Behind.mp3",
+      "fileName": "The Room You Left Behind.mp3",
+      "title": "The Room You Left Behind",
+      "url": "/assets/laptop/songs/The%20Room%20You%20Left%20Behind.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Under the Summer Lights.mp3",
+      "fileName": "Under the Summer Lights.mp3",
+      "title": "Under the Summer Lights",
+      "url": "/assets/laptop/songs/Under%20the%20Summer%20Lights.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    }
+  ],
+  "images": [
+    {
+      "id": "images/ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
+      "fileName": "ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
+      "title": "ChatGPT Image Sep 25, 2026, 03 41 47 PM",
+      "url": "/assets/laptop/images/ChatGPT%20Image%20Sep%2025%2C%202026%2C%2003_41_47%20PM.png",
+      "mimeType": "image/png",
+      "extension": "png"
+    }
+  ],
+  "wallpapers": [
+    {
+      "id": "wallpaper/camera001.png",
+      "fileName": "camera001.png",
+      "title": "camera001",
+      "url": "/assets/laptop/wallpaper/camera001.png",
+      "mimeType": "image/png",
+      "extension": "png"
+    }
+  ],
+  "documents": []
+}
