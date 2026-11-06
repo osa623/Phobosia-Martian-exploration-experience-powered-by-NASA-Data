@@ -11,8 +11,8 @@ import "../../components/menu/MainMenu.css";
 const SAVE_KEYS = ["phobosia_mission_progress_v4", "phobosia_mission_progress_v3", "phobosia_mission_progress_v2"];
 const SOL_SAVE_PREFIX = "phobosia_mission_progress_v4_sol_";
 type SaveInfo = { key: string; state: MissionProgressState };
-type Page = "home" | "archive" | "credits" | "confirm-new" | "exit" | "briefing";
-const options = ["INITIATE OBSERVATION", "CONTINUE MISSION", "EXPEDITION LOG", "MISSION BRIEFING", "PROJECT ACKNOWLEDGEMENTS", "DISCONNECT"] as const;
+type Page = "home" | "archive" | "delete-sols" | "confirm-new" | "credits" | "exit" | "briefing";
+const options = ["NEW EXPLORATION FROM SOL 1", "CONTINUE FROM THE CURRENT SOL", "SELECT PREVIOUS SOLS", "DELETE SOLS"] as const;
 
 function createMarsTexture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
@@ -82,6 +82,10 @@ export function MainMenu() {
   const [solSaves, setSolSaves] = useState<SaveInfo[]>([]);
   const [saveError, setSaveError] = useState("");
   const [gameMode, setGameMode] = useState<"new" | "continue" | null>(null);
+  const [showTrailer, setShowTrailer] = useState(false);
+  const [trailerReady, setTrailerReady] = useState(false);
+  const [trailerError, setTrailerError] = useState(false);
+  const [trailerProgress, setTrailerProgress] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
   const [loading, setLoading] = useState("Calibrating orbital display");
   const [assetError, setAssetError] = useState("");
@@ -89,18 +93,20 @@ export function MainMenu() {
   const pageRef = useRef(page);
   pageRef.current = page;
   const refresh = useCallback(() => { const result = readSave(); setSave(result.save); setSaveError(result.error); setSolSaves(readSolSaves()); }, []);
+  const returnToMenu = useCallback(() => { refresh(); setGameMode(null); }, [refresh]);
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     const audio = musicRef.current;
     if (!audio) return;
+    if (showTrailer) { audio.pause(); return; }
     audio.volume = 0.32;
     const start = () => { void audio.play().catch(() => {}); };
     start();
     window.addEventListener("pointerdown", start);
     window.addEventListener("keydown", start);
     return () => { window.removeEventListener("pointerdown", start); window.removeEventListener("keydown", start); audio.pause(); };
-  }, [gameMode]);
+  }, [gameMode, showTrailer]);
   useEffect(() => {
     if (gameMode || !host.current) return;
     const root = host.current;
@@ -200,6 +206,8 @@ export function MainMenu() {
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (showTrailer && event.key === "Enter") { event.preventDefault(); setShowTrailer(false); setGameMode("new"); return; }
+      if (showTrailer) return;
       if (gameMode) return;
       if (event.key === "ArrowDown") { event.preventDefault(); setSelected(value => (value + 1) % options.length); }
       else if (event.key === "ArrowUp") { event.preventDefault(); setSelected(value => (value + options.length - 1) % options.length); }
@@ -210,20 +218,29 @@ export function MainMenu() {
   });
 
   const begin = (mode: "new" | "continue") => { setGameMode(mode); };
+  const continueCurrent = () => {
+    const current = readSave().save ?? readSolSaves().sort((a, b) => b.state.currentDay - a.state.currentDay)[0] ?? null;
+    if (!current) { setSaveError("No saved Sol is available to continue."); return; }
+    if (current.key !== SAVE_KEYS[0]) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(current.state));
+    begin("continue");
+  };
+  const finishTrailer = () => { setShowTrailer(false); setGameMode("new"); };
   function activate(index: number) {
-    if (index === 0) { refresh(); setPage(save ? "confirm-new" : "confirm-new"); }
-    if (index === 1) { refresh(); if (readSave().save || readSolSaves().length) setPage("archive"); else setSaveError("No saved observation is available to continue."); }
+    if (index === 0) { refresh(); setPage("confirm-new"); }
+    if (index === 1) continueCurrent();
     if (index === 2) { refresh(); setPage("archive"); }
-    if (index === 3) setPage("briefing");
-    if (index === 4) setPage("credits");
-    if (index === 5) setPage("exit");
+    if (index === 3) { refresh(); setPage("delete-sols"); }
   }
 
   const confirmNew = () => {
     if (save || solSaves.length) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 10; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); }
-    setGameMode("new");
+    try { sessionStorage.removeItem("phobosia_paused_game_session_v1"); } catch { /* Session storage may be unavailable. */ }
+    setTrailerReady(false);
+    setTrailerError(false);
+    setTrailerProgress(null);
+    setShowTrailer(true);
   };
-  if (gameMode) return <GameViewport key={gameMode} />;
+  if (gameMode) return <GameViewport key={gameMode} onReturnToMenu={returnToMenu} />;
 
   const currentDay = save?.state.currentDay;
   const day = currentDay ? DAYS_CONFIG[currentDay as MissionDayNumber] : null;
@@ -236,7 +253,7 @@ export function MainMenu() {
     <header className="ph-menu-header"><div className="ph-wordmark">PHOBOSIA<span>FIELD OBSERVATION PROGRAM</span></div><div className="ph-header-status"><i /> DEEP SPACE LINK <b>ACTIVE</b></div></header>
     <div className="ph-menu-content">
       <section className="ph-menu-title"><div className="ph-kicker">MARS Â· SCIENTIFIC EXPEDITION</div><img className="ph-menu-logo" src="/assets/images/PHOBOSIA_Metallic_Logo_4K.png" alt="PHOBOSIA"/><p>Observe carefully. Record honestly.<br/>Advance human understanding.</p><div className="ph-menu-rule"><span>MISSION CONTROL</span><i /></div></section>
-      <nav className="ph-options" aria-label="Mission menu">{options.map((label, index) => {
+    <nav className="ph-options" aria-label="Mission menu">{options.map((label, index) => {
         const disabled = index === 1 && !save && !solSaves.length;
         return <button key={label} className={`ph-option ${selected === index ? "is-selected" : ""} ${disabled ? "is-disabled" : ""}`} onMouseEnter={() => setSelected(index)} onClick={() => activate(index)} aria-disabled={disabled}>
           <span className="ph-option-index">0{index + 1}</span><span>{label}</span><i />
@@ -248,12 +265,22 @@ export function MainMenu() {
     {saveError && <button className="ph-toast" onClick={() => setSaveError("")}>{saveError}<span>Ã—</span></button>}
     {page !== "home" && <div className="ph-modal-backdrop"><section className="ph-modal">
       <button className="ph-back" onClick={() => setPage("home")}>â† RETURN TO MENU</button>
-      {page === "confirm-new" && <><div className="ph-kicker">CAMPAIGN INITIALIZATION</div><h2>INITIATE OBSERVATION</h2><p>{save ? "This single campaign record will be replaced. This action clears the saved expedition record." : "A new scientific campaign will begin at the configured SOL1 starting state."}</p><div className="ph-modal-actions"><button className="ph-primary" onClick={confirmNew}>CONFIRM INITIALIZATION</button><button onClick={() => setPage("home")}>CANCEL</button></div></>}
-      {page === "archive" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>LOAD OBSERVATION</h2><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => { const slotDay = DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]; const nextTask = slotDay?.steps.find(step => !slot.state.completedStepIds.includes(step.stepId)); return <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>{slot.state.currentDay === save?.state.currentDay ? "LATEST RECORD" : "SAVED RECORD"}</small></div><div><h3>{slotDay?.title || `Sol ${slot.state.currentDay}`}</h3><p>{nextTask ? `Current objective · ${nextTask.label}` : "All configured objectives complete"}</p><p>Progress · {slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button className="ph-primary" onClick={() => { if (slot.key !== save?.key) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(slot.state)); begin("continue"); }}>CONTINUE</button><button onClick={() => { if (window.confirm(`Delete the Sol ${slot.state.currentDay} save?`)) { localStorage.removeItem(slot.key); if (slot.state.currentDay === save?.state.currentDay) for (const key of SAVE_KEYS) localStorage.removeItem(key); refresh(); } }}>DELETE</button></div></article>; }) : <p>{saveError || "No persisted campaign records are available."}</p>}</div></>}
+      {page === "confirm-new" && <><div className="ph-kicker">CAMPAIGN INITIALIZATION</div><h2>NEW EXPLORATION FROM SOL 1</h2><p>{save || solSaves.length ? "Starting a new exploration clears the current saved campaign. Select Previous Sols first if you want to resume an existing record." : "A new scientific exploration will begin from Sol 1."}</p><div className="ph-modal-actions"><button className="ph-primary" onClick={confirmNew}>START FROM SOL 1</button><button onClick={() => setPage("home")}>CANCEL</button></div></>}
+      {page === "archive" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>SELECT PREVIOUS SOLS</h2><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => { const slotDay = DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]; const nextTask = slotDay?.steps.find(step => !slot.state.completedStepIds.includes(step.stepId)); return <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>{slot.state.currentDay === save?.state.currentDay ? "CURRENT SAVE" : "PREVIOUS SAVE"}</small></div><div><h3>{slotDay?.title || `Sol ${slot.state.currentDay}`}</h3><p>{nextTask ? `Current objective · ${nextTask.label}` : "All configured objectives complete"}</p><p>Progress · {slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button className="ph-primary" onClick={() => { try { sessionStorage.removeItem("phobosia_paused_game_session_v1"); } catch { /* Session storage may be unavailable. */ } if (slot.key !== SAVE_KEYS[0]) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(slot.state)); begin("continue"); }}>SELECT SOL</button></div></article>; }) : <p>{saveError || "No persisted Sol records are available."}</p>}</div></>}
+      {page === "delete-sols" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>DELETE SOLS</h2><p>Delete individual saved Sols. This cannot be undone.</p><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>SAVED RECORD</small></div><div><h3>{DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]?.title || `Sol ${slot.state.currentDay}`}</h3><p>{slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button onClick={() => { if (window.confirm(`Delete the Sol ${slot.state.currentDay} save?`)) { localStorage.removeItem(slot.key); if (slot.state.currentDay === save?.state.currentDay) for (const key of SAVE_KEYS) localStorage.removeItem(key); refresh(); } }}>DELETE SOL</button></div></article>) : <p>No persisted Sol records are available to delete.</p>}</div>{solSaves.length > 1 && <div className="ph-modal-actions"><button onClick={() => { if (window.confirm("Delete all saved Sols? This cannot be undone.")) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 10; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); refresh(); } }}>DELETE ALL SOLS</button></div>}</>}
       {page === "credits" && <><div className="ph-kicker">PHOBOSIA Â· PROJECT RECORD</div><h2>PROJECT ACKNOWLEDGEMENTS</h2><div className="ph-credit"><span>PROJECT</span><strong>PHOBOSIA</strong><small>Mars scientific observation expedition Â· first playable prototype</small></div><p className="ph-muted">No contributor or partner credits are identified in the repository documentation.</p></>}
       {page === "briefing" && <><div className="ph-kicker">MISSION BRIEFING</div><h2>CINEMATIC UNAVAILABLE</h2><p>The repository contains module transition videos, but no introductory campaign cinematic is identified. No video has been substituted.</p></>}
       {page === "exit" && <><div className="ph-kicker">COMMUNICATIONS LINK CLOSED</div><h2>EXPEDITION SUSPENDED</h2><p>PHOBOSIA has disconnected. Your persisted campaign record remains available. You may close this browser tab or window.</p></>}
     </section></div>}
+    {showTrailer && <div className="ph-trailer-overlay" role="dialog" aria-label="PHOBOSIA introduction">
+      <video className="ph-trailer-video" src="/assets/videos/trailer_phobosia.mp4" autoPlay playsInline preload="auto" onCanPlay={() => { setTrailerReady(true); setTrailerError(false); }} onWaiting={() => setTrailerReady(false)} onProgress={event => {
+        const video = event.currentTarget;
+        if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.buffered.length) { setTrailerProgress(null); return; }
+        setTrailerProgress(Math.min(1, video.buffered.end(video.buffered.length - 1) / video.duration));
+      }} onError={() => { setTrailerReady(false); setTrailerError(true); }} onEnded={finishTrailer} aria-label="PHOBOSIA introduction video" />
+      {!trailerReady && <div className="ph-trailer-loading" role="status"><span className="ph-spinner" />{trailerError ? "Video could not be loaded. Press Enter to continue to Sol 1." : `Loading introduction${trailerProgress === null ? "" : ` · ${Math.round(trailerProgress * 100)}%`}`}</div>}
+      <button className="ph-trailer-skip" onClick={finishTrailer}>{trailerError ? "CONTINUE TO SOL 1" : "SKIP INTRO"} <kbd>ENTER</kbd></button>
+    </div>}
   </div>;
 }
 
