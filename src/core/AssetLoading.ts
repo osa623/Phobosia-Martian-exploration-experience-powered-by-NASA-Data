@@ -8,6 +8,19 @@ import { SOL5_EVIDENCE_ASSETS } from "../missions/sol-05/targetMapping";
 import sol3 from "../jsons/Missions/sol-03.json";
 import laptopManifest from "../systems/personal-laptop/assets.generated.json";
 
+interface LaptopManifestFile {
+  id: string;
+  url: string;
+  title: string;
+}
+
+const laptopAssets = laptopManifest as unknown as {
+  songs: LaptopManifestFile[];
+  images: LaptopManifestFile[];
+  wallpapers: LaptopManifestFile[];
+  documents: LaptopManifestFile[];
+};
+
 export type AssetKind = "gltf" | "exr" | "image" | "audio" | "video" | "document";
 export type AssetCategory = "Branding" | "Habitat" | "Mission Control" | "Research Laboratory" | "Engineering Unit" | "Central Hub" | "Airlock" | "Mars Terrain" | "Drone Area" | "Gameplay Audio" | "Mission Imagery" | "Transition Video" | "Personal Laptop Media";
 export type AssetStatus = "pending" | "downloading" | "processing" | "ready" | "failed";
@@ -113,10 +126,10 @@ const transitionVideos = [
 
 export const ON_DEMAND_ASSETS: readonly AssetDefinition[] = [
   ...transitionVideos.map(([id, path, name]) => asset(id, path, name, "Transition Video", "video", false)),
-  ...laptopManifest.songs.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "audio", false)),
-  ...laptopManifest.images.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
-  ...laptopManifest.wallpapers.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
-  ...laptopManifest.documents.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "document", false))
+  ...laptopAssets.songs.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "audio", false)),
+  ...laptopAssets.images.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
+  ...laptopAssets.wallpapers.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
+  ...laptopAssets.documents.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "document", false))
 ];
 
 type PreparedResource = GLTF | THREE.DataTexture | string;
@@ -234,7 +247,9 @@ async function readResponse(response: Response, id: string): Promise<{ bytes: Ar
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   }
   updateAsset(id, { loadedBytes, totalBytes });
-  return { bytes: bytes.buffer, totalBytes };
+  // These byte views are allocated above with `new Uint8Array(...)`, so their
+  // backing store is an ArrayBuffer even though newer TS libs type it broadly.
+  return { bytes: bytes.buffer as ArrayBuffer, totalBytes };
 }
 
 function validateImage(blobUrl: string): Promise<void> {
