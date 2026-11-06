@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ModuleName } from "../../core/Discovery";
+import { getPreparedAssetUrl, getPreparedAudioElement } from "../../core/AssetLoading";
 
 export const SOL07_AUDIO = {
   warning: "/assets/sounds/sol7Sounds/warningBeepTone.MP3",
@@ -37,7 +38,7 @@ export class Sol07StormController {
   private lights = new Map<string, LightSnapshot>();
   private audio: FadeAudio[] = [];
 
-  start(createAudio: (src: string) => HTMLAudioElement = src => new Audio(src)): void {
+  start(createAudio: (src: string) => HTMLAudioElement = src => getPreparedAudioElement(src) ?? new Audio(getPreparedAssetUrl(src))): void {
     if (this.active) return;
     this.active = true;
     this.ending = false;

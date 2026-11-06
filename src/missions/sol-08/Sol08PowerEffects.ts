@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { getPreparedAssetUrl, getPreparedAudioElement } from "../../core/AssetLoading";
 import type { ModuleName } from "../../core/Discovery";
 
 export const SOL08_POWER_WARNING_AUDIO = "/assets/sounds/sol7Sounds/warningBeepTone.MP3";
@@ -20,7 +21,7 @@ export class Sol08PowerEffects {
   private active = false;
   private snapshots = new Map<string, { object: THREE.Object3D; visible: boolean }>();
 
-  constructor(private readonly createAudio: (src: string) => Sol08Audio = src => new Audio(src)) {}
+  constructor(private readonly createAudio: (src: string) => Sol08Audio = src => getPreparedAudioElement(src) ?? new Audio(getPreparedAssetUrl(src))) {}
 
   start(): void {
     if (this.active) return;

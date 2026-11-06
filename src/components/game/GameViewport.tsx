@@ -13,6 +13,7 @@ import {
 import { Sol6FieldCapture } from "@/missions/SOL_06/components/Sol6FieldCapture";
 import { PersonalLaptopOS } from "@/systems/personal-laptop/PersonalLaptopOS";
 import { LaptopAudioController, type LaptopAudioSnapshot } from "@/systems/personal-laptop/LaptopAudioController";
+import { areRequiredAssetsReady, getPreparedAssetUrl } from "@/core/AssetLoading";
 
 const initialState: GameState = {
   ready: false,
@@ -82,15 +83,18 @@ const initialState: GameState = {
 
 type GameViewportProps = {
   onReturnToMenu?: () => void;
+  onReady?: () => void;
 };
 
-export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
+export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}) {
   const host = useRef<HTMLDivElement>(null);
   const game = useRef<Game | null>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<GameState>(initialState);
   const [laptopAudio, setLaptopAudio] = useState<LaptopAudioController | null>(null);
   const [laptopAudioSnapshot, setLaptopAudioSnapshot] = useState<Readonly<LaptopAudioSnapshot> | null>(null);
+
+  useEffect(() => { if (state.ready) onReady?.(); }, [state.ready, onReady]);
 
   // Sol 05 Route Planning
   const [selectedTarget, setSelectedTarget] = useState<string>("TARGET_ALPHA_CRATER_RIM");
@@ -113,7 +117,7 @@ export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
   const [selectedInterpretation, setSelectedInterpretation] = useState("INTERPRETATION_SURFACE_PATTERN_REVIEW");
 
   useEffect(() => {
-    if (!host.current) return;
+    if (!areRequiredAssetsReady() || !host.current) return;
     const instance = new Game(host.current, setState);
     game.current = instance;
     void instance.start();
@@ -240,7 +244,7 @@ export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
 
       {/* 2. PERSISTENT IN-GAME HUD */}
       <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:30]">
-        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" /></div>}
+        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png")} alt="PHOBOSIA" /></div>}
         {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
@@ -1008,7 +1012,7 @@ export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
         {/* 12. LOADING SCREEN */}
         {state.transition === "loading" && (
           <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] loading">
-            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
+            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png")} alt="PHOBOSIA" />
             <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px]">Loading {state.transitionLabel}...</p>
             <strong className="[font-size:28px] [font-weight:500] [color:#e88747]">{state.transitionProgress === null ? "Preparing…" : `${state.transitionProgress}%`}</strong>
           </section>
@@ -1034,7 +1038,7 @@ export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
         {/* 14. TRANSITION ERROR */}
         {state.transition === "error" && (
           <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] failure">
-            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src="/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA" />
+            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png")} alt="PHOBOSIA" />
             <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px] [max-width:min(520px,_85vw)] [line-height:1.5]">{state.error}</p>
             <div className="[display:flex] [gap:10px] [margin-top:14px]">
               <button className="[border:1px_solid_#d8763b] [background:#d8763b] [color:#071016] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.retryTransition()}>Retry</button>
