@@ -80,7 +80,11 @@ const initialState: GameState = {
   cameraPresentation: null
 };
 
-export function GameViewport() {
+type GameViewportProps = {
+  onReturnToMenu?: () => void;
+};
+
+export function GameViewport({ onReturnToMenu }: GameViewportProps = {}) {
   const host = useRef<HTMLDivElement>(null);
   const game = useRef<Game | null>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -161,6 +165,11 @@ export function GameViewport() {
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+      {onReturnToMenu && <button
+        type="button"
+        className="[position:fixed] [top:16px] [left:16px] [z-index:60] [border:1px_solid_rgba(85,205,232,0.45)] [background:rgba(5,14,20,0.88)] [padding:8px_12px] [color:#c9e3e9] [font:10px_var(--font-mono,monospace)] [letter-spacing:0.1em] hover:[background:rgba(20,42,52,0.96)]"
+        onClick={event => { event.stopPropagation(); document.exitPointerLock(); onReturnToMenu(); }}
+      >RETURN TO MENU</button>}
       {/* SEPARATE REMOVABLE DEV SPEED TRAVEL SYSTEM (Delete component & this tag to remove)
       <SpeedTravelBar
         activeModule={state.module}
