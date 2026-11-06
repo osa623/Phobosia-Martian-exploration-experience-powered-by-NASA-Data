@@ -1,0 +1,298 @@
+{
+  "missionId": "PHOBOSIA_SOL_07",
+  "sol": 7,
+  "title": "Mars Outpost Dust Storm Emergency Assessment",
+  "subtitle": "Emergency Monitoring, Power-System Assessment and Outpost Impact Report",
+  "missionType": "environmental_emergency_assessment",
+  "description": "Respond to a Sol 7 dust storm by reviewing the alert and assessing each outpost section, power generation, reserves, distribution, communications, navigation, life-support and science availability. Preserve all prior Sol progress, target history, evidence, sample and cultivation records. This is assessment only; do not implement the three reserved Sol 8 repair triggers.",
+  "status": "locked",
+  "prerequisites": [
+    "PHOBOSIA_SOL_06"
+  ],
+  "persistentMissionData": {
+    "preserveSol01ToSol06": true,
+    "preserveSol03SelectedTarget": true,
+    "preserveSol04AndSol05Evidence": true,
+    "preserveSol06FieldObservations": true,
+    "preserveSol06SampleIdentityAndAnalysis": true,
+    "preserveSol06CultivationExperiment": true,
+    "cultivationExperimentMustRemainInProgress": true,
+    "postStormPowerAssessmentMustPersistForSol08": true,
+    "stormScope": "PHOBOSIA_SOL_07_ONLY"
+  },
+  "missionZones": [
+    "Habitat",
+    "Mission Control",
+    "Central Hub",
+    "Airlock",
+    "Research Lab",
+    "Engineering"
+  ],
+  "tasks": [
+    {
+      "taskId": "SOL07_REVIEW_HABITAT_STORM_ALERT",
+      "title": "Review Dust Storm Emergency Alert",
+      "zone": "Habitat",
+      "mandatory": true,
+      "objective": "Review and acknowledge the Sol 7-only dust storm alert, safety instructions and temporary outdoor restrictions."
+    },
+    {
+      "taskId": "SOL07_ASSESS_MISSION_CONTROL_SYSTEMS",
+      "title": "Assess Mission Control Systems",
+      "zone": "Mission Control",
+      "mandatory": true,
+      "objective": "Review power generation and reserve summaries, communications, navigation availability and active warnings; record provenance."
+    },
+    {
+      "taskId": "SOL07_REVIEW_CENTRAL_HUB_DISTRIBUTION",
+      "title": "Review Outpost-Wide Status and Power Distribution",
+      "zone": "Central Hub",
+      "mandatory": true,
+      "objective": "Review outpost section status and power distribution without changing system state."
+    },
+    {
+      "taskId": "SOL07_VERIFY_AIRLOCK_EVA_LOCKDOWN",
+      "title": "Verify Airlock and Surface Access Lockdown",
+      "zone": "Airlock",
+      "mandatory": true,
+      "objective": "Verify temporary outdoor EVA restriction using the existing global EVA/access-control system."
+    },
+    {
+      "taskId": "SOL07_ASSESS_SCIENCE_POWER",
+      "title": "Assess Science and Cultivation Power Availability",
+      "zone": "Research Lab",
+      "mandatory": true,
+      "objective": "Review research/cultivation power availability and the existing Sol 6 cultivation experiment without changing its sample, record or IN_PROGRESS status."
+    },
+    {
+      "taskId": "SOL07_ASSESS_ENGINEERING_POWER_SYSTEM",
+      "title": "Assess Solar Generation and Outpost Power Systems",
+      "zone": "Engineering",
+      "mandatory": true,
+      "objective": "Inspect the existing power-unit front-end and assess solar generation, reserve, estimated reserve duration, both solar panels, outdoor main solar power line, power distribution and life-support. Read-only assessment; do not touch Sol 8 repair triggers."
+    },
+    {
+      "taskId": "SOL07_SUBMIT_DUST_STORM_IMPACT_REPORT",
+      "title": "Submit Final Dust Storm Impact Report",
+      "zone": "Engineering",
+      "mandatory": true,
+      "objective": "Submit a validated report consolidating Tasks 1–6. Only after validation fade storm audio, restore emergency lights and existing EVA rules, end storm state and persist the post-storm assessment for Sol 8."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "SOL07_OBJ_01",
+      "title": "Review Dust Storm Emergency Alert",
+      "zone": "Habitat",
+      "type": "emergency_alert_acknowledgement",
+      "required": true,
+      "completionCondition": "Player reviews and acknowledges the active Sol 7 storm alert."
+    },
+    {
+      "id": "SOL07_OBJ_02",
+      "title": "Assess Mission Control Systems",
+      "zone": "Mission Control",
+      "type": "systems_status_assessment",
+      "required": true,
+      "completionCondition": "Power, communications, navigation and warnings are reviewed and recorded with data provenance."
+    },
+    {
+      "id": "SOL07_OBJ_03",
+      "title": "Review Outpost-Wide Status",
+      "zone": "Central Hub",
+      "type": "outpost_status_assessment",
+      "required": true,
+      "completionCondition": "Outpost section status and available power distribution information are recorded."
+    },
+    {
+      "id": "SOL07_OBJ_04",
+      "title": "Verify EVA Lockdown",
+      "zone": "Airlock",
+      "type": "eva_access_lockdown_verification",
+      "required": true,
+      "completionCondition": "Existing global access-control system confirms surface access is restricted during the active storm."
+    },
+    {
+      "id": "SOL07_OBJ_05",
+      "title": "Assess Science Power",
+      "zone": "Research Lab",
+      "type": "science_power_assessment",
+      "required": true,
+      "completionCondition": "Science/cultivation power is recorded and the Sol 6 experiment remains preserved and IN_PROGRESS."
+    },
+    {
+      "id": "SOL07_OBJ_06",
+      "title": "Assess Power Systems",
+      "zone": "Engineering",
+      "type": "power_system_assessment",
+      "required": true,
+      "requiredFields": [
+        "solarGenerationOutput",
+        "availablePowerReserve",
+        "estimatedReserveDuration",
+        "solarPanelAStatus",
+        "solarPanelBStatus",
+        "mainSolarPowerLineStatus",
+        "powerDistributionStatus",
+        "lifeSupportPowerStatus",
+        "scienceAndCultivationPowerAvailability"
+      ],
+      "completionCondition": "All assessment fields are recorded with source/simulation labels; no repair trigger is activated or modified."
+    },
+    {
+      "id": "SOL07_OBJ_07",
+      "title": "Submit Dust Storm Impact Report",
+      "zone": "Engineering",
+      "type": "emergency_impact_report_submission",
+      "required": true,
+      "completionCondition": "Report validates; then audio fades, exact original light states restore, storm ends, existing EVA rules resume and post-storm assessment persists."
+    }
+  ],
+  "stormConfiguration": {
+    "enabled": true,
+    "scope": "PHOBOSIA_SOL_07_ONLY",
+    "startCondition": "Only when existing mission lifecycle starts PHOBOSIA_SOL_07.",
+    "endCondition": "Only after Task 7 report submission validates.",
+    "audio": {
+      "warningBeepAssetPath": "USER_TO_PROVIDE_WARNING_BEEP_ASSET_PATH",
+      "dustStormAmbienceAssetPath": "USER_TO_PROVIDE_DUST_STORM_AMBIENCE_ASSET_PATH",
+      "playOnlyDuringSol7": true,
+      "fadeBothToSilenceAfterValidatedTask7": true,
+      "neverHardCut": true,
+      "cleanupOnExitTransitionReloadReset": true
+    },
+    "outdoorAccess": {
+      "restrictDuringStorm": true,
+      "useExistingGlobalEVA": true,
+      "restoreExistingRulesAfterTask7": true,
+      "doNotCreateNewEVASystem": true
+    },
+    "emergencyLights": {
+      "redAppearanceWithControlledFlicker": true,
+      "avoidRapidStrobing": true,
+      "captureOriginalPropertiesBeforeChanging": true,
+      "restoreExactOriginalPropertiesAfterTask7": true,
+      "cleanupOnExitTransitionReloadReset": true,
+      "groups": {
+        "AirLock": [
+          "Light02",
+          "Light08"
+        ],
+        "Central_Connector": [
+          "Light12",
+          "Light15",
+          "Light16",
+          "Light17",
+          "Light18"
+        ],
+        "Habitat": [
+          "LightStrip08",
+          "LightStrip09",
+          "LightStrip10",
+          "LightStrip12",
+          "LightStrip13",
+          "LightStrip14"
+        ],
+        "MissionControl": [
+          "LightStrip02",
+          "LightStrip03",
+          "LightStrip04",
+          "LightStrip05",
+          "LightStrip06",
+          "LightStrip07",
+          "LightStrip08",
+          "LightStrip09",
+          "LightStrip10"
+        ],
+        "Science_Zone": [
+          "Light007",
+          "Light010",
+          "Light012"
+        ],
+        "Engineering": [
+          "Walking_Path_Light_0",
+          "Walking_Path_Light_01",
+          "Walking_Path_Light_02"
+        ]
+      },
+      "verifyExactSceneNames": true,
+      "verifyCentralConnectorLight18Spelling": true
+    }
+  },
+  "engineeringPowerAssessment": {
+    "useExistingMasterScenePowerUnit": true,
+    "showPowerUnitFrontendInSol7": true,
+    "mode": "read_only_assessment",
+    "requiredFields": [
+      "solarGenerationOutput",
+      "availablePowerReserve",
+      "estimatedReserveDuration",
+      "solarPanelAStatus",
+      "solarPanelBStatus",
+      "mainSolarPowerLineStatus",
+      "powerDistributionStatus",
+      "lifeSupportPowerStatus",
+      "scienceAndCultivationPowerAvailability"
+    ],
+    "reservedSol8RepairTriggers": [
+      "solar panel A trigger",
+      "solar panel B trigger",
+      "outdoor main solar power line trigger"
+    ],
+    "sol7Restrictions": [
+      "Do not activate, modify, move, rename, replace, duplicate or implement these three triggers.",
+      "Do not clean or repair panels or power line.",
+      "Inspect actual mappings only; never invent IDs.",
+      "If live telemetry is unavailable, label values as gameplay simulation."
+    ]
+  },
+  "dataProvenance": {
+    "neverInventNASAObservations": true,
+    "neverPresentSimulatedReadingsAsNASAData": true,
+    "dustScienceContext": "Martian atmospheric dust can reduce sunlight reaching solar arrays; dust deposition can further reduce output.",
+    "InSightUse": "NASA InSight may be cited as contextual reference, not as a direct measurement of the fictional outpost.",
+    "references": [
+      "https://science.nasa.gov/mission/insight/",
+      "https://pds.nasa.gov/"
+    ]
+  },
+  "report": {
+    "reportId": "PHOBOSIA_SOL_07_REPORT",
+    "title": "Mars Outpost Dust Storm Impact and Power Assessment Report",
+    "requiredSections": [
+      "Emergency Overview",
+      "Mission Control Assessment",
+      "Central Hub Status and Power Distribution",
+      "Airlock EVA Lockdown",
+      "Research Lab and Cultivation Power",
+      "Solar Generation",
+      "Available Reserve and Estimated Duration",
+      "Solar Panel A Status",
+      "Solar Panel B Status",
+      "Main Solar Power Line Status",
+      "Life-Support Power",
+      "Data Provenance and Simulation Limitations",
+      "Recommendations"
+    ],
+    "submissionRequired": true,
+    "mustIncludeTasks1To6": true
+  },
+  "completion": {
+    "allSevenTasksRequired": true,
+    "reportMustValidate": true,
+    "stormAudioFadeOutAfterTask7": true,
+    "restoreExactEmergencyLightStates": true,
+    "restoreExistingEVAAccessRules": true,
+    "persistPostStormAssessmentForSol08": true,
+    "nextSol": 8,
+    "nextMission": "PHOBOSIA_SOL_08",
+    "doNotAutoStartNextSol": true
+  },
+  "dataIntegrity": {
+    "doNotModifySol01ToSol06": true,
+    "preserveSol03TargetAndSol04ToSol06Evidence": true,
+    "preserveSol06SampleAndCultivation": true,
+    "doNotImplementSol08RepairTriggers": true,
+    "doNotInventSceneMappingsOrNASAData": true
+  }
+}

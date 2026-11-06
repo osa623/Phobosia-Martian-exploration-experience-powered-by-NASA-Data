@@ -11,11 +11,16 @@ export class Player {
 
   // Authoritative physical reference position (unaffected by head bob / breathing)
   public basePosition = new THREE.Vector3();
+  /** Last ground sample from the normal movement update, shared with the EVA HUD. */
+  public lastGroundHeight = 0;
 
   // Head bobbing and breathing motion state
   private bobTimer = 0;
   private breathTimer = 0;
   private currentCameraOffset = 0;
+  private evaOutdoorMotion = false;
+  private evaGaitTimer = 0;
+  private evaBreathTimer = 0;
   private config: MovementConfig;
 
   constructor(private camera: THREE.PerspectiveCamera, config: MovementConfig = DEFAULT_MOVEMENT_CONFIG) {
@@ -30,6 +35,13 @@ export class Player {
 
   public getConfig(): Readonly<MovementConfig> {
     return this.config;
+  }
+
+  public setEVAOutdoorMotion(active: boolean): void {
+    this.evaOutdoorMotion = active;
+    this.evaGaitTimer = 0;
+    this.evaBreathTimer = 0;
+    if (!active) this.camera.rotation.set(this.pitch, this.yaw, 0, "YXZ");
   }
 
   public setEyeHeight(height: number): void {
@@ -125,6 +137,7 @@ export class Player {
 
     // 4. Vertical movement & ground detection
     const ground = groundHeight(this.basePosition);
+    this.lastGroundHeight = ground;
 
     if (this.keys.has("Space") && this.grounded) {
       this.velocity.y = this.config.jumpVelocity;
@@ -175,5 +188,29 @@ export class Player {
       this.basePosition.y + this.currentCameraOffset,
       this.basePosition.z
     );
+
+    if (this.evaOutdoorMotion) {
+      const isEVARunning = isRunning && isMoving;
+      this.evaBreathTimer += dt * 1.05;
+      const breathing = Math.sin(this.evaBreathTimer) * 0.002;
+      let swayX = 0;
+      let swayY = 0;
+      let roll = Math.sin(this.evaBreathTimer * 0.5) * 0.001;
+      let pitchSway = breathing * 0.12;
+      if (isMoving) {
+        const frequency = isEVARunning ? 8.8 : 6.6;
+        const amount = isEVARunning ? 1.45 : 1;
+        this.evaGaitTimer += dt * frequency;
+        swayX = Math.sin(this.evaGaitTimer * 0.5) * 0.006 * amount;
+        swayY = Math.max(0, Math.sin(this.evaGaitTimer)) * 0.009 * amount;
+        roll += Math.sin(this.evaGaitTimer * 0.5) * 0.006 * amount;
+        pitchSway += Math.sin(this.evaGaitTimer) * 0.003 * amount;
+      } else {
+        this.evaGaitTimer = 0;
+      }
+      this.camera.position.x += swayX;
+      this.camera.position.y += swayY + breathing;
+      this.camera.rotation.set(this.pitch + pitchSway, this.yaw, roll, "YXZ");
+    }
   }
 }

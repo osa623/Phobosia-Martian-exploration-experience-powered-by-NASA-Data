@@ -17,7 +17,9 @@
 
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
-import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
+import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
 export interface CentralHubScreenPanel {
   id?: string;
@@ -147,6 +149,7 @@ export class CentralHubScreenRenderer {
   private missionSol: number = 4;
   private configSol = 4;
   private customConfig: boolean;
+  private completedStepIds: string[] = [];
 
   constructor(customConfig?: CentralHubScreenDataRoot) {
     this.customConfig = Boolean(customConfig);
@@ -178,14 +181,14 @@ export class CentralHubScreenRenderer {
   /**
    * Primary entry point: Scans the Central Hub GLB scene and binds canvas textures to the 3 screens.
    */
-  public renderCentralHubScreens(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number }): void {
+  public renderCentralHubScreens(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.attachToHub(model, missionState);
   }
 
   /**
    * Outpost standard alias (attachToHabitat, attachToEngineering, attachToScience, attachToMissionControl, attachToHub).
    */
-  public attachToHub(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number }): void {
+  public attachToHub(model: THREE.Group, missionState?: ScreenMissionSnapshot): void {
     this.dispose();
 
     if (missionState?.currentSol) {
@@ -193,6 +196,7 @@ export class CentralHubScreenRenderer {
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionSol);
 
     const targetScreens = this.rawConfig.screens || [];
@@ -222,7 +226,7 @@ export class CentralHubScreenRenderer {
       }
     });
 
-    this.renderAll();
+    this.renderAll(missionState);
   }
 
   /**
@@ -300,16 +304,18 @@ export class CentralHubScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number; currentSol?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot): void {
     if (missionState?.currentSol) {
       this.missionSol = missionState.currentSol;
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    if (missionState?.completedStepIds) this.completedStepIds = missionState.completedStepIds;
     this.selectSolConfig(this.missionSol);
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.texture.needsUpdate = true;
     }
   }
@@ -327,6 +333,7 @@ export class CentralHubScreenRenderer {
     } else {
       this.renderLandscapeHubScreen(ctx, screenConf, width, height);
     }
+    if (isSol07StormPresentationActive({ currentDay: this.missionSol, completedStepIds: this.completedStepIds })) drawSol07Banner(ctx, width, height, "SOL 7 · OUTPOST STATUS REVIEW", "Record visible section status; assess distribution without changing it.");
   }
 
   // =========================================================================

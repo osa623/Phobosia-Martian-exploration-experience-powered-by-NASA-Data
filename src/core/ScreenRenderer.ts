@@ -71,6 +71,9 @@ export class ScreenRenderer {
 
       const rendererType = this.matchScreenType(moduleName, identifier);
       if (rendererType) {
+        // The Habitat personal laptop uses its own fixed desktop renderer.
+        if (moduleName === "Habitat" && identifier.includes("Habitat_Workstation_Display")) return;
+
         // Habitat physical status displays are handled by dedicated HabitatScreenRenderer
         if (
           moduleName === "Habitat" &&
@@ -352,6 +355,25 @@ export class ScreenRenderer {
       default:
         this.drawDefaultTelemetry(ctx, w, h, b.nodeName, state);
         break;
+    }
+
+    if (state.currentDay === 8 && state.sol8?.started) {
+      const warnings = [
+        state.sol8.powerFailureActive ? { color: "#ff633e", title: "CRITICAL POWER FAILURE", body: `RESERVE POWER ${state.sol8.reservePowerPercent}% · GAMEPLAY SIMULATION` } : null,
+        state.sol8.communicationFailureActive ? { color: "#e7aa45", title: "COMMUNICATION SYSTEM OFFLINE", body: "EXTERNAL COMMUNICATION UNAVAILABLE" } : null
+      ].filter((warning): warning is { color: string; title: string; body: string } => Boolean(warning));
+      const bannerHeight = Math.min(68, (h - 24) / Math.max(1, warnings.length));
+      warnings.forEach((warning, index) => {
+        const y = h - 12 - bannerHeight * (warnings.length - index);
+        ctx.fillStyle = "rgba(12, 16, 21, 0.96)";
+        ctx.fillRect(16, y, w - 32, bannerHeight - 5);
+        ctx.strokeStyle = warning.color; ctx.lineWidth = 2;
+        ctx.strokeRect(16, y, w - 32, bannerHeight - 5);
+        ctx.fillStyle = warning.color; ctx.font = "bold 15px monospace";
+        ctx.fillText(warning.title, 30, y + 24);
+        ctx.fillStyle = "#d4e0e5"; ctx.font = "12px monospace";
+        ctx.fillText(warning.body, 30, y + 44);
+      });
     }
   }
 

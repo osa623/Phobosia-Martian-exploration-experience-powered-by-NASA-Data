@@ -14,6 +14,9 @@
 import * as THREE from "three";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
+import { renderSol07UnitScreen } from "../missions/sol-07/Sol07ScreenRenderer";
+import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
+import type { ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 
 export interface AirlockScreenPanel {
   id?: string;
@@ -120,6 +123,7 @@ function loadAirlockScreenData(): AirlockScreenDataRoot {
 const rawAirlockDataJson = loadAirlockScreenData();
 
 export class AirlockScreenRenderer {
+  private sol7StormEnded = false;
   private rawConfig: AirlockScreenDataRoot;
   private screensMap = new Map<string, AirlockScreenItem>();
   private activeBindings: AirlockScreenBinding[] = [];
@@ -157,7 +161,7 @@ export class AirlockScreenRenderer {
   /**
    * Primary entry point: Scans the Airlock GLB scene and binds canvas textures to the control console screen.
    */
-  public attachToAirlock(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number }): void {
+  public attachToAirlock(model: THREE.Group, missionState?: { currentDay?: number; currentSol?: number; sol7?: { stormEnded?: boolean } }): void {
     this.dispose();
 
     if (missionState?.currentSol) {
@@ -165,6 +169,7 @@ export class AirlockScreenRenderer {
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    if (missionState?.sol7) this.sol7StormEnded = Boolean(missionState.sol7.stormEnded);
     this.selectSolConfig(this.missionSol);
 
     const targetScreens = this.rawConfig.screens || [];
@@ -266,16 +271,18 @@ export class AirlockScreenRenderer {
   /**
    * Renders all active screen bindings.
    */
-  public renderAll(missionState?: { currentDay?: number; currentSol?: number }): void {
+  public renderAll(missionState?: ScreenMissionSnapshot & { sol7?: { stormEnded?: boolean } }): void {
     if (missionState?.currentSol) {
       this.missionSol = missionState.currentSol;
     } else if (missionState?.currentDay) {
       this.missionSol = missionState.currentDay;
     }
+    if (missionState?.sol7) this.sol7StormEnded = Boolean(missionState.sol7.stormEnded);
     this.selectSolConfig(this.missionSol);
 
     for (const binding of this.activeBindings) {
       this.renderBinding(binding);
+      drawSol08Warnings(binding.ctx, binding.width, binding.height, missionState?.currentDay === 8 ? missionState.sol8 : undefined);
       binding.texture.needsUpdate = true;
     }
   }
@@ -285,6 +292,7 @@ export class AirlockScreenRenderer {
    */
   private renderBinding(binding: AirlockScreenBinding): void {
     const { ctx, width, height, meshName } = binding;
+    if (renderSol07UnitScreen(ctx, width, height, "airlock", { currentDay: this.missionSol, sol7StormEnded: this.sol7StormEnded })) return;
     const screenConf = this.screensMap.get(meshName.trim()) || this.screensMap.get(binding.screenId);
     if (!screenConf) return;
 

@@ -1,0 +1,573 @@
+{
+  "missionId": "PHOBOSIA_SOL_06",
+  "sol": 6,
+  "title": "Mars Surface Field Investigation",
+  "subtitle": "Ground-Level Geological Observation, Soil Sampling and Laboratory Analysis",
+  "missionType": "surface_geological_investigation",
+  "description": "Continue investigating the exact target selected in Sol 3 and studied in Sols 4 and 5. Travel on foot to the target, record ground-level geological observations, collect and secure one soil/regolith sample, return through the existing Airlock, analyse the sample in the Research Lab and start a cultivation experiment whose result remains pending until Sol 8.",
+  "status": "locked",
+  "prerequisites": [
+    "PHOBOSIA_SOL_05"
+  ],
+  "persistentMissionData": {
+    "selectedTargetSource": "PHOBOSIA_SOL_03",
+    "selectedTargetRequired": true,
+    "selectedTargetMustMatchSol04": true,
+    "selectedTargetMustMatchSol05": true,
+    "targetIds": [
+      "TARGET_ALPHA_CRATER_RIM",
+      "TARGET_BETA_DUNE_BASIN",
+      "TARGET_GAMMA_SOUTH_ESCARPMENT"
+    ],
+    "targetSceneObjects": {
+      "TARGET_ALPHA_CRATER_RIM": "target_01",
+      "TARGET_BETA_DUNE_BASIN": "target_02",
+      "TARGET_GAMMA_SOUTH_ESCARPMENT": "target_03"
+    },
+    "selectionRule": "Resolve only the target selected and submitted in Sol 3 through the existing target registry. Do not allow a new target selection in Sol 6.",
+    "requiredPriorEvidence": [
+      "PHOBOSIA_SOL_04 investigation records",
+      "PHOBOSIA_SOL_05 target-linked aerial evidence and report"
+    ],
+    "samplePersistenceRequired": true,
+    "cultivationExperimentPersistenceRequired": true
+  },
+  "missionZones": [
+    "Mission Control",
+    "Research Lab",
+    "Airlock",
+    "Central Hub",
+    "Mars Terrain",
+    "Habitat"
+  ],
+  "interfaces": [
+    {
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "triggerId": "MC_NAVIGATION_01",
+      "location": "Existing Mission Control mission console/navigation station",
+      "resolution": "Resolve the actual configured screen and interaction mapping; do not invent a screen or trigger."
+    },
+    {
+      "interfaceId": "RESEARCH_LAB_SAMPLE_PREPARATION",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "location": "Existing Research Lab sample preparation area",
+      "resolution": "Resolve actual scene objects and interaction mappings; report missing mappings instead of inventing them."
+    },
+    {
+      "interfaceId": "RESEARCH_LAB_SAMPLE_ANALYSIS",
+      "triggerId": "LAB_RESEARCH_ANALYSIS_01",
+      "location": "Existing Research Lab analysis equipment",
+      "resolution": "Resolve actual scene objects and interaction mappings."
+    },
+    {
+      "interfaceId": "RESEARCH_LAB_CULTIVATION_UNIT",
+      "triggerId": "LAB_CULTIVATION_01",
+      "location": "Existing Research Lab cultivation unit",
+      "resolution": "Reuse the actual existing unit; do not create a replacement."
+    },
+    {
+      "interfaceId": "EVA_SUIT_PREPARATION",
+      "triggerId": "Mars_Observation_Preparation_Trigger",
+      "location": "Existing Airlock EVA preparation/removal interaction",
+      "resolution": "Reuse the global EVA system and Mars_Observation_Preparation_Trigger."
+    },
+    {
+      "interfaceId": "AIRLOCK_RETURN_TRANSITION",
+      "triggerId": "Spwaning_Position",
+      "location": "Existing Airlock return point in Mars Terrain",
+      "resolution": "Reuse the configured Mars Terrain to Airlock transition and Airlock spawn."
+    },
+    {
+      "interfaceId": "MARS_SURFACE_FIELD_INTERACTION",
+      "location": "Selected target validated ground investigation area",
+      "resolution": "Resolve target object and world transform from the existing target registry and Mars terrain scene."
+    }
+  ],
+  "tasks": [
+    {
+      "taskId": "SOL06_REVIEW_MISSION_BRIEFING",
+      "title": "Review Surface Investigation Briefing",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "mandatory": true,
+      "objective": "Review briefing, persistent target, Sol 4 records, Sol 5 aerial evidence, route considerations and required equipment."
+    },
+    {
+      "taskId": "SOL06_PREPARE_FIELD_EQUIPMENT",
+      "title": "Prepare Geological Field Equipment",
+      "interfaceId": "RESEARCH_LAB_SAMPLE_PREPARATION",
+      "mandatory": true,
+      "objective": "Prepare available sample container, ID/sealing workflow, collection tool and contamination-control documentation."
+    },
+    {
+      "taskId": "SOL06_ACTIVATE_EVA_SESSION",
+      "title": "Prepare for Mars Surface Exploration",
+      "interfaceId": "AIRLOCK_RETURN_TRANSITION",
+      "mandatory": true,
+      "objective": "Activate the existing global EVA suit system through its existing Airlock interaction."
+    },
+    {
+      "taskId": "SOL06_REACH_SELECTED_TARGET",
+      "title": "Reach the Selected Investigation Target",
+      "interfaceId": "MARS_SURFACE_FIELD_INTERACTION",
+      "mandatory": true,
+      "objective": "Travel manually on foot to the exact Sol 3 selected target using visual guidance; no teleport or autopilot."
+    },
+    {
+      "taskId": "SOL06_COMPLETE_FIELD_OBSERVATIONS",
+      "title": "Conduct Ground-Level Geological Observations",
+      "interfaceId": "MARS_SURFACE_FIELD_INTERACTION",
+      "mandatory": true,
+      "objective": "Record target-linked ground-level observations and distinguish visible observations from player interpretation."
+    },
+    {
+      "taskId": "SOL06_COLLECT_SOIL_SAMPLE",
+      "title": "Collect and Secure a Soil Sample",
+      "interfaceId": "MARS_SURFACE_FIELD_INTERACTION",
+      "mandatory": true,
+      "objective": "Collect one soil/regolith sample, assign a unique ID, record provenance and secure it."
+    },
+    {
+      "taskId": "SOL06_RETURN_TO_AIRLOCK",
+      "title": "Return to the Airlock",
+      "interfaceId": "AIRLOCK_RETURN_TRANSITION",
+      "mandatory": true,
+      "objective": "Return manually through the existing Airlock entrance while preserving the active suit and sample."
+    },
+    {
+      "taskId": "SOL06_REMOVE_EVA_SUIT",
+      "title": "Complete Airlock Entry and Remove EVA Suit",
+      "interfaceId": "EVA_SUIT_PREPARATION",
+      "mandatory": true,
+      "objective": "Remove the suit inside the Airlock through the existing interaction; never auto-remove it at Central Hub."
+    },
+    {
+      "taskId": "SOL06_TRANSFER_SAMPLE",
+      "title": "Transfer Sample to the Research Lab",
+      "interfaceId": "RESEARCH_LAB_SAMPLE_PREPARATION",
+      "mandatory": true,
+      "objective": "Register receipt of the same sample ID and preserve its provenance."
+    },
+    {
+      "taskId": "SOL06_ANALYSE_SAMPLE",
+      "title": "Perform Preliminary Sample Analysis",
+      "interfaceId": "RESEARCH_LAB_SAMPLE_ANALYSIS",
+      "mandatory": true,
+      "objective": "Record supported visual observations/readings, limitations and player interpretation."
+    },
+    {
+      "taskId": "SOL06_START_CULTIVATION_EXPERIMENT",
+      "title": "Initiate Soil Cultivation Experiment",
+      "interfaceId": "RESEARCH_LAB_CULTIVATION_UNIT",
+      "mandatory": true,
+      "objective": "Load/register the same sample in the existing cultivation unit and start an experiment persisted as IN_PROGRESS until Sol 8."
+    },
+    {
+      "taskId": "SOL06_SUBMIT_INVESTIGATION_REPORT",
+      "title": "Submit Sol 6 Surface Investigation Report",
+      "interfaceId": "MISSION_CONTROL_NAVIGATION",
+      "mandatory": true,
+      "objective": "Submit verified field observations, sample provenance, preliminary analysis and pending cultivation status."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "SOL06_OBJ_01",
+      "title": "Review Surface Investigation Mission",
+      "description": "Review the Sol 6 briefing, official Sol 3 target, relevant Sol 4 and Sol 5 records, route considerations and equipment at the existing Mission Control console.",
+      "zone": "Mission Control",
+      "type": "review_and_confirm",
+      "required": true,
+      "completionCondition": "Briefing is confirmed and the exact persistent target resolves through the existing registry."
+    },
+    {
+      "id": "SOL06_OBJ_02",
+      "title": "Prepare Field Equipment",
+      "description": "Review and prepare the available sample container, identification label, sealing method, collection tool and contamination-control documentation in the existing Research Lab.",
+      "zone": "Research Lab",
+      "type": "equipment_preparation",
+      "required": true,
+      "completionCondition": "Available required equipment is reviewed and marked ready; do not require nonexistent equipment."
+    },
+    {
+      "id": "SOL06_OBJ_03",
+      "title": "Prepare for Surface Exploration",
+      "description": "Activate the global EVA suit using the existing Mars_Observation_Preparation_Trigger in the Airlock before entering Mars terrain.",
+      "zone": "Airlock",
+      "type": "eva_preparation",
+      "required": true,
+      "completionCondition": "Existing EVA system confirms an active suit session and allows physical Mars terrain entry."
+    },
+    {
+      "id": "SOL06_OBJ_04",
+      "title": "Reach the Selected Investigation Target",
+      "description": "Enter Mars terrain and walk to the exact Sol 3 selected target. Reuse the Sol 5 red/red-orange target beacon, resolved from the actual target world transform.",
+      "zone": "Mars Terrain",
+      "type": "on_foot_navigation",
+      "required": true,
+      "targetSource": "PHOBOSIA_SOL_03",
+      "targetReference": "selectedTargetId",
+      "completionCondition": "Player physically reaches the validated ground-investigation area of the same selected target; navigation arrival alone is insufficient."
+    },
+    {
+      "id": "SOL06_OBJ_05",
+      "title": "Conduct Geological Field Observations",
+      "description": "Record regolith appearance/texture, visible rock distribution, slope/elevation, formations and local terrain features. Compare with Sol 5 aerial evidence where useful.",
+      "zone": "Mars Terrain",
+      "type": "geological_field_observation",
+      "required": true,
+      "observationCategories": [
+        "regolith_appearance_and_texture",
+        "visible_rock_distribution",
+        "slope_and_elevation_characteristics",
+        "surface_formations",
+        "local_terrain_features",
+        "comparison_with_prior_aerial_evidence"
+      ],
+      "completionCondition": "At least one valid target-linked observation record is persisted; separate observation from interpretation."
+    },
+    {
+      "id": "SOL06_OBJ_06",
+      "title": "Collect and Secure Soil Sample",
+      "description": "Collect one soil/regolith sample using the supported field interaction and existing container. Record unique sample ID, target, location, Sol, sample type and container/sealing status.",
+      "zone": "Mars Terrain",
+      "type": "soil_sample_collection",
+      "required": true,
+      "sampleType": "soil_regolith",
+      "sampleCount": 1,
+      "completionCondition": "One uniquely identified sample is persisted as COLLECTED_AND_SECURED with required provenance; no drilling, mining or extra samples."
+    },
+    {
+      "id": "SOL06_OBJ_07",
+      "title": "Return to the Airlock",
+      "description": "Carry the secured sample and manually return through the existing Airlock entrance. Keep the EVA suit active during transition and spawn at the configured Airlock spawn.",
+      "zone": "Mars Terrain",
+      "type": "return_navigation",
+      "required": true,
+      "completionCondition": "Existing transition places player in Airlock and preserves sample and active EVA session."
+    },
+    {
+      "id": "SOL06_OBJ_08",
+      "title": "Remove EVA Suit Inside the Airlock",
+      "description": "Use the existing EVA preparation/removal interaction inside Airlock. Central Hub entrance remains blocked until suit is inactive.",
+      "zone": "Airlock",
+      "type": "eva_suit_removal",
+      "required": true,
+      "completionCondition": "Global EVA confirms suit inactive, helmet/HUD disabled and existing Central Hub entrance becomes accessible."
+    },
+    {
+      "id": "SOL06_OBJ_09",
+      "title": "Transfer Sample to the Research Lab",
+      "description": "Register the secured sample at the existing Research Lab sample-handling area without changing its ID or provenance.",
+      "zone": "Research Lab",
+      "type": "sample_transfer",
+      "required": true,
+      "completionCondition": "Research Lab acknowledges receipt of the same sample ID without creating a duplicate."
+    },
+    {
+      "id": "SOL06_OBJ_10",
+      "title": "Perform Preliminary Sample Analysis",
+      "description": "Use existing analysis equipment to record visible appearance, grain size/texture, colour and genuinely supported indicators. Label simulated gameplay readings as simulated.",
+      "zone": "Research Lab",
+      "type": "sample_analysis",
+      "required": true,
+      "analysisFields": [
+        "sampleId",
+        "visualAppearance",
+        "grainSizeOrTexture",
+        "colourDescription",
+        "supportedIndicators",
+        "limitationsAndUncertainty",
+        "playerInterpretation"
+      ],
+      "completionCondition": "Analysis record linked to the same sample ID is saved. Do not claim water, organics, microorganisms or life without supporting data."
+    },
+    {
+      "id": "SOL06_OBJ_11",
+      "title": "Initiate Soil Cultivation Experiment",
+      "description": "Load/register the analysed sample in the existing cultivation unit and start the experiment. It takes approximately two in-game Sols; result is not available in Sol 6.",
+      "zone": "Research Lab",
+      "type": "cultivation_experiment_start",
+      "required": true,
+      "cultivation": {
+        "unitSource": "existing_research_lab_cultivation_unit",
+        "sampleReference": "currentSol06SampleId",
+        "startSol": 6,
+        "expectedResultSol": 8,
+        "initialStatus": "IN_PROGRESS",
+        "finalResultAvailableDuringSol6": false,
+        "finalReportMission": "PHOBOSIA_SOL_08",
+        "timeBasis": "in_game_sol_progression"
+      },
+      "completionCondition": "Existing unit confirms a persisted experiment linked to the sample ID, status IN_PROGRESS, expected result Sol 8. Do not reveal a final result in Sol 6."
+    },
+    {
+      "id": "SOL06_OBJ_12",
+      "title": "Submit Surface Investigation Report",
+      "description": "Submit the report at the existing Mission Control reporting interface with target, field observations, sample provenance, preliminary analysis and cultivation marked pending until Sol 8.",
+      "zone": "Mission Control",
+      "type": "report_submission",
+      "required": true,
+      "completionCondition": "Report passes validation and references persisted sample/analysis records and pending experiment status."
+    },
+    {
+      "id": "SOL06_OBJ_13",
+      "title": "Complete Sol 6",
+      "description": "Complete Sol 6 after all mandatory objectives and report submission have been validated.",
+      "zone": "Mission Control",
+      "type": "mission_completion",
+      "required": true,
+      "completionCondition": "All mandatory objectives and report are complete; cultivation experiment is persisted for future Sol 8 retrieval."
+    }
+  ],
+  "navigation": {
+    "enabled": true,
+    "sourceOfTruth": "existing_navigation_system",
+    "destinationMode": "objective_based",
+    "navigationConfiguration": "Generate a separate Sol 6 navigation JSON using the project's existing navigation schema and actual scene mappings.",
+    "playerNavigation": {
+      "enabled": true,
+      "destinations": [
+        {
+          "id": "SOL06_NAV_MISSION_CONTROL",
+          "label": "Mission Control Main Console",
+          "zone": "Mission Control",
+          "purpose": "Review briefing and submit final report."
+        },
+        {
+          "id": "SOL06_NAV_RESEARCH_PREPARATION",
+          "label": "Research Lab Equipment Preparation",
+          "zone": "Research Lab",
+          "purpose": "Prepare available sample collection equipment."
+        },
+        {
+          "id": "SOL06_NAV_AIRLOCK",
+          "label": "Airlock EVA Preparation",
+          "zone": "Airlock",
+          "purpose": "Activate EVA before terrain entry and remove suit after return."
+        },
+        {
+          "id": "SOL06_NAV_SELECTED_TARGET",
+          "label": "Selected Investigation Target",
+          "zone": "Mars Terrain",
+          "purpose": "Reach the exact Sol 3 target for ground observations and sampling.",
+          "targetSource": "PHOBOSIA_SOL_03",
+          "targetReference": "selectedTargetId",
+          "mustResolveFromExistingTargetRegistry": true
+        },
+        {
+          "id": "SOL06_NAV_RESEARCH_ANALYSIS",
+          "label": "Research Lab Sample Analysis",
+          "zone": "Research Lab",
+          "purpose": "Register and analyse the collected sample."
+        },
+        {
+          "id": "SOL06_NAV_CULTIVATION",
+          "label": "Research Lab Cultivation Unit",
+          "zone": "Research Lab",
+          "purpose": "Start and verify the pending Sol 8 cultivation experiment."
+        },
+        {
+          "id": "SOL06_NAV_REPORT",
+          "label": "Mission Control Report Station",
+          "zone": "Mission Control",
+          "purpose": "Submit the Sol 6 report."
+        }
+      ],
+      "restrictions": [
+        "Resolve destinations from actual existing scene objects/configuration; never invent coordinates, transforms, screen IDs or trigger IDs.",
+        "Never expose internal screen names, trigger IDs or implementation identifiers to players.",
+        "Do not create duplicate destinations.",
+        "Destination arrival alone never completes an objective.",
+        "Selected target must resolve from the Sol 3 target registry.",
+        "Navigation must not teleport or auto-move the player."
+      ]
+    },
+    "surfaceNavigation": {
+      "enabled": true,
+      "mode": "manual_on_foot",
+      "targetSource": "PHOBOSIA_SOL_03",
+      "destination": "selectedTargetId",
+      "guidance": [
+        "selected_target_direction",
+        "selected_target_distance_if_available",
+        "selected_target_beacon",
+        "heading_guidance_if_supported"
+      ],
+      "beacon": {
+        "reuseExistingSol05TargetBeacon": true,
+        "appearance": "existing_high_visibility_red_or_red_orange_aerial_beacon",
+        "positionSource": "selected_target_actual_world_transform",
+        "visualGuidanceOnly": true,
+        "autopilot": false
+      },
+      "routeConstraints": [
+        "Use existing terrain navigation/collision behaviour.",
+        "Do not invent coordinates, distances, travel times or boundaries.",
+        "No teleportation or automatic movement.",
+        "Sol 6 must be completable on foot; do not require or create a rover."
+      ]
+    }
+  },
+  "fieldInvestigation": {
+    "targetSource": "PHOBOSIA_SOL_03",
+    "targetReference": "selectedTargetId",
+    "observationRecordsRequired": true,
+    "observationRecordFields": [
+      "targetId",
+      "sol",
+      "timestamp",
+      "locationReference",
+      "observationCategory",
+      "observationDescription",
+      "playerInterpretation",
+      "evidenceReferences",
+      "uncertainty"
+    ],
+    "sampleCollection": {
+      "enabled": true,
+      "sampleType": "soil_regolith",
+      "sampleCount": 1,
+      "sampleIdMustBeUnique": true,
+      "requiredFields": [
+        "sampleId",
+        "targetId",
+        "collectionSol",
+        "collectionLocationReference",
+        "sampleType",
+        "containerReference",
+        "collectionStatus",
+        "sealingStatus"
+      ],
+      "initialStatus": "COLLECTED_AND_SECURED",
+      "contaminationControl": [
+        "Identify sample and record origin.",
+        "Use existing available container/sealing interaction.",
+        "Record handling and limitations.",
+        "Do not claim sterile handling or certified planetary-protection compliance."
+      ],
+      "noDrillingOrMiningMechanics": true
+    }
+  },
+  "evaConfiguration": {
+    "useGlobalEVA": true,
+    "suitPreparationTrigger": "Mars_Observation_Preparation_Trigger",
+    "terrainEntranceTrigger": "Terrain_Entrance_Trigger",
+    "airlockEntranceAndSpawn": "existing_configured_airlock_transition",
+    "centralHubEntranceTrigger": "Central_Hub_Entrance_Trigger",
+    "rules": [
+      "Reuse global EVA system; do not create Sol-specific suit state, triggers or HUD.",
+      "Physical Mars terrain entry requires active suit.",
+      "Keep suit active during return and Airlock entry.",
+      "Remove suit only inside Airlock using existing interaction.",
+      "Never auto-remove suit at Central Hub entrance.",
+      "Preserve sample and mission progress through transition.",
+      "Drone simulation does not replace physical field investigation."
+    ]
+  },
+  "sampleHandling": {
+    "sampleType": "soil_regolith",
+    "sampleCount": 1,
+    "sampleIdSource": "existing_persistent_id_generation_convention",
+    "preserveSampleIdentityAcrossZones": true,
+    "requiredStates": [
+      "NOT_COLLECTED",
+      "COLLECTED_AND_SECURED",
+      "TRANSFERRED_TO_RESEARCH_LAB",
+      "ANALYSED",
+      "LOADED_INTO_CULTIVATION_UNIT"
+    ],
+    "noDuplicateSampleOnRefreshOrReentry": true
+  },
+  "cultivationExperiment": {
+    "enabled": true,
+    "unitSource": "existing_research_lab_cultivation_unit",
+    "sampleReference": "currentSol06SampleId",
+    "startSol": 6,
+    "expectedResultSol": 8,
+    "timeBasis": "in_game_sol_progression",
+    "initialStatus": "IN_PROGRESS",
+    "finalResultAvailableDuringSol6": false,
+    "futureResultMission": "PHOBOSIA_SOL_08",
+    "persistenceRequired": true,
+    "requiredPersistedFields": [
+      "experimentId",
+      "sampleId",
+      "cultivationUnitReference",
+      "startSol",
+      "expectedResultSol",
+      "status",
+      "configurationRecord",
+      "resultAvailability"
+    ],
+    "rules": [
+      "Starting the experiment completes only the Sol 6 initiation objective.",
+      "Use in-game Sol progression, not two real-world days.",
+      "Do not fabricate growth, biological activity, water, organics or life.",
+      "Do not generate a final report in Sol 6.",
+      "Persist exact experiment/sample records for future Sol 8 retrieval.",
+      "Do not implement Sol 8 objectives/results in this mission."
+    ]
+  },
+  "report": {
+    "reportId": "PHOBOSIA_SOL_06_REPORT",
+    "title": "Mars Surface Field Investigation Report",
+    "requiredSections": [
+      "Mission Overview",
+      "Selected Target Information",
+      "Prior Sol 4 and Sol 5 Investigation Context",
+      "Ground-Level Geological Observations",
+      "Field Observation Evidence and Limitations",
+      "Soil Sample Identification and Provenance",
+      "Sample Collection and Sealing Record",
+      "Airlock Return and Sample Transfer Record",
+      "Preliminary Laboratory Analysis",
+      "Analysis Limitations and Uncertainty",
+      "Cultivation Experiment Initiation Record",
+      "Cultivation Experiment Status and Expected Sol 8 Result",
+      "Recommendations for Sol 8 Follow-Up"
+    ],
+    "evidenceRequired": true,
+    "minimumEvidenceCount": 1,
+    "submissionRequired": true,
+    "mustReferencePersistentSampleId": true,
+    "mustRepresentCultivationAsPending": true
+  },
+  "completion": {
+    "allRequiredObjectivesMustBeCompleted": true,
+    "reportMustBeSubmitted": true,
+    "sampleMustBeCollectedAndAnalysed": true,
+    "cultivationExperimentMustBeStartedAndPersisted": true,
+    "cultivationFinalResultMustRemainPending": true,
+    "nextSol": 7,
+    "nextMission": "PHOBOSIA_SOL_07",
+    "nextMissionNotification": "show_only_after_successful_validation",
+    "doNotAutoStartNextSol": true
+  },
+  "missionCompletion": {
+    "requiredTasks": [
+      "SOL06_REVIEW_MISSION_BRIEFING",
+      "SOL06_PREPARE_FIELD_EQUIPMENT",
+      "SOL06_ACTIVATE_EVA_SESSION",
+      "SOL06_REACH_SELECTED_TARGET",
+      "SOL06_COMPLETE_FIELD_OBSERVATIONS",
+      "SOL06_COLLECT_SOIL_SAMPLE",
+      "SOL06_RETURN_TO_AIRLOCK",
+      "SOL06_REMOVE_EVA_SUIT",
+      "SOL06_TRANSFER_SAMPLE",
+      "SOL06_ANALYSE_SAMPLE",
+      "SOL06_START_CULTIVATION_EXPERIMENT",
+      "SOL06_SUBMIT_INVESTIGATION_REPORT"
+    ]
+  },
+  "dataIntegrity": {
+    "neverInventNASAObservations": true,
+    "neverPresentSimulatedReadingsAsRealMeasurements": true,
+    "preserveOriginalTargetSelection": true,
+    "preserveExistingPhysicalScreenConfiguration": true,
+    "preserveExistingMissionStateArchitecture": true,
+    "preserveExistingGlobalEVASystem": true,
+    "preserveSampleProvenanceAndIdentity": true,
+    "doNotFabricateCultivationResults": true,
+    "doNotModifySol01ToSol05": true
+  }
+}

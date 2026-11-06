@@ -1,0 +1,804 @@
+{
+  "project": "PHOBOSIA",
+  "zone": "MISSION_CONTROL",
+  "configVersion": "1.0.0-sol4",
+  "dataPolicy": {
+    "mode": "SIMULATED_DEMO",
+    "liveTelemetry": false,
+    "disclaimer": "SIMULATED MISSION DATA - NOT LIVE NASA TELEMETRY",
+    "scientificIntegrity": "Use scientifically plausible Mars mission values for demonstration. Do not present simulated readings as real NASA measurements.",
+    "units": {
+      "distance": "m",
+      "temperature": "°C",
+      "pressure": "kPa",
+      "power": "W",
+      "energy": "Wh",
+      "percentage": "%",
+      "time": "Sol / mission elapsed time"
+    }
+  },
+  "rendering": {
+    "rendererId": "MissionControlScreenRenderer",
+    "renderMode": "PHYSICAL_SCREEN",
+    "independentScreenRendering": true,
+    "fullscreenOSSeparation": true,
+    "screenContentSource": "JSON",
+    "updateStrategy": "UPDATE_CHANGED_CONTENT_ONLY",
+    "textureStrategy": "REUSE_CANVAS_TEXTURES",
+    "allowScreenSpecificOrientation": true,
+    "preserveBlenderMeshNames": true,
+    "fallbackOnMissingData": "SHOW_DIAGNOSTIC_PLACEHOLDER",
+    "fallbackOnMissingMesh": "LOG_ERROR_AND_CONTINUE"
+  },
+  "visualTheme": {
+    "style": "NASA_INSPIRED_MARS_MISSION_CONTROL",
+    "background": "#08111B",
+    "panelBackground": "#101D2A",
+    "primaryText": "#E7F0F7",
+    "secondaryText": "#8FA8BC",
+    "accent": "#E5A04B",
+    "success": "#5BC69A",
+    "warning": "#F0BD55",
+    "critical": "#F16B66",
+    "grid": "#24394B",
+    "fontFamily": "monospace",
+    "avoidExcessiveAnimation": true,
+    "avoidNeonEffects": true,
+    "highContrast": true
+  },
+  "globalLayout": {
+    "headerHeightRatio": 0.14,
+    "footerHeightRatio": 0.09,
+    "outerPaddingRatio": 0.035,
+    "panelGapRatio": 0.025,
+    "minimumTextScale": 0.65,
+    "showScreenTitle": true,
+    "showMissionSol": true,
+    "showSimulationIndicator": true,
+    "showTimestamp": true,
+    "showStatusLegendWhenRelevant": true
+  },
+  "orientationDefaults": {
+    "mirrorHorizontal": false,
+    "mirrorVertical": false,
+    "rotationDegrees": 0,
+    "useConfiguredOrientationOnlyWhenVerified": true,
+    "allowPerScreenOverride": true,
+    "doNotGuessBlenderTransform": true
+  },
+  "missionContext": {
+    "sol": 4,
+    "region": "Elysium Planitia",
+    "targetSelectionSource": "PHOBOSIA_SOL_03 persistent selectedSiteId",
+    "dataPolicy": "Only project records are represented; unverified coordinates and observations remain unavailable."
+  },
+  "sections": [
+    {
+      "sectionId": "SECTION_01",
+      "sectionName": "MISSION_OVERVIEW_AND_OBJECTIVES",
+      "purpose": "Mission planning, objective tracking, and high-level outpost awareness."
+    },
+    {
+      "sectionId": "SECTION_02",
+      "sectionName": "COMMUNICATIONS_AND_SYSTEMS",
+      "purpose": "Communication link status, subsystem health, and operational alerts."
+    },
+    {
+      "sectionId": "SECTION_03",
+      "sectionName": "DRONE_AND_TERRAIN_OPERATIONS",
+      "purpose": "Drone coordination, observation-site selection, and terrain awareness."
+    }
+  ],
+  "screens": [
+    {
+      "screenId": "MC_OBJECTIVES",
+      "meshName": "MissionControl_ObjectivesScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "MISSION_PLANNING",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show the current mission objective, progress, completion criteria, and next available action.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1000
+      },
+      "content": {
+        "header": {
+          "title": "SELECTED TARGET INVESTIGATION",
+          "subtitle": "SOL 04 ? CURRENT OBJECTIVE",
+          "status": "MISSION ACTIVE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "current_sol",
+            "label": "CURRENT SOL",
+            "fallback": 4,
+            "unit": "SOL"
+          },
+          {
+            "id": "completed_objectives",
+            "label": "TASKS COMPLETE",
+            "fallback": 0,
+            "unit": "TASKS"
+          },
+          {
+            "id": "objective_progress",
+            "label": "MISSION PROGRESS",
+            "fallback": 0,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "active_objective",
+            "type": "OBJECTIVE_CARD",
+            "title": "ACTIVE MISSION",
+            "fallback": {
+              "name": "Investigate the Sol 3 selected target",
+              "description": "Review the saved target, dataset limitations, and prepare the grounded drone for Sol 5.",
+              "status": "IN_PROGRESS",
+              "progressPercent": 0
+            }
+          },
+          {
+            "id": "objective_checklist",
+            "type": "CHECKLIST",
+            "title": "REQUIRED ACTIVITIES",
+            "fallback": []
+          },
+          {
+            "id": "upcoming_objectives",
+            "type": "SCHEDULE_LIST",
+            "title": "MISSION PHASES",
+            "fallback": []
+          }
+        ],
+        "footer": {
+          "left": "PHOBOSIA MISSION RECORDS ? UNVERIFIED VALUES MARKED UNAVAILABLE",
+          "right": "SOL 04"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OUTPOST_STATUS",
+      "meshName": "MissionControl_OutpostStatusScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "OUTPOST_HEALTH",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Provide a high-level operational picture of habitat, power, environmental control, research, and rover availability.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "OUTPOST STATUS",
+          "subtitle": "SOL 04 ? INVESTIGATION SUPPORT",
+          "status": "NO LIVE TELEMETRY"
+        },
+        "panels": [
+          {
+            "id": "system-status",
+            "type": "COMPONENT_STATUS",
+            "title": "RELEVANT SYSTEM STATUS",
+            "fallback": [
+              {
+                "name": "Mission Control",
+                "status": "AVAILABLE",
+                "details": "Planning interface"
+              },
+              {
+                "name": "Research Lab",
+                "status": "AVAILABLE",
+                "details": "Dataset review interface"
+              },
+              {
+                "name": "Drone telemetry",
+                "status": "UNAVAILABLE",
+                "details": "No Sol 4 telemetry"
+              }
+            ]
+          },
+          {
+            "id": "operational-alerts",
+            "type": "ALERT_LIST",
+            "title": "DATA LIMITATIONS",
+            "fallback": [
+              {
+                "severity": "WARNING",
+                "message": "Target coordinates and target-specific orbital products unavailable."
+              },
+              {
+                "severity": "INFO",
+                "message": "Sol 4 does not include drone flight."
+              }
+            ]
+          },
+          {
+            "id": "resource-status",
+            "type": "RESOURCE_BARS",
+            "title": "MISSION READINESS",
+            "fallback": []
+          }
+        ],
+        "footer": {
+          "left": "PHOBOSIA MISSION STATE ? NOT LIVE TELEMETRY"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OVERVIEW",
+      "meshName": "MissionControl_OverviewScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "MISSION_OVERVIEW",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show a unified mission snapshot combining timeline, science progress, asset readiness, and the next major milestone.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "SOL 4 MISSION CONTEXT",
+          "subtitle": "TARGET INVESTIGATION ? ELYSIUM PLANITIA",
+          "status": "ACTIVE"
+        },
+        "panels": [
+          {
+            "id": "mission_timeline",
+            "type": "TIMELINE",
+            "title": "MISSION SEQUENCE",
+            "fallback": [
+              {
+                "sol": 3,
+                "title": "Target selected",
+                "status": "COMPLETE"
+              },
+              {
+                "sol": 4,
+                "title": "Investigate and prepare",
+                "status": "CURRENT"
+              },
+              {
+                "sol": 5,
+                "title": "Aerial reconnaissance",
+                "status": "UPCOMING"
+              }
+            ]
+          },
+          {
+            "id": "mission_subsystems",
+            "type": "STATUS_MATRIX",
+            "title": "EVIDENCE STATUS",
+            "fallback": [
+              {
+                "name": "Target identity",
+                "status": "AVAILABLE",
+                "summary": "PHOBOSIA catalogue"
+              },
+              {
+                "name": "NASA products",
+                "status": "UNAVAILABLE",
+                "summary": "No target coordinates"
+              },
+              {
+                "name": "Terrain data",
+                "status": "UNAVAILABLE",
+                "summary": "No matched measurements"
+              }
+            ]
+          },
+          {
+            "id": "next_milestone",
+            "type": "STATUS_CARD",
+            "title": "NEXT MILESTONE",
+            "fallback": {
+              "priority": "MISSION",
+              "status": "SOL 5 PREPARATION",
+              "message": "Use the saved Sol 3 selection; submit preparation report before rest."
+            }
+          }
+        ],
+        "footer": {
+          "left": "MISSION CONFIGURATION AND SAVED PLAYER RECORDS",
+          "right": "SOL 04"
+        }
+      }
+    },
+    {
+      "screenId": "MC_COMMUNICATIONS",
+      "meshName": "MissionControl_CommunicationsScreen",
+      "sectionId": "SECTION_02",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "COMMUNICATIONS",
+      "dimensionsMeters": {
+        "x": 4.0375,
+        "y": null,
+        "z": 2.12675
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Monitor communication links, message queues, signal quality, and simulated communication events.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "COMMUNICATIONS REVIEW",
+          "subtitle": "SOL 04 ? AVAILABLE RECORDS",
+          "status": "SOURCE DATA ONLY"
+        },
+        "panels": [
+          {
+            "id": "communications-records",
+            "type": "DATA_TABLE",
+            "title": "RECORDED CONSTRAINTS",
+            "columns": [
+              "NAME",
+              "DETAIL",
+              "STATUS"
+            ],
+            "fallback": [
+              {
+                "name": "Target link",
+                "target": "No target-specific record",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "name": "Communication limits",
+                "target": "No Sol 3/4 measurement",
+                "status": "UNAVAILABLE"
+              }
+            ]
+          },
+          {
+            "id": "communications-events",
+            "type": "EVENT_FEED",
+            "title": "RECORD PROVENANCE",
+            "fallback": [
+              {
+                "time": "SOL 04",
+                "severity": "WARNING",
+                "message": "No target-specific communications or orbital observation record is supplied."
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "NO COMMUNICATION PERFORMANCE CLAIMS"
+        }
+      }
+    },
+    {
+      "screenId": "MC_SYSTEMS",
+      "meshName": "MissionControl_SystemsScreen",
+      "sectionId": "SECTION_02",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "SYSTEMS_HEALTH",
+      "dimensionsMeters": {
+        "x": 4.0375,
+        "y": null,
+        "z": 2.12675
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Display subsystem health, power distribution, thermal conditions, fault history, and maintenance needs.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "OPERATIONAL SYSTEMS",
+          "subtitle": "SOL 04 ? PLANNING CONSTRAINTS",
+          "status": "READ ONLY"
+        },
+        "panels": [
+          {
+            "id": "systems-status",
+            "type": "COMPONENT_STATUS",
+            "title": "AVAILABLE INFORMATION",
+            "fallback": [
+              {
+                "name": "Selected site metadata",
+                "status": "AVAILABLE",
+                "details": "PHOBOSIA planning catalogue"
+              },
+              {
+                "name": "NASA target coverage",
+                "status": "UNAVAILABLE",
+                "details": "No georeferenced target"
+              },
+              {
+                "name": "Drone telemetry",
+                "status": "UNAVAILABLE",
+                "details": "Not exposed on Sol 4"
+              }
+            ]
+          },
+          {
+            "id": "operational-constraints",
+            "type": "DATA_TABLE",
+            "title": "KNOWN LIMITATIONS",
+            "columns": [
+              "NAME",
+              "DETAIL",
+              "STATUS"
+            ],
+            "fallback": [
+              {
+                "name": "Target coordinates",
+                "target": "Unavailable",
+                "status": "UNKNOWN"
+              },
+              {
+                "name": "Terrain measurements",
+                "target": "Unavailable",
+                "status": "UNKNOWN"
+              },
+              {
+                "name": "Drone flight",
+                "target": "Reserved for Sol 5",
+                "status": "NOT TODAY"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "SOURCE-LIMITED PLANNING DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_DRONE_OPERATIONS",
+      "meshName": "MissionControl_DroneOperationScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "DRONE_OPERATIONS",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show drone readiness, battery, mission assignment, navigation progress, and recent flight events.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1000
+      },
+      "content": {
+        "header": {
+          "title": "SOL 5 DRONE MISSION PREPARATION",
+          "subtitle": "SOL 4 INSPECTION ? GROUNDED",
+          "status": "PREPARATION ONLY"
+        },
+        "panels": [
+          {
+            "id": "drone_mission",
+            "type": "STATUS_CARD",
+            "title": "MISSION PREPARATION",
+            "fallback": {
+              "priority": "SOL 5",
+              "status": "PLAN PENDING",
+              "message": "Use the Sol 3 selected target; define objectives and constraints. No flight or aerial data exists yet."
+            }
+          },
+          {
+            "id": "drone_systems",
+            "type": "COMPONENT_STATUS",
+            "title": "INSPECTION AND READINESS",
+            "fallback": [
+              {
+                "name": "Physical inspection",
+                "status": "NOT RECORDED",
+                "details": "Requires physical interaction."
+              },
+              {
+                "name": "Battery / motor / camera",
+                "status": "UNAVAILABLE",
+                "details": "No verified values."
+              }
+            ]
+          },
+          {
+            "id": "flight_events",
+            "type": "EVENT_FEED",
+            "title": "FLIGHT RECORD",
+            "fallback": [
+              {
+                "time": "SOL 4",
+                "severity": "INFO",
+                "message": "No flight or image capture has occurred."
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "NO REMOTE CONTROL ? NO INVENTED TELEMETRY"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OBSERVATION_SITES",
+      "meshName": "MissionControl_ObservationSitesScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "OBSERVATION_PLANNING",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "List observation locations, scientific objectives, access status, and collected evidence.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "SELECTED TARGET INVESTIGATION",
+          "subtitle": "TARGET FROM SOL 3 PERSISTENT MISSION STATE",
+          "status": "NO TARGET RESELECTION"
+        },
+        "primaryMetrics": [
+          {
+            "id": "candidate-count",
+            "label": "CANDIDATES",
+            "value": 3,
+            "unit": "SITES"
+          },
+          {
+            "id": "coordinate-status",
+            "label": "MARS COORDINATES",
+            "value": "UNAVAILABLE"
+          },
+          {
+            "id": "history-status",
+            "label": "NASA RECORDS",
+            "value": "UNMATCHED"
+          }
+        ],
+        "panels": [
+          {
+            "id": "site_registry",
+            "type": "DATA_TABLE",
+            "title": "SELECTED TARGET",
+            "columns": [
+              "NAME",
+              "DETAIL",
+              "STATUS"
+            ],
+            "fallback": [
+              {
+                "name": "Selected target",
+                "target": "Resolved from saved Sol 3 selection",
+                "status": "DYNAMIC"
+              }
+            ]
+          },
+          {
+            "id": "selected_site",
+            "type": "STATUS_CARD",
+            "title": "TARGET SUMMARY",
+            "fallback": {
+              "priority": "MISSION RECORD",
+              "status": "RESOLVED FROM SOL 3",
+              "message": "Target details, provenance, and limitations follow the existing Sol 3 selection."
+            }
+          },
+          {
+            "id": "site_notes",
+            "type": "EVENT_FEED",
+            "title": "HISTORICAL OBSERVATIONS",
+            "fallback": [
+              {
+                "time": "DATA",
+                "severity": "WARNING",
+                "message": "No target-specific NASA observations can be matched without target coordinates."
+              }
+            ]
+          },
+          {
+            "id": "target_imagery",
+            "type": "IMAGE_GALLERY",
+            "title": "SELECTED TARGET IMAGERY",
+            "images": [],
+            "emptyMessage": "No Sol 3 target selection is available in persistent mission state."
+          }
+        ],
+        "footer": {
+          "left": "PROJECT IMAGES ? INSTRUMENT / ACQUISITION METADATA UNAVAILABLE"
+        }
+      }
+    },
+    {
+      "screenId": "MC_TERRAIN_MAP",
+      "meshName": "MissionControl_TerrainMapScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "TERRAIN_INTELLIGENCE",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Display a compact terrain overview, navigation markers, elevation information, and rover/drone routes.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "TERRAIN EVIDENCE",
+          "subtitle": "NO GEOGRAPHICALLY MATCHED TERRAIN LAYER",
+          "status": "MEASUREMENTS UNAVAILABLE"
+        },
+        "panels": [
+          {
+            "id": "terrain_overview",
+            "type": "STATUS_CARD",
+            "title": "TERRAIN DATA AVAILABILITY",
+            "fallback": {
+              "priority": "DATA LIMIT",
+              "status": "UNAVAILABLE",
+              "message": "No target-matched elevation model, slope map, LiDAR product, obstacle inventory, or georeferenced layer is integrated."
+            }
+          },
+          {
+            "id": "route_summary",
+            "type": "STATUS_CARD",
+            "title": "LOCATION / TRAVERSAL",
+            "fallback": {
+              "priority": "PLANNING ONLY",
+              "status": "NOT MEASURED",
+              "message": "Scene coordinates are game units, not Mars geography. Target distance and traversal corridor are unavailable."
+            }
+          },
+          {
+            "id": "terrain_features",
+            "type": "DATA_TABLE",
+            "title": "EVIDENCE CHECK",
+            "columns": [
+              "NAME",
+              "DETAIL",
+              "STATUS"
+            ],
+            "fallback": [
+              {
+                "name": "Elevation / slope",
+                "target": "No matched dataset",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "name": "Rocks / obstacles",
+                "target": "No verified inventory",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "name": "Drone visibility",
+                "target": "Not assessed",
+                "status": "UNKNOWN"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "NO TERRAIN MEASUREMENTS INFERRED"
+        }
+      }
+    }
+  ],
+  "rendererRules": {
+    "screenRegistration": "Register each screen by its exact meshName and screenId.",
+    "dataBinding": "Resolve source paths safely. If unavailable, render the configured fallback and log a development warning.",
+    "panelRendering": "Implement a panel-type registry. Unsupported panel types must render a readable fallback rather than a blank screen.",
+    "supportedPanelTypes": [
+      "OBJECTIVE_CARD",
+      "CHECKLIST",
+      "SCHEDULE_LIST",
+      "COMPONENT_STATUS",
+      "RESOURCE_BARS",
+      "ALERT_LIST",
+      "STATUS_MATRIX",
+      "TIMELINE",
+      "STATUS_CARD",
+      "DATA_TABLE",
+      "EVENT_FEED",
+      "TERRAIN_MINIMAP"
+    ],
+    "terrainMinimap": "If no map-rendering implementation exists, render a compact schematic from application terrain data or a labeled placeholder. Do not fabricate an actual terrain image.",
+    "orientation": "Apply per-screen mirror and rotation settings exactly once. Verify texture orientation against Blender UVs before introducing corrective flips.",
+    "materialAssignment": "Use the intended screen surface material; do not replace unrelated module materials.",
+    "textureUpdates": "Reuse CanvasTexture or equivalent resources where practical. Set texture.needsUpdate only when content changes.",
+    "interaction": "Screens are informational unless an existing application interaction explicitly enables controls.",
+    "errors": "A failed screen must not stop other screens from rendering."
+  },
+  "performance": {
+    "targetHardware": "NVIDIA MX350 2GB VRAM, 12GB RAM",
+    "avoidFullSceneRerenderForScreenUpdates": true,
+    "reuseCanvasAndMaterials": true,
+    "avoidUnboundedAnimationLoops": true,
+    "disposeReplacedTextures": true,
+    "limitFrequentTextRedraws": true,
+    "useLowCostCharts": true
+  },
+  "version": 7,
+  "sol": 7,
+  "missionId": "PHOBOSIA_SOL_07",
+  "dataMode": "SOL_07_ASSESSMENT",
+  "sol7AssessmentOnly": true
+}
