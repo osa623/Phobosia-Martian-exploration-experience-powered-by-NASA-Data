@@ -9,6 +9,14 @@
       "extension": "mp3"
     },
     {
+      "id": "songs/BEYOND THE RED HORIZON.mp3",
+      "fileName": "BEYOND THE RED HORIZON.mp3",
+      "title": "BEYOND THE RED HORIZON",
+      "url": "/assets/laptop/songs/BEYOND%20THE%20RED%20HORIZON.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
       "id": "songs/Built From the Ground.mp3",
       "fileName": "Built From the Ground.mp3",
       "title": "Built From the Ground",
@@ -29,6 +37,14 @@
       "fileName": "Dancing Into Your Heart.mp3",
       "title": "Dancing Into Your Heart",
       "url": "/assets/laptop/songs/Dancing%20Into%20Your%20Heart.mp3",
+      "mimeType": "audio/mpeg",
+      "extension": "mp3"
+    },
+    {
+      "id": "songs/Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop.mp3",
+      "fileName": "Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop.mp3",
+      "title": "Jothi Nonstop With Sahara Flash තුෂාර Jo ගේ හඩින් ජෝති Nonstop #sampathvideo #jothinonstop",
+      "url": "/assets/laptop/songs/Jothi%20Nonstop%20With%20Sahara%20Flash%20%E0%B6%AD%E0%B7%94%E0%B7%82%E0%B7%8F%E0%B6%BB%20Jo%20%E0%B6%9C%E0%B7%9A%20%E0%B7%84%E0%B6%A9%E0%B7%92%E0%B6%B1%E0%B7%8A%20%E0%B6%A2%E0%B7%9D%E0%B6%AD%E0%B7%92%20Nonstop%20%23sampathvideo%20%23jothinonstop.mp3",
       "mimeType": "audio/mpeg",
       "extension": "mp3"
     },
@@ -67,6 +83,14 @@
   ],
   "images": [
     {
+      "id": "images/343758621_182597038053490_4712607881301169986_n.jpg",
+      "fileName": "343758621_182597038053490_4712607881301169986_n.jpg",
+      "title": "343758621 182597038053490 4712607881301169986 n",
+      "url": "/assets/laptop/images/343758621_182597038053490_4712607881301169986_n.jpg",
+      "mimeType": "image/jpeg",
+      "extension": "jpg"
+    },
+    {
       "id": "images/ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
       "fileName": "ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
       "title": "ChatGPT Image Sep 25, 2026, 03 41 47 PM",
@@ -81,6 +105,14 @@
       "fileName": "camera001.png",
       "title": "camera001",
       "url": "/assets/laptop/wallpaper/camera001.png",
+      "mimeType": "image/png",
+      "extension": "png"
+    },
+    {
+      "id": "wallpaper/ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
+      "fileName": "ChatGPT Image Sep 25, 2026, 03_41_47 PM.png",
+      "title": "ChatGPT Image Sep 25, 2026, 03 41 47 PM",
+      "url": "/assets/laptop/wallpaper/ChatGPT%20Image%20Sep%2025%2C%202026%2C%2003_41_47%20PM.png",
       "mimeType": "image/png",
       "extension": "png"
     }
