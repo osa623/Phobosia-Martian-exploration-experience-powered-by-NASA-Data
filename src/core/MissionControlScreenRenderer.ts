@@ -26,6 +26,7 @@ import { reprojectPlanarUVs } from "./Collision";
 import { DAYS_CONFIG, getMissionTaskProgressFor, type MissionDayNumber } from "./MissionManager";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import sol03Mission from "../jsons/Missions/sol-03.json";
+import { getPreparedAssetUrl } from "./AssetLoading";
 import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
 import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 
@@ -1044,7 +1045,7 @@ export class MissionControlScreenRenderer {
       ctx.font = "8px monospace";
       ctx.fillText((item.label || "IMAGE").slice(0, Math.max(10, Math.floor(cellW / 5.5))), cx + 2, cy + 10);
       if (!item.src || typeof Image === "undefined") return;
-      const src = item.src;
+        const src = getPreparedAssetUrl(item.src);
       let image = this.imageCache.get(src);
       if (!image) {
         image = new Image();
