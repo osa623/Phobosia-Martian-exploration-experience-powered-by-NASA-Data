@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
 import { MASTER_TERRAIN_TARGETS } from "@/core/MissionManager";
+import { getPreparedAssetUrl } from "@/core/AssetLoading";
 
 const panel = "rounded-xl border border-[#293f4a] bg-[#0b1721] p-4";
 const field = "w-full rounded-lg border border-[#314a56] bg-[#08131b] px-3 py-2 font-dm-sans text-sm text-[#dce8ec] outline-none focus:border-[#62a9b8]";
@@ -63,7 +64,7 @@ export function Sol5MissionPanel({ game, state }: { game: Game | null; state: Ga
     {saved?.evidenceLoaded && <section className={panel}>
       <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="font-mono text-[9px] tracking-[.12em] text-[#c88855]">TARGET-DEPENDENT / MISSION-PROVIDED EVIDENCE</div><h3 className="mt-1 text-lg text-[#ecf2f4]">{target?.name ?? targetId} Image Review</h3></div><span className="rounded border border-[#42624c] bg-[#12231a] px-2 py-1 font-mono text-[9px] text-[#9dd1b3]">{orderedImages.length} FILES · {saved.targetInspected ? "INSPECTION VERIFIED" : "UNRESOLVED"}</span></div>
       <p className="mt-2 text-[11px] leading-5 text-[#96aab3]">These supplied assets are associated with the submitted target. They are not represented as images captured by the drone, and no capture timestamps or sensor metadata are assigned.</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{orderedImages.map(image => <article key={image.id} className="overflow-hidden rounded-lg border border-[#263c47] bg-[#08141c]">{unavailableAssets.has(image.id) ? <div className="grid aspect-video place-items-center bg-[#211713] p-4 text-center text-xs text-[#e6b99c]">This selected-target file is unavailable. No other target's image was substituted.</div> : <img src={image.assetPath} alt={`${target?.name ?? "Selected target"} mission-provided evidence`} className="aspect-video w-full bg-black object-contain" loading="lazy" onError={() => setUnavailableAssets(previous => new Set(previous).add(image.id))} />}<div className="space-y-1 p-3 text-[10px] text-[#a9bbc2]"><div className="font-mono text-[#d7e6eb]">EVIDENCE {String(image.sequence).padStart(2, "0")}</div><div>Target: {image.targetId}</div><div className="break-all">Source asset: {image.fileName}</div></div></article>)}</div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{orderedImages.map(image => <article key={image.id} className="overflow-hidden rounded-lg border border-[#263c47] bg-[#08141c]">{unavailableAssets.has(image.id) ? <div className="grid aspect-video place-items-center bg-[#211713] p-4 text-center text-xs text-[#e6b99c]">This selected-target file is unavailable. No other target's image was substituted.</div> : <img src={getPreparedAssetUrl(image.assetPath)} alt={`${target?.name ?? "Selected target"} mission-provided evidence`} className="aspect-video w-full bg-black object-contain" loading="lazy" onError={() => setUnavailableAssets(previous => new Set(previous).add(image.id))} />}<div className="space-y-1 p-3 text-[10px] text-[#a9bbc2]"><div className="font-mono text-[#d7e6eb]">EVIDENCE {String(image.sequence).padStart(2, "0")}</div><div>Target: {image.targetId}</div><div className="break-all">Source asset: {image.fileName}</div></div></article>)}</div>
       {unavailableAssets.size > 0 && <p className="mt-2 text-xs text-[#e6b99c]">Evidence review is blocked until the listed files are available. No fallback target imagery will be used.</p>}
       {flight?.landed && !saved.imagesReviewed && <button disabled={!orderedImages.length || unavailableAssets.size > 0 || orderedImages.some(image => image.targetId !== targetId)} onClick={() => game?.confirmSol5ImageReview()} className="mt-4 rounded-lg border border-[#638394] bg-[#18323d] px-4 py-2 text-xs text-[#dbedf1] enabled:hover:bg-[#204451] disabled:opacity-45">Confirm evidence review</button>}
       {saved.imagesReviewed && <p className="mt-3 text-xs text-[#9dd1b3]">Evidence review validated for the official target.</p>}

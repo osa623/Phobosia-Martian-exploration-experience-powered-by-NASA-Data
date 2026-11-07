@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
 import { DAYS_CONFIG, type MissionDayNumber } from "@/core/MissionManager";
+import { getPreparedAssetUrl } from "@/core/AssetLoading";
 import { getScreenConfigForSol } from "@/core/ScreenConfigRegistry";
 import { MissionInvestigationPanel } from "@/systems/investigation/InvestigationForm";
 import habitatLegacy from "@/jsons/Screens/habitatScreenData.json";
@@ -88,7 +89,7 @@ function TriggerScreenView({ record, location, dataMode, showSol3TargetGallery =
     {expandedImage && <div role="dialog" aria-modal="true" aria-label={`${expandedImage.target}: ${expandedImage.label}`} className="[position:fixed] [inset:0] [z-index:90] [display:grid] [place-items:center] [background:rgba(0,_0,_0,_0.94)] [padding:20px]" onClick={() => setExpandedImage(null)}>
       <div className="[width:min(1200px,_96vw)] [max-height:94vh] [overflow:auto] [border:1px_solid_#456272] [border-radius:10px] [background:#07111b] [padding:14px]" onClick={event => event.stopPropagation()}>
         <div className="[display:flex] [justify-content:space-between] [align-items:center] [gap:12px] [padding-bottom:10px]"><div><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.12em]">{expandedImage.target}</div><h3 className="[margin:3px_0_0] [color:#f1f6f8] [font-size:16px]">{expandedImage.label}</h3></div><button type="button" className="[border:1px_solid_#456272] [border-radius:5px] [background:#101d28] [padding:7px_11px] [color:#d9e7eb]" onClick={() => setExpandedImage(null)}>Close</button></div>
-        <img src={encodeURI(expandedImage.src)} alt={`${expandedImage.target} — ${expandedImage.label}`} className="[display:block] [max-width:100%] [max-height:78vh] [margin:auto] [object-contain]" />
+        <img src={getPreparedAssetUrl(encodeURI(expandedImage.src))} alt={`${expandedImage.target} — ${expandedImage.label}`} className="[display:block] [max-width:100%] [max-height:78vh] [margin:auto] [object-contain]" />
       </div>
     </div>}
     <details className="[border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:9px]"><summary className="[cursor:pointer] [color:#55cde8] [font-size:12px]">Record details and limitations</summary><dl className="[display:grid] [grid-template-columns:150px_1fr] [gap:6px] [font-size:11px]"><dt>Source log ID</dt><dd>Not provided by this display configuration</dd><dt>Source</dt><dd>PHOBOSIA display configuration</dd><dt>Data provenance</dt><dd>{dataMode}</dd><dt>Observed at</dt><dd>Timestamp unavailable in source configuration</dd><dt>Reference limits</dt><dd>Unavailable unless shown in the measurement record</dd><dt>Technical interpretation</dt><dd>No diagnosis is inferred from a display snapshot</dd><dt>Follow-up</dt><dd>Use the section-specific inspection workflow if one is available</dd></dl></details>
@@ -98,7 +99,7 @@ function TriggerScreenView({ record, location, dataMode, showSol3TargetGallery =
 function TargetImagePreview({ targetLabel, label, src, onInspect }: { targetLabel: string; label: string; src: string; onInspect: (image: { target: string; label: string; src: string }) => void }) {
   const [failed, setFailed] = useState(false);
   return <button type="button" className="[display:block] [overflow:hidden] [border:1px_solid_rgba(85,_205,_232,_0.18)] [border-radius:7px] [background:#101d28] [text-align:left] [cursor:zoom-in]" onClick={() => onInspect({ target: targetLabel, label, src })} aria-label={`Expand ${targetLabel}, ${label}`}>
-    {failed ? <div className="[display:grid] [min-height:160px] [place-items:center] [padding:10px] [color:#d2b47e] [font-size:11px]">Image unavailable at its configured project path.</div> : <img src={encodeURI(src)} alt={`${targetLabel} — ${label}`} loading="lazy" onError={() => setFailed(true)} className="[display:block] [width:100%] [height:190px] [background:#050a0e] [object-contain]" />}
+    {failed ? <div className="[display:grid] [min-height:160px] [place-items:center] [padding:10px] [color:#d2b47e] [font-size:11px]">Image unavailable at its configured project path.</div> : <img src={getPreparedAssetUrl(encodeURI(src))} alt={`${targetLabel} — ${label}`} loading="lazy" onError={() => setFailed(true)} className="[display:block] [width:100%] [height:190px] [background:#050a0e] [object-contain]" />}
     <span className="[display:block] [padding:8px] [color:#d8e5ea] [font-size:11px]">{label}</span>
   </button>;
 }
