@@ -1,3 +1,5 @@
+import { getPreparedAssetUrl, getPreparedAudioElement } from "./AssetLoading";
+
 export type AudioLoop = {
   loop: boolean;
   volume: number;
@@ -36,7 +38,7 @@ export class GameAudioManager {
   private droneActive = false;
   private marsTerrainActive = false;
 
-  constructor(createAudio: (src: string) => AudioLoop = src => new Audio(src)) {
+  constructor(createAudio: (src: string) => AudioLoop = src => getPreparedAudioElement(src) ?? new Audio(getPreparedAssetUrl(src))) {
     const makeLoop = (key: AudioKey, filename: string, volume: number) => {
       const audio = createAudio(`/assets/sounds/${filename}`);
       audio.loop = true;

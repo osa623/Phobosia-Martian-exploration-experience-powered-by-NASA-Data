@@ -28,6 +28,7 @@ import { DAYS_CONFIG, type MissionDayNumber } from "./MissionManager";
 import { type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import sol03Mission from "../jsons/Missions/sol-03.json";
 import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
+import { getPreparedAssetUrl } from "./AssetLoading";
 
 export interface ResearchScreenPanel {
   id?: string;
@@ -598,7 +599,7 @@ export class ResearchScreenRenderer {
             binding.texture.needsUpdate = true;
           }
         };
-        image.src = item.src;
+        image.src = getPreparedAssetUrl(item.src);
       }
       if (!image.complete) return;
       if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {

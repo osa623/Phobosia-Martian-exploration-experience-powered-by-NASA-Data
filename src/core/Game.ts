@@ -1,7 +1,6 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { assetPaths, screenActions } from "./Discovery";
+import { clonePreparedModel, getPreparedEXR, isPreparedAsset } from "./AssetLoading";
 import { Player } from "./Player";
 import type { GameState, SetState } from "./EventBus";
 import { buildCentralHubColliders, buildCentralHubOrientedColliders, orientedBoxContainsPoint, type OrientedBoxCollider, buildCentralHubCylinderColliders, verticalCylinderContainsPoint, type VerticalCylinderCollider, buildScienceLabColliders, buildCustomColliderSections, buildHabitatColliderSection, buildDroneSectionColliders, buildTerrainBuildingColliders, buildNamedSceneColliders, segmentHitsAnyBox, getSurfaceHeight, buildInteriorColliders, removeSpawnOverlaps } from "./Collision";
@@ -433,9 +432,8 @@ export class Game {
 
   private async loadEnvironment() {
     try {
-      const source = await new EXRLoader().loadAsync(DAYTIME_EXR_URL);
+      const source = getPreparedEXR(DAYTIME_EXR_URL);
       if (this.disposed) {
-        source.dispose();
         return;
       }
       // Store source texture for sky background (equirectangular mapping)
@@ -451,9 +449,8 @@ export class Game {
     }
 
     try {
-      const source = await new EXRLoader().loadAsync(NIGHTTIME_EXR_URL);
+      const source = getPreparedEXR(NIGHTTIME_EXR_URL);
       if (this.disposed) {
-        source.dispose();
         return;
       }
       source.mapping = THREE.EquirectangularReflectionMapping;
@@ -955,14 +952,8 @@ export class Game {
     if (!evidenceAssets?.length || evidenceAssets.some(asset => asset.targetId !== targetId)) {
       this.set({ sol5Message: "Simulation unavailable: verified mission-provided evidence for the official target is missing." }); return;
     }
-    try {
-      const responses = await Promise.all(evidenceAssets.map(asset => fetch(asset.assetPath, { method: "HEAD" })));
-      if (this.disposed) return;
-      if (responses.some(response => !response.ok || !response.headers.get("content-type")?.startsWith("image/"))) {
-        this.set({ sol5Message: "Simulation unavailable: one or more selected-target image files are missing or unsupported. No other target's imagery will be used." }); return;
-      }
-    } catch {
-      this.set({ sol5Message: "Simulation unavailable: selected-target image assets could not be verified." }); return;
+    if (evidenceAssets.some(asset => !isPreparedAsset(asset.assetPath))) {
+      this.set({ sol5Message: "Simulation unavailable: selected-target image assets were not prepared. No other target's imagery will be used." }); return;
     }
     this.raycaster.set(new THREE.Vector3(takeoff.x, 1000, takeoff.z), this.down);
     const takeoffGround = this.raycaster.intersectObject(terrainSurface, true)[0]?.point.y;
@@ -1694,36 +1685,10 @@ export class Game {
       report?.(100);
       return cached;
     }
-    const manager = new THREE.LoadingManager();
-    let bytes = 0, total = 0, itemsLoaded = 0, itemsTotal = 0;
-    const publish = () =>
-      report?.(total > 0 ? Math.min(99, Math.floor((bytes / total) * 100)) : itemsTotal ? Math.min(99, Math.floor((itemsLoaded / itemsTotal) * 100)) : null);
-
-    manager.onProgress = (_, loaded, count) => {
-      itemsLoaded = loaded;
-      itemsTotal = count;
-      publish();
-    };
-
-    const loader = new GLTFLoader(manager);
-    const gltf = await new Promise<Awaited<ReturnType<GLTFLoader["loadAsync"]>>>((resolve, reject) =>
-      loader.load(
-        assetPaths[module],
-        resolve,
-        event => {
-          if (event.lengthComputable) {
-            bytes = event.loaded;
-            total = event.total;
-          }
-          publish();
-        },
-        reject
-      )
-    );
-
-    this.loaded.set(module, gltf.scene);
+    const model = clonePreparedModel(assetPaths[module]);
+    this.loaded.set(module, model);
     report?.(100);
-    return gltf.scene;
+    return model;
   }
 
   private configureModule(model: THREE.Group, module: ModuleName) {
@@ -2927,24 +2892,36 @@ export class Game {
     this.screenRenderer.dispose();
     this.scene.environment = null;
     this.environmentTarget?.dispose();
-    this.environmentTexture?.dispose();
     this.nighttimeEnvironmentTarget?.dispose();
-    this.nighttimeEnvironmentTexture?.dispose();
 
-    this.loaded.forEach(root =>
+    this.loaded.forEach(root => {
+      const runtimeResources = new Set<THREE.BufferGeometry>();
+      const runtimeMaterials = new Set<THREE.Material>();
+      const disposedMaterials = new Set<THREE.Material>();
+      const runtimeGroup = root.getObjectByName("Runtime interaction indicators and lighting");
+      runtimeGroup?.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        runtimeResources.add(mesh.geometry);
+        for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) runtimeMaterials.add(material);
+      });
+      runtimeResources.forEach(geometry => geometry.dispose());
+      runtimeMaterials.forEach(material => material.dispose());
+      runtimeMaterials.forEach(material => disposedMaterials.add(material));
       root.traverse(o => {
         const light = o as THREE.SpotLight;
         if (light.isSpotLight && light.name.endsWith("_NightSpot")) light.shadow.map?.dispose();
         const directional = o as THREE.DirectionalLight;
         if (directional.isDirectionalLight && directional.name === "MarsSun_DirectionalLight") directional.shadow.map?.dispose();
         const mesh = o as THREE.Mesh;
-        mesh.geometry?.dispose();
-        const material = mesh.material;
-        for (const item of material ? (Array.isArray(material) ? material : [material]) : []) {
-          item.dispose();
+        if (!mesh.isMesh) return;
+        if (!runtimeResources.has(mesh.geometry)) {
+          for (const item of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+            if (!disposedMaterials.has(item)) { item.dispose(); disposedMaterials.add(item); }
+          }
         }
-      })
-    );
+      });
+    });
 
     this.renderer.dispose();
     this.renderer.domElement.remove();

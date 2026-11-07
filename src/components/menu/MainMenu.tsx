@@ -1,11 +1,9 @@
 ﻿"use client";
 
 import * as THREE from "three";
-import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GameViewport } from "@/components/game/GameViewport";
 import { DAYS_CONFIG, type MissionDayNumber, type MissionProgressState } from "@/core/MissionManager";
+import { clonePreparedModel, getPreparedAssetUrl, getPreparedEXR, getPreparedAudioElement } from "@/core/AssetLoading";
 
 const SAVE_KEYS = ["phobosia_mission_progress_v4", "phobosia_mission_progress_v3", "phobosia_mission_progress_v2"];
 const SOL_SAVE_PREFIX = "phobosia_mission_progress_v4_sol_";
@@ -74,30 +72,27 @@ function readSolSaves(): SaveInfo[] {
   return entries;
 }
 
-export function MainMenu() {
+export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continue") => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState<Page>("home");
   const [save, setSave] = useState<SaveInfo | null>(null);
   const [solSaves, setSolSaves] = useState<SaveInfo[]>([]);
   const [saveError, setSaveError] = useState("");
-  const [gameMode, setGameMode] = useState<"new" | "continue" | null>(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [trailerReady, setTrailerReady] = useState(false);
   const [trailerError, setTrailerError] = useState(false);
   const [trailerProgress, setTrailerProgress] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
-  const [loading, setLoading] = useState("Calibrating orbital display");
   const [assetError, setAssetError] = useState("");
-  const musicRef = useRef<HTMLAudioElement>(null);
   const pageRef = useRef(page);
   pageRef.current = page;
   const refresh = useCallback(() => { const result = readSave(); setSave(result.save); setSaveError(result.error); setSolSaves(readSolSaves()); }, []);
-  const returnToMenu = useCallback(() => { refresh(); setGameMode(null); }, [refresh]);
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const audio = musicRef.current;
+    const audio = getPreparedAudioElement("/assets/sounds/PHOBOSIA.mp3");
     if (!audio) return;
+    audio.loop = true;
     if (showTrailer) { audio.pause(); return; }
     audio.volume = 0.32;
     const start = () => { void audio.play().catch(() => {}); };
@@ -105,9 +100,9 @@ export function MainMenu() {
     window.addEventListener("pointerdown", start);
     window.addEventListener("keydown", start);
     return () => { window.removeEventListener("pointerdown", start); window.removeEventListener("keydown", start); audio.pause(); };
-  }, [gameMode, showTrailer]);
+  }, [showTrailer]);
   useEffect(() => {
-    if (gameMode || !host.current) return;
+    if (!host.current) return;
     const root = host.current;
     let disposed = false;
     let frame = 0;
@@ -147,22 +142,17 @@ export function MainMenu() {
       }
     };
     const observer = new ResizeObserver(resize); observer.observe(root); resize();
-    let loaded = 0;
-    const finishAsset = () => { loaded++; if (loaded >= 3 && !disposed) setLoading(""); };
-    new EXRLoader().load("/assets/exr/NightSkyHDRI008_4K_HDR_1.exr", texture => {
-      if (disposed) { texture.dispose(); return; }
-      envTexture = texture; texture.mapping = THREE.EquirectangularReflectionMapping; scene.background = texture;
-      const pmrem = new THREE.PMREMGenerator(renderer); envTarget = pmrem.fromEquirectangular(texture); pmrem.dispose();
-      scene.environment = envTarget.texture; scene.environmentIntensity = 0.35; finishAsset();
-    }, undefined, () => { if (!disposed) setAssetError("The orbital environment could not be loaded."); finishAsset(); });
-    new GLTFLoader().load("/assets/models/mars.glb", gltf => {
-      if (disposed) return;
-      globe = gltf.scene;
+    try {
+      envTexture = getPreparedEXR("/assets/exr/NightSkyHDRI008_4K_HDR_1.exr");
+      scene.background = envTexture;
+      const pmrem = new THREE.PMREMGenerator(renderer); envTarget = pmrem.fromEquirectangular(envTexture); pmrem.dispose();
+      scene.environment = envTarget.texture; scene.environmentIntensity = 0.35;
+      globe = clonePreparedModel("/assets/models/mars.glb");
       const bounds = new THREE.Box3().setFromObject(globe);
       const size = bounds.getSize(new THREE.Vector3()); const center = bounds.getCenter(new THREE.Vector3());
       globe.position.sub(center);
       const max = Math.max(size.x, size.y, size.z);
-      if (!Number.isFinite(max) || max <= 0) { setAssetError("The Mars model has invalid dimensions."); finishAsset(); return; }
+      if (!Number.isFinite(max) || max <= 0) throw new Error("The Mars model has invalid dimensions.");
       globe.scale.setScalar(7.1 / max);
       const proceduralMap = createMarsTexture();
       globe.traverse(object => {
@@ -179,12 +169,10 @@ export function MainMenu() {
           }
         }
       });
-      globePivot.add(globe); resize(); finishAsset();
-    }, undefined, () => { if (!disposed) setAssetError("The Mars globe model could not be loaded."); finishAsset(); });
-    const artworkProbe = new Image();
-    artworkProbe.onload = finishAsset;
-    artworkProbe.onerror = () => { if (!disposed) setAssetError("The main menu artwork could not be loaded."); finishAsset(); };
-    artworkProbe.src = "/assets/images/mainMenuImage.png";
+      globePivot.add(globe); resize();
+    } catch (error) {
+      setAssetError(error instanceof Error ? error.message : "Prepared menu assets could not be initialized.");
+    }
     const render = () => {
       if (disposed) return;
       if (pageRef.current === "exit") return;
@@ -197,17 +185,17 @@ export function MainMenu() {
     return () => {
       disposed = true; cancelAnimationFrame(frame); observer.disconnect();
       scene.environment = null; scene.background = null;
-      envTarget?.dispose(); envTexture?.dispose(); artworkProbe.onload = null; artworkProbe.onerror = null;
-      globe?.traverse(obj => { const mesh = obj as THREE.Mesh; mesh.geometry?.dispose(); for (const mat of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) { const standard = mat as THREE.MeshStandardMaterial; if (standard.map?.userData.proceduralMars) standard.map.dispose(); mat.dispose(); } });
+      envTarget?.dispose();
+      const disposedMaterials = new Set<THREE.Material>();
+      globe?.traverse(obj => { const mesh = obj as THREE.Mesh; for (const mat of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) { if (disposedMaterials.has(mat)) continue; disposedMaterials.add(mat); const standard = mat as THREE.MeshStandardMaterial; if (standard.map?.userData.proceduralMars) standard.map.dispose(); mat.dispose(); } });
       renderer.dispose(); renderer.domElement.remove();
     };
-  }, [gameMode]);
+  }, []);
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (showTrailer && event.key === "Enter") { event.preventDefault(); setShowTrailer(false); setGameMode("new"); return; }
+      if (showTrailer && event.key === "Enter") { event.preventDefault(); finishTrailer(); return; }
       if (showTrailer) return;
-      if (gameMode) return;
       if (event.key === "ArrowDown") { event.preventDefault(); setSelected(value => (value + 1) % options.length); }
       else if (event.key === "ArrowUp") { event.preventDefault(); setSelected(value => (value + options.length - 1) % options.length); }
       else if (event.key === "Escape" && page !== "home") setPage("home");
@@ -216,14 +204,14 @@ export function MainMenu() {
     window.addEventListener("keydown", keydown); return () => window.removeEventListener("keydown", keydown);
   });
 
-  const begin = (mode: "new" | "continue") => { setGameMode(mode); };
+  const begin = (mode: "new" | "continue") => { onStartGame(mode); };
   const continueCurrent = () => {
     const current = readSave().save ?? readSolSaves().sort((a, b) => b.state.currentDay - a.state.currentDay)[0] ?? null;
     if (!current) { setSaveError("No saved Sol is available to continue."); return; }
     if (current.key !== SAVE_KEYS[0]) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(current.state));
     begin("continue");
   };
-  const finishTrailer = () => { setShowTrailer(false); setGameMode("new"); };
+  const finishTrailer = () => { setShowTrailer(false); onStartGame("new"); };
   function activate(index: number) {
     if (index === 0) { refresh(); setPage("confirm-new"); }
     if (index === 1) continueCurrent();
@@ -239,19 +227,16 @@ export function MainMenu() {
     setTrailerProgress(null);
     setShowTrailer(true);
   };
-  if (gameMode) return <GameViewport key={gameMode} onReturnToMenu={returnToMenu} />;
-
   const currentDay = save?.state.currentDay;
   const day = currentDay ? DAYS_CONFIG[currentDay as MissionDayNumber] : null;
   const task = day?.steps.find(step => !save?.state.completedStepIds.includes(step.stepId));
   return <div className="ph-menu" ref={host}>
-    <audio ref={musicRef} src="/assets/sounds/PHOBOSIA.mp3" loop preload="auto" aria-hidden="true" />
-    <div className="ph-menu-art" aria-hidden="true" />
+    <div className="ph-menu-art" style={{ backgroundImage: `url("${getPreparedAssetUrl("/assets/images/mainMenuImage.png")}")` }} aria-hidden="true" />
     <div className="ph-menu-vignette" aria-hidden="true" />
     <div className="ph-menu-grain" aria-hidden="true" />
     <header className="ph-menu-header"><div className="ph-wordmark">PHOBOSIA<span>FIELD OBSERVATION PROGRAM</span></div><div className="ph-header-status"><i /> DEEP SPACE LINK <b>ACTIVE</b></div></header>
     <div className="ph-menu-content">
-      <section className="ph-menu-title"><div className="ph-kicker">MARS Â· SCIENTIFIC EXPEDITION</div><img className="ph-menu-logo" src="/assets/images/PHOBOSIA_Metallic_Logo_4K.png" alt="PHOBOSIA"/><p>Observe carefully. Record honestly.<br/>Advance human understanding.</p><div className="ph-menu-rule"><span>MISSION CONTROL</span><i /></div></section>
+      <section className="ph-menu-title"><div className="ph-kicker">MARS Â· SCIENTIFIC EXPEDITION</div><img className="ph-menu-logo" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Metallic_Logo_4K.png")} alt="PHOBOSIA"/><p>Observe carefully. Record honestly.<br/>Advance human understanding.</p><div className="ph-menu-rule"><span>MISSION CONTROL</span><i /></div></section>
     <nav className="ph-options" aria-label="Mission menu">{options.map((label, index) => {
         const disabled = index === 1 && !save && !solSaves.length;
         return <button key={label} className={`ph-option ${selected === index ? "is-selected" : ""} ${disabled ? "is-disabled" : ""}`} onMouseEnter={() => setSelected(index)} onClick={() => activate(index)} aria-disabled={disabled}>
@@ -260,7 +245,7 @@ export function MainMenu() {
       })}</nav>
     </div>
     <footer className="ph-menu-footer"><span>PHOBOSIA EXPEDITION SYSTEMS <b>Â·</b> SOL {currentDay ? String(currentDay).padStart(2,"0") : "01"}</span><span>â†‘ â†“ SELECT <b>Â·</b> ENTER CONFIRM</span><span>BUILD 01.09 <b>Â·</b> MARS ORBIT</span></footer>
-    {(loading || assetError) && <div className="ph-load"><span className="ph-spinner" />{assetError || loading}</div>}
+    {assetError && <div className="ph-load"><span className="ph-spinner" />{assetError}</div>}
     {saveError && <button className="ph-toast" onClick={() => setSaveError("")}>{saveError}<span>Ã—</span></button>}
     {page !== "home" && <div className="ph-modal-backdrop"><section className="ph-modal">
       <button className="ph-back" onClick={() => setPage("home")}>â† RETURN TO MENU</button>
