@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MainMenu } from "@/components/menu/MainMenu";
 import { GameViewport } from "@/components/game/GameViewport";
-import { areRequiredAssetsReady, beginGameplayInitialization, completeGameplayInitialization, getAssetLoadingSnapshot, prepareRequiredAssets, subscribeToAssetLoading, type AssetLoadingSnapshot } from "@/core/AssetLoading";
+import { areRequiredAssetsReady, beginGameplayInitialization, completeGameplayInitialization, getAssetLoadingSnapshot, prepareRequiredAssets, startLoadingMusic, stopLoadingMusic, subscribeToAssetLoading, type AssetLoadingSnapshot } from "@/core/AssetLoading";
 import { LoadingScreen } from "./LoadingScreen";
 
 type LaunchView = "loading" | "menu" | "game";
@@ -23,6 +23,12 @@ export function LaunchExperience() {
     });
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    if (view === "loading") startLoadingMusic();
+    else stopLoadingMusic();
+    return () => stopLoadingMusic();
+  }, [view]);
 
   const startGame = useCallback(async (mode: "new" | "continue") => {
     setGameMode(mode);
