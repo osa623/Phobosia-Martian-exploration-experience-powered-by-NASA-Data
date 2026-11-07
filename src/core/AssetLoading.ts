@@ -52,7 +52,7 @@ export interface AssetLoadingSnapshot {
   failed: number;
   bytesLoaded: number;
   bytesExpected: number | null;
-  percent: number | null;
+  percent: number;
   message: string;
 }
 
@@ -156,10 +156,14 @@ function makeSnapshot(): AssetLoadingSnapshot {
   const bytesLoaded = assets.reduce((sum, item) => sum + item.loadedBytes, 0);
   const sizesKnown = assets.every(item => item.totalBytes !== null && item.totalBytes > 0);
   const bytesExpected = sizesKnown ? assets.reduce((sum, item) => sum + (item.totalBytes ?? 0), 0) : null;
-  let percent: number | null = null;
+  let percent: number;
   if (bytesExpected && bytesExpected > 0) {
     const processedBytes = assets.reduce((sum, item) => sum + (item.status === "ready" ? item.totalBytes ?? 0 : 0), 0);
     percent = phase === "ready" ? 100 : Math.min(99, Math.floor(((bytesLoaded + processedBytes) / (bytesExpected * 2)) * 100));
+  } else {
+    // Unknown response sizes still have a truthful measurable unit: required
+    // assets only count after download, parsing, and validation all succeed.
+    percent = phase === "ready" ? 100 : Math.min(99, Math.floor((completed / assets.length) * 100));
   }
   return { phase, currentAssetId: currentId, assets, completed, pending, total: assets.length, failed, bytesLoaded, bytesExpected, percent, message };
 }
