@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { assetPaths, type ModuleName } from "./Discovery";
@@ -139,6 +140,9 @@ const LOADING_TRACKS: readonly AssetDefinition[] = [
 const loadingTrackIds = new Set(LOADING_TRACKS.map(item => item.id));
 
 type PreparedResource = GLTF | THREE.DataTexture | string;
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("/draco/");
+dracoLoader.setWorkerLimit(1);
 const prepared = new Map<string, PreparedResource>();
 const blobUrls = new Map<string, string>();
 const audioElements = new Map<string, HTMLAudioElement>();
@@ -294,7 +298,9 @@ function validateAudio(blobUrl: string): Promise<HTMLAudioElement> {
 async function processAsset(definition: AssetDefinition, bytes: ArrayBuffer): Promise<void> {
   if (definition.kind === "gltf") {
     const basePath = new URL(definition.path, window.location.href).href.replace(/[^/]*$/, "");
-    const gltf = await new GLTFLoader().parseAsync(bytes, basePath);
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+    const gltf = await loader.parseAsync(bytes, basePath);
     let meshes = 0;
     gltf.scene.traverse(object => {
       const mesh = object as THREE.Mesh;
