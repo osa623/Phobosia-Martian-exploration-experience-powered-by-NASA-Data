@@ -356,6 +356,10 @@ async function prepareOne(definition: AssetDefinition): Promise<void> {
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
     const { bytes, totalBytes } = await readResponse(response, definition.id);
     if (!bytes.byteLength) throw new Error("The server returned an empty file.");
+    const filePrefix = new TextDecoder().decode(bytes.slice(0, 160));
+    if (filePrefix.startsWith("version https://git-lfs.github.com/spec/v1")) {
+      throw new Error("The host served a Git LFS pointer instead of the model file. Configure deployment to download Git LFS objects before publishing public assets.");
+    }
     updateAsset(definition.id, { status: "processing", totalBytes, loadedBytes: bytes.byteLength });
     await processAsset(definition, bytes);
     updateAsset(definition.id, { status: "ready", totalBytes, loadedBytes: bytes.byteLength, error: undefined });
