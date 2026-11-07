@@ -52,7 +52,7 @@ export interface AssetLoadingSnapshot {
   failed: number;
   bytesLoaded: number;
   bytesExpected: number | null;
-  percent: number | null;
+  percent: number;
   message: string;
 }
 
@@ -132,6 +132,12 @@ export const ON_DEMAND_ASSETS: readonly AssetDefinition[] = [
   ...laptopAssets.documents.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "document", false))
 ];
 
+const LOADING_TRACKS: readonly AssetDefinition[] = [
+  asset("internal.loading-track.1", "/assets/loadingSong/Built From the Ground.mp3", "Loading background audio", "Gameplay Audio", "audio", false),
+  asset("internal.loading-track.2", "/assets/loadingSong/BEYOND THE RED HORIZON (1).mp3", "Loading background audio", "Gameplay Audio", "audio", false)
+];
+const loadingTrackIds = new Set(LOADING_TRACKS.map(item => item.id));
+
 type PreparedResource = GLTF | THREE.DataTexture | string;
 const prepared = new Map<string, PreparedResource>();
 const blobUrls = new Map<string, string>();
@@ -143,7 +149,7 @@ let activeRun: Promise<void> | null = null;
 let currentId: string | null = null;
 let phase: AssetPhase = "idle";
 let message = "Awaiting mission initialization";
-let runtime = new Map<string, AssetProgress>(REQUIRED_ASSETS.map(item => [item.id, {
+let runtime = new Map<string, AssetProgress>([...REQUIRED_ASSETS, ...LOADING_TRACKS].map(item => [item.id, {
   ...item, status: "pending", loadedBytes: 0, totalBytes: null
 }] as [string, AssetProgress]));
 let lastSnapshot = makeSnapshot();
@@ -156,10 +162,14 @@ function makeSnapshot(): AssetLoadingSnapshot {
   const bytesLoaded = assets.reduce((sum, item) => sum + item.loadedBytes, 0);
   const sizesKnown = assets.every(item => item.totalBytes !== null && item.totalBytes > 0);
   const bytesExpected = sizesKnown ? assets.reduce((sum, item) => sum + (item.totalBytes ?? 0), 0) : null;
-  let percent: number | null = null;
+  let percent: number;
   if (bytesExpected && bytesExpected > 0) {
     const processedBytes = assets.reduce((sum, item) => sum + (item.status === "ready" ? item.totalBytes ?? 0 : 0), 0);
     percent = phase === "ready" ? 100 : Math.min(99, Math.floor(((bytesLoaded + processedBytes) / (bytesExpected * 2)) * 100));
+  } else {
+    // Unknown response sizes still have a truthful measurable unit: required
+    // assets only count after download, parsing, and validation all succeed.
+    percent = phase === "ready" ? 100 : Math.min(99, Math.floor((completed / assets.length) * 100));
   }
   return { phase, currentAssetId: currentId, assets, completed, pending, total: assets.length, failed, bytesLoaded, bytesExpected, percent, message };
 }
@@ -185,6 +195,11 @@ function updateAsset(id: string, patch: Partial<AssetProgress>) {
   if (!current) return;
   const next = { ...current, ...patch };
   runtime.set(id, next);
+  if (loadingTrackIds.has(id)) {
+    phase = patch.status === "processing" ? "processing" : "loading";
+    publish(patch.status === "failed" ? "Background audio unavailable; continuing without it" : "Preparing background audio");
+    return;
+  }
   if (patch.status === "downloading") {
     phase = "loading";
     publish(`Downloading ${next.name}`);
@@ -350,6 +365,75 @@ async function prepareOne(definition: AssetDefinition): Promise<void> {
   }
 }
 
+let loadingMusicRequested = false;
+let loadingPlaylist: HTMLAudioElement[] = [];
+let loadingTrackIndex = 0;
+let activeLoadingTrack: HTMLAudioElement | null = null;
+let resumeLoadingMusic: (() => void) | null = null;
+
+function clearLoadingMusicResumeListeners() {
+  if (!resumeLoadingMusic || typeof document === "undefined") return;
+  document.removeEventListener("pointerdown", resumeLoadingMusic);
+  document.removeEventListener("keydown", resumeLoadingMusic);
+  resumeLoadingMusic = null;
+}
+
+function playLoadingTrack() {
+  if (!loadingMusicRequested || !loadingPlaylist.length) return;
+  const track = loadingPlaylist[loadingTrackIndex];
+  if (activeLoadingTrack !== track) {
+    if (activeLoadingTrack) {
+      activeLoadingTrack.onended = null;
+      activeLoadingTrack.onerror = null;
+    }
+    activeLoadingTrack = track;
+    track.loop = false;
+    track.volume = 0.35;
+    track.currentTime = 0;
+    track.onended = () => {
+      loadingTrackIndex = (loadingTrackIndex + 1) % loadingPlaylist.length;
+      activeLoadingTrack = null;
+      playLoadingTrack();
+    };
+    track.onerror = () => {
+      loadingPlaylist = loadingPlaylist.filter(item => item !== track);
+      loadingTrackIndex = loadingPlaylist.length ? loadingTrackIndex % loadingPlaylist.length : 0;
+      activeLoadingTrack = null;
+      playLoadingTrack();
+    };
+  }
+  void track.play().then(clearLoadingMusicResumeListeners).catch(() => {
+    if (resumeLoadingMusic || typeof document === "undefined") return;
+    resumeLoadingMusic = () => {
+      clearLoadingMusicResumeListeners();
+      playLoadingTrack();
+    };
+    document.addEventListener("pointerdown", resumeLoadingMusic, { once: true });
+    document.addEventListener("keydown", resumeLoadingMusic, { once: true });
+  });
+}
+
+export function startLoadingMusic(): void {
+  loadingMusicRequested = true;
+  loadingPlaylist = LOADING_TRACKS
+    .map(track => audioElements.get(track.path))
+    .filter((track): track is HTMLAudioElement => Boolean(track));
+  if (loadingTrackIndex >= loadingPlaylist.length) loadingTrackIndex = 0;
+  playLoadingTrack();
+}
+
+export function stopLoadingMusic(): void {
+  loadingMusicRequested = false;
+  clearLoadingMusicResumeListeners();
+  if (activeLoadingTrack) {
+    activeLoadingTrack.pause();
+    activeLoadingTrack.currentTime = 0;
+    activeLoadingTrack.onended = null;
+    activeLoadingTrack.onerror = null;
+    activeLoadingTrack = null;
+  }
+}
+
 async function discoverExpectedSize(definition: AssetDefinition): Promise<boolean> {
   const current = runtime.get(definition.id)!;
   if (prepared.has(definition.path)) return false;
@@ -379,6 +463,11 @@ export async function prepareRequiredAssets(): Promise<void> {
     for (const item of runtime.values()) {
       if (!prepared.has(item.path) && item.status === "failed") runtime.set(item.id, { ...item, status: "pending", loadedBytes: 0, error: undefined });
     }
+    phase = "loading";
+    currentId = null;
+    publish("Preparing background audio");
+    for (const track of LOADING_TRACKS) await prepareOne(track);
+    startLoadingMusic();
     phase = "verifying";
     currentId = null;
     publish("Checking required assets and transfer sizes");
