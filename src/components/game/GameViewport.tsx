@@ -73,6 +73,7 @@ const initialState: GameState = {
   sol5Images: [],
   sol5Flight: null,
   sol5Message: null,
+  finalDepartureVideo: false,
 
   showCinematicOverlay: false,
   showOSDesktop: false,
@@ -93,6 +94,7 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
   const [state, setState] = useState<GameState>(initialState);
   const [laptopAudio, setLaptopAudio] = useState<LaptopAudioController | null>(null);
   const [laptopAudioSnapshot, setLaptopAudioSnapshot] = useState<Readonly<LaptopAudioSnapshot> | null>(null);
+  const [finalVideoError, setFinalVideoError] = useState(false);
 
   useEffect(() => { if (state.ready) onReady?.(); }, [state.ready, onReady]);
 
@@ -148,6 +150,12 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
     );
   }, [state.transition]);
 
+  useEffect(() => {
+    if (!state.finalDepartureVideo || !video.current) return;
+    const element = video.current;
+    void element.play().then(() => setFinalVideoError(false)).catch(() => setFinalVideoError(true));
+  }, [state.finalDepartureVideo]);
+
   const canClickToLock =
     !state.panel &&
     !state.transition &&
@@ -169,6 +177,10 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+      {state.finalDepartureVideo && <div role="dialog" aria-label="Final departure cinematic" onKeyDown={event => event.preventDefault()} style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 10000, background: "#000", overflow: "hidden" }}>
+        <video ref={video} src="/assets/videos/finalVideo/finalVideo.mp4" autoPlay playsInline preload="auto" disablePictureInPicture onCanPlay={() => setFinalVideoError(false)} onError={() => setFinalVideoError(true)} onEnded={() => game.current?.finishSol11FinalVideo()} aria-label="Final PHOBOSIA departure" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />
+        {finalVideoError && <div style={{ position: "absolute", inset: 0, display: "grid", placeContent: "center", gap: 12, color: "#fff", background: "rgba(0,0,0,.88)", fontFamily: "monospace", textAlign: "center" }}><p>Final cinematic could not start. The campaign remains incomplete.</p><button onClick={() => { setFinalVideoError(false); void video.current?.play().catch(() => setFinalVideoError(true)); }} style={{ justifySelf: "center", padding: "10px 16px", border: "1px solid #7ca9b5", background: "#14242b", color: "white", cursor: "pointer" }}>RETRY PLAYBACK</button></div>}
+      </div>}
       {onReturnToMenu && <button
         type="button"
         className="[position:fixed] [top:16px] [left:16px] [z-index:60] [border:1px_solid_rgba(85,205,232,0.45)] [background:rgba(5,14,20,0.88)] [padding:8px_12px] [color:#c9e3e9] [font:10px_var(--font-mono,monospace)] [letter-spacing:0.1em] hover:[background:rgba(20,42,52,0.96)]"
@@ -272,7 +284,7 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9 || state.missionDay === 10) && (
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9 || state.missionDay === 10 || state.missionDay === 11) && (
           <section className="[position:absolute] [top:72px] [right:24px] [z-index:30] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />

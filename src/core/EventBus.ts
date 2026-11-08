@@ -92,6 +92,7 @@ export interface GameState {
   sol5Images: Sol5ImageRecord[];
   sol5Flight: Sol5FlightSnapshot | null;
   sol5Message: string | null;
+  finalDepartureVideo: boolean;
 
   // Cinematic screen interaction + PHOBOSIA OS Desktop
   showCinematicOverlay: boolean;

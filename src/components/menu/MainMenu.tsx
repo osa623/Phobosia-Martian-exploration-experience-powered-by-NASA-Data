@@ -44,7 +44,7 @@ function readSave(): { save: SaveInfo | null; error: string } {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
       const value = JSON.parse(raw) as Partial<MissionProgressState>;
-      if (!Number.isInteger(value.currentDay) || (value.currentDay ?? 0) < 1 || (value.currentDay ?? 11) > 10 || !Array.isArray(value.completedStepIds))
+      if (!Number.isInteger(value.currentDay) || (value.currentDay ?? 0) < 1 || (value.currentDay ?? 12) > 11 || !Array.isArray(value.completedStepIds))
         return { save: null, error: "An existing mission record is invalid and cannot be resumed." };
       return { save: { key, state: value as MissionProgressState }, error: "" };
     }
@@ -56,7 +56,7 @@ function readSave(): { save: SaveInfo | null; error: string } {
 
 function readSolSaves(): SaveInfo[] {
   const entries: SaveInfo[] = [];
-  for (let sol = 1; sol <= 10; sol++) {
+  for (let sol = 1; sol <= 11; sol++) {
     const key = `${SOL_SAVE_PREFIX}${sol}`;
     try {
       const raw = localStorage.getItem(key);
@@ -79,16 +79,25 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
   const [solSaves, setSolSaves] = useState<SaveInfo[]>([]);
   const [saveError, setSaveError] = useState("");
   const [showTrailer, setShowTrailer] = useState(false);
+  const [cinematicStage, setCinematicStage] = useState<"trailer" | "carl">("trailer");
   const [trailerReady, setTrailerReady] = useState(false);
   const [trailerError, setTrailerError] = useState(false);
   const [trailerProgress, setTrailerProgress] = useState<number | null>(null);
+  const [carlRemaining, setCarlRemaining] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
   const [assetError, setAssetError] = useState("");
+  const cinematicVideo = useRef<HTMLVideoElement>(null);
   const pageRef = useRef(page);
   pageRef.current = page;
   const refresh = useCallback(() => { const result = readSave(); setSave(result.save); setSaveError(result.error); setSolSaves(readSolSaves()); }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    if (!showTrailer) return;
+    const video = cinematicVideo.current;
+    if (!video) return;
+    void video.play().catch(() => setTrailerError(true));
+  }, [showTrailer, cinematicStage]);
   useEffect(() => {
     const audio = getPreparedAudioElement("/assets/sounds/PHOBOSIA.mp3");
     if (!audio) return;
@@ -194,8 +203,7 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (showTrailer && event.key === "Enter") { event.preventDefault(); finishTrailer(); return; }
-      if (showTrailer) return;
+      if (showTrailer) { event.preventDefault(); return; }
       if (event.key === "ArrowDown") { event.preventDefault(); setSelected(value => (value + 1) % options.length); }
       else if (event.key === "ArrowUp") { event.preventDefault(); setSelected(value => (value + options.length - 1) % options.length); }
       else if (event.key === "Escape" && page !== "home") setPage("home");
@@ -211,7 +219,17 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
     if (current.key !== SAVE_KEYS[0]) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(current.state));
     begin("continue");
   };
-  const finishTrailer = () => { setShowTrailer(false); onStartGame("new"); };
+  const finishTrailer = () => {
+    if (cinematicStage === "trailer") {
+      setCinematicStage("carl");
+      setCarlRemaining(null);
+      setTrailerReady(false);
+      setTrailerError(false);
+      return;
+    }
+    setShowTrailer(false);
+    onStartGame("new");
+  };
   function activate(index: number) {
     if (index === 0) { refresh(); setPage("confirm-new"); }
     if (index === 1) continueCurrent();
@@ -220,11 +238,13 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
   }
 
   const confirmNew = () => {
-    if (save || solSaves.length) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 10; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); }
+    if (save || solSaves.length) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 11; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); }
     try { sessionStorage.removeItem("phobosia_paused_game_session_v1"); } catch { /* Session storage may be unavailable. */ }
     setTrailerReady(false);
     setTrailerError(false);
     setTrailerProgress(null);
+    setCinematicStage("trailer");
+    setCarlRemaining(null);
     setShowTrailer(true);
   };
   const currentDay = save?.state.currentDay;
@@ -251,19 +271,28 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
       <button className="ph-back" onClick={() => setPage("home")}>â† RETURN TO MENU</button>
       {page === "confirm-new" && <><div className="ph-kicker">CAMPAIGN INITIALIZATION</div><h2>NEW EXPLORATION FROM SOL 1</h2><p>{save || solSaves.length ? "Starting a new exploration clears the current saved campaign. Select Previous Sols first if you want to resume an existing record." : "A new scientific exploration will begin from Sol 1."}</p><div className="ph-modal-actions"><button className="ph-primary" onClick={confirmNew}>START FROM SOL 1</button><button onClick={() => setPage("home")}>CANCEL</button></div></>}
       {page === "archive" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>SELECT PREVIOUS SOLS</h2><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => { const slotDay = DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]; const nextTask = slotDay?.steps.find(step => !slot.state.completedStepIds.includes(step.stepId)); return <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>{slot.state.currentDay === save?.state.currentDay ? "CURRENT SAVE" : "PREVIOUS SAVE"}</small></div><div><h3>{slotDay?.title || `Sol ${slot.state.currentDay}`}</h3><p>{nextTask ? `Current objective · ${nextTask.label}` : "All configured objectives complete"}</p><p>Progress · {slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button className="ph-primary" onClick={() => { try { sessionStorage.removeItem("phobosia_paused_game_session_v1"); } catch { /* Session storage may be unavailable. */ } if (slot.key !== SAVE_KEYS[0]) localStorage.setItem(SAVE_KEYS[0], JSON.stringify(slot.state)); begin("continue"); }}>SELECT SOL</button></div></article>; }) : <p>{saveError || "No persisted Sol records are available."}</p>}</div></>}
-      {page === "delete-sols" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>DELETE SOLS</h2><p>Delete individual saved Sols. This cannot be undone.</p><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>SAVED RECORD</small></div><div><h3>{DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]?.title || `Sol ${slot.state.currentDay}`}</h3><p>{slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button onClick={() => { if (window.confirm(`Delete the Sol ${slot.state.currentDay} save?`)) { localStorage.removeItem(slot.key); if (slot.state.currentDay === save?.state.currentDay) for (const key of SAVE_KEYS) localStorage.removeItem(key); refresh(); } }}>DELETE SOL</button></div></article>) : <p>No persisted Sol records are available to delete.</p>}</div>{solSaves.length > 1 && <div className="ph-modal-actions"><button onClick={() => { if (window.confirm("Delete all saved Sols? This cannot be undone.")) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 10; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); refresh(); } }}>DELETE ALL SOLS</button></div>}</>}
+      {page === "delete-sols" && <><div className="ph-kicker">PERSISTED CAMPAIGN RECORDS</div><h2>DELETE SOLS</h2><p>Delete individual saved Sols. This cannot be undone.</p><div className="ph-sol-list">{solSaves.length ? solSaves.sort((a,b) => a.state.currentDay-b.state.currentDay).map(slot => <article className="ph-sol-card" key={slot.key}><div className="ph-record-sol">SOL {String(slot.state.currentDay).padStart(2,"0")}<small>SAVED RECORD</small></div><div><h3>{DAYS_CONFIG[slot.state.currentDay as MissionDayNumber]?.title || `Sol ${slot.state.currentDay}`}</h3><p>{slot.state.completedStepIds.length} recorded task completions</p></div><div className="ph-sol-actions"><button onClick={() => { if (window.confirm(`Delete the Sol ${slot.state.currentDay} save?`)) { localStorage.removeItem(slot.key); if (slot.state.currentDay === save?.state.currentDay) for (const key of SAVE_KEYS) localStorage.removeItem(key); refresh(); } }}>DELETE SOL</button></div></article>) : <p>No persisted Sol records are available to delete.</p>}</div>{solSaves.length > 1 && <div className="ph-modal-actions"><button onClick={() => { if (window.confirm("Delete all saved Sols? This cannot be undone.")) { for (const key of SAVE_KEYS) localStorage.removeItem(key); for (let sol = 1; sol <= 11; sol++) localStorage.removeItem(`${SOL_SAVE_PREFIX}${sol}`); refresh(); } }}>DELETE ALL SOLS</button></div>}</>}
       {page === "credits" && <><div className="ph-kicker">PHOBOSIA Â· PROJECT RECORD</div><h2>PROJECT ACKNOWLEDGEMENTS</h2><div className="ph-credit"><span>PROJECT</span><strong>PHOBOSIA</strong><small>Mars scientific observation expedition Â· first playable prototype</small></div><p className="ph-muted">No contributor or partner credits are identified in the repository documentation.</p></>}
       {page === "briefing" && <><div className="ph-kicker">MISSION BRIEFING</div><h2>CINEMATIC UNAVAILABLE</h2><p>The repository contains module transition videos, but no introductory campaign cinematic is identified. No video has been substituted.</p></>}
       {page === "exit" && <><div className="ph-kicker">COMMUNICATIONS LINK CLOSED</div><h2>EXPEDITION SUSPENDED</h2><p>PHOBOSIA has disconnected. Your persisted campaign record remains available. You may close this browser tab or window.</p></>}
     </section></div>}
-    {showTrailer && <div className="ph-trailer-overlay" role="dialog" aria-label="PHOBOSIA introduction">
-      <video className="ph-trailer-video" src="/assets/videos/trailer_phobosia.mp4" autoPlay playsInline preload="auto" onCanPlay={() => { setTrailerReady(true); setTrailerError(false); }} onWaiting={() => setTrailerReady(false)} onProgress={event => {
+    {showTrailer && <div className="ph-trailer-overlay" role="dialog" aria-label={cinematicStage === "trailer" ? "PHOBOSIA introduction" : "Carl's Message"}>
+      <video ref={cinematicVideo} key={cinematicStage} className="ph-trailer-video" src={cinematicStage === "trailer" ? "/assets/videos/trailer_phobosia.mp4" : "/assets/videos/carlsMessage.mp4"} autoPlay playsInline preload="auto" onCanPlay={() => { setTrailerReady(true); setTrailerError(false); }} onWaiting={() => setTrailerReady(false)} onTimeUpdate={event => {
+        if (cinematicStage !== "carl") return;
+        const video = event.currentTarget;
+        setCarlRemaining(Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, Math.ceil(video.duration - video.currentTime)) : null);
+      }} onLoadedMetadata={event => {
+        if (cinematicStage !== "carl") return;
+        const video = event.currentTarget;
+        setCarlRemaining(Number.isFinite(video.duration) && video.duration > 0 ? Math.max(0, Math.ceil(video.duration - video.currentTime)) : null);
+      }} onProgress={event => {
         const video = event.currentTarget;
         if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.buffered.length) { setTrailerProgress(null); return; }
         setTrailerProgress(Math.min(1, video.buffered.end(video.buffered.length - 1) / video.duration));
       }} onError={() => { setTrailerReady(false); setTrailerError(true); }} onEnded={finishTrailer} aria-label="PHOBOSIA introduction video" />
-      {!trailerReady && <div className="ph-trailer-loading" role="status"><span className="ph-spinner" />{trailerError ? "Video could not be loaded. Press Enter to continue to Sol 1." : `Loading introduction${trailerProgress === null ? "" : ` · ${Math.round(trailerProgress * 100)}%`}`}</div>}
-      <button className="ph-trailer-skip" onClick={finishTrailer}>{trailerError ? "CONTINUE TO SOL 1" : "SKIP INTRO"} <kbd>ENTER</kbd></button>
+      {cinematicStage === "carl" && trailerReady && !trailerError && carlRemaining !== null && <div className="ph-carl-countdown" aria-label="Time remaining">{String(Math.floor(carlRemaining / 60)).padStart(2, "0")}:{String(carlRemaining % 60).padStart(2, "0")}</div>}
+      {!trailerReady && <div className="ph-trailer-loading" role="status"><span className="ph-spinner" />{trailerError ? "Video could not be loaded. Retry playback to continue." : `Loading ${cinematicStage === "trailer" ? "introduction" : "Carl's Message"}${trailerProgress === null ? "" : ` · ${Math.round(trailerProgress * 100)}%`}`}</div>}
+      {trailerError && <button className="ph-trailer-skip" onClick={event => { setTrailerError(false); const video = event.currentTarget.parentElement?.querySelector("video"); if (video) { video.load(); void video.play().catch(() => setTrailerError(true)); } }}>RETRY VIDEO</button>}
     </div>}
   </div>;
 }

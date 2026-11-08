@@ -111,6 +111,12 @@ export class Game {
   private cylinderColliders: VerticalCylinderCollider[] = [];
   private terrain?: THREE.Object3D;
   private roverSystem?: RoverSystem;
+  private sol11RouteStart?: THREE.Vector3;
+  private sol11RouteDirection?: THREE.Vector3;
+  private sol11RouteBaseDistance = 0;
+  private sol11RouteBeam?: THREE.Line;
+  private sol11FinalVideoActive = false;
+  private sol11HiddenObjectVisibility = new Map<THREE.Object3D, boolean>();
   private sol7Storm = new Sol07StormController();
   private sol8PowerEffects = new Sol08PowerEffects();
   private sol8PowerEffectsResolved = false;
@@ -283,6 +289,7 @@ export class Game {
       sol5Images: mState.sol5.images,
       sol5Flight: mState.sol5.flight,
       sol5Message: null,
+      finalDepartureVideo: false,
 
       showCinematicOverlay: false,
       showOSDesktop: false,
@@ -356,6 +363,7 @@ export class Game {
       !isWithinEVAInteractionRange(this.camera.position.distanceTo(target.center), target.range)) return;
 
     this.evaSuitActive = !this.evaSuitActive;
+    if (this.evaSuitActive && this.state.missionDay === 11) this.missionManager.markSol11EVAPrepared(true);
     this.missionManager.markSol6EVAActivated(this.evaSuitActive);
     if (this.evaSuitActive && this.state.missionDay === 8) this.missionManager.markSol08EVAPrepared(this.evaSuitActive);
     const resourceSnapshot = this.evaSuitActive ? this.evaResources.beginSession() : this.evaResources.endSession();
@@ -379,6 +387,7 @@ export class Game {
   }
 
   private syncMissionStateToUI(mState: Readonly<MissionProgressState>) {
+    this.applySol11HabitatPresentation(mState.currentDay === 11);
     if (mState.currentDay === 8 && mState.sol8.powerFailureActive) {
       this.sol8PowerEffects.start();
       this.sol8PowerEffects.disableModuleLights(this.current ?? new THREE.Group(), this.active);
@@ -417,6 +426,29 @@ export class Game {
       sol5Images: mState.sol5.images,
       sol5Flight: mState.sol5.flight
     });
+  }
+
+  private applySol11HabitatPresentation(active: boolean) {
+    const habitat = this.loaded.get("Habitat");
+    if (!habitat) return;
+    const targets = new Set(["Laptop01", "Laptop02", "Sketchfab_model", "NoteBook", "SetOfBook", "Habitat_Workstation_Display"]);
+    const isTarget = (object: THREE.Object3D) => [object.name, object.userData?.name].some(name =>
+      typeof name === "string" && [...targets].some(target => name === target || name.startsWith(`${target}.`))
+    );
+    if (active) {
+      habitat.traverse(object => {
+        if (!isTarget(object) || object.userData.sol11VisibilityCaptured) return;
+        object.traverse(child => {
+          if (!this.sol11HiddenObjectVisibility.has(child)) this.sol11HiddenObjectVisibility.set(child, child.visible);
+          child.visible = false;
+        });
+        object.userData.sol11VisibilityCaptured = true;
+      });
+      return;
+    }
+    for (const [object, visible] of this.sol11HiddenObjectVisibility) object.visible = visible;
+    this.sol11HiddenObjectVisibility.clear();
+    habitat.traverse(object => { delete object.userData.sol11VisibilityCaptured; });
   }
 
   public verifySol7EVALockdown(): boolean {
@@ -1451,6 +1483,7 @@ export class Game {
   };
 
   private keyDown = (e: KeyboardEvent) => {
+    if (this.state.finalDepartureVideo) { e.preventDefault(); return; }
     const target = e.target as HTMLElement | undefined;
     if (target?.matches("input,textarea,[contenteditable='true']")) return;
     this.audioManager.unlock();
@@ -1716,6 +1749,8 @@ export class Game {
     model.updateWorldMatrix(true, true);
 
     model.traverse(o => {
+      if (module === "Habitat" && this.state.missionDay === 11 &&
+        (o.name === "HAB_WORKSTATION_01" || o.userData?.name === "HAB_WORKSTATION_01")) return;
       const route = this.resolve(transitions[module], o);
       const screen = this.resolve(screenActions, o);
 
@@ -1742,6 +1777,8 @@ export class Game {
         this.droneFloorHeight = getSurfaceHeight(o);
       }
     });
+
+    if (module === "Habitat") this.applySol11HabitatPresentation(this.state.missionDay === 11);
 
     if (module === "Terrain") {
       try {
@@ -1808,7 +1845,8 @@ export class Game {
     // Attach 3D screen plane rendering to actual screen meshes
     if (module === "Habitat") {
       this.habitatScreenRenderer.attachToHabitat(model, this.missionManager.getState());
-      this.laptopScreenRenderer.attachToHabitat(model);
+      if (this.state.missionDay === 11) this.laptopScreenRenderer.dispose();
+      else this.laptopScreenRenderer.attachToHabitat(model);
       this.attachLaptopPositionalAudio(model);
     } else {
       this.habitatScreenRenderer.dispose();
@@ -2478,6 +2516,7 @@ export class Game {
     let nearest = Infinity;
 
     for (const target of this.interactive) {
+      if (this.state.missionDay === 11 && this.active === "Habitat" && target.identifier === "HAB_WORKSTATION_01") continue;
       const distance = at.distanceTo(target.center);
       if (distance <= target.range && distance < nearest) {
         nearest = distance;
@@ -2702,8 +2741,78 @@ export class Game {
     this.nearby = undefined; this.player.keys.clear(); this.roverKeys.clear();
     this.player.setEVAOutdoorMotion(false);
     this.roverSystem.enter((x, z) => this.groundHeight(new THREE.Vector3(x, 0, z)));
+    if (this.state.missionDay === 11) {
+      this.missionManager.markSol11VehicleEntered();
+      if (this.missionManager.isStepComplete("SOL11_COMPLETE_DEPARTURE_ROUTE")) this.beginSol11FinalVideo();
+      else if (this.missionManager.isStepComplete("SOL11_ENTER_VEHICLE")) this.startSol11DepartureRoute();
+    }
     this.set({ roverActive: true, roverSpeed: 0, roverView: this.roverSystem.snapshot.view,
       prompt: "[R] EXIT ROVER · [E] EXIT WHEN STOPPED · [C] CAMERA VIEW", controlHint: "W/S drive · A/D steer · Space brake · C camera · R exit" });
+  }
+
+  private startSol11DepartureRoute() {
+    const rover = this.roverSystem?.rover;
+    if (!rover || this.active !== "Terrain" || this.state.missionDay !== 11) return;
+    rover.updateWorldMatrix(true, false);
+    const start = rover.getWorldPosition(new THREE.Vector3());
+    const direction = new THREE.Vector3(0, -1, 0).applyQuaternion(rover.getWorldQuaternion(new THREE.Quaternion())).setY(0).normalize();
+    if (direction.lengthSq() < 0.5) return;
+    this.sol11RouteStart = start.clone();
+    this.sol11RouteDirection = direction;
+    this.sol11RouteBaseDistance = this.missionManager.getState().sol11.routeDistanceMeters;
+    const routeLength = Math.max(1, 200 - this.sol11RouteBaseDistance);
+    const points: THREE.Vector3[] = [];
+    for (let i = 0; i <= 50; i++) {
+      const distance = routeLength * i / 50;
+      const x = start.x + direction.x * distance, z = start.z + direction.z * distance;
+      const height = this.groundHeight(new THREE.Vector3(x, 0, z));
+      points.push(new THREE.Vector3(x, (Number.isFinite(height) ? height : start.y) + 1.4, z));
+    }
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0x55e5f4, transparent: true, opacity: 0.92, depthTest: false });
+    this.sol11RouteBeam = new THREE.Line(geometry, material);
+    this.sol11RouteBeam.name = "SOL11_DEPARTURE_ROUTE_BEAM";
+    this.sol11RouteBeam.renderOrder = 1000;
+    this.current?.add(this.sol11RouteBeam);
+    this.set({ notification: "Departure route active · follow the visible beam for 200 metres." });
+  }
+
+  private clearSol11DepartureRoute() {
+    if (this.sol11RouteBeam) {
+      this.sol11RouteBeam.parent?.remove(this.sol11RouteBeam);
+      this.sol11RouteBeam.geometry.dispose();
+      (this.sol11RouteBeam.material as THREE.Material).dispose();
+      this.sol11RouteBeam = undefined;
+    }
+    this.sol11RouteStart = undefined;
+    this.sol11RouteDirection = undefined;
+  }
+
+  private updateSol11DepartureRoute() {
+    if (this.state.missionDay !== 11 || !this.roverSystem?.isActive || !this.sol11RouteStart || !this.sol11RouteDirection || this.state.finalDepartureVideo) return;
+    const position = this.roverSystem.rover.getWorldPosition(new THREE.Vector3());
+    const delta = new THREE.Vector3(position.x - this.sol11RouteStart.x, 0, position.z - this.sol11RouteStart.z);
+    const progress = Math.min(200, this.sol11RouteBaseDistance + delta.dot(this.sol11RouteDirection));
+    const lateral = Math.abs(delta.x * this.sol11RouteDirection.z - delta.z * this.sol11RouteDirection.x);
+    const savedProgress = this.missionManager.getState().sol11.routeDistanceMeters;
+    if (lateral < 8 && (progress >= 200 || Math.floor(progress) > Math.floor(savedProgress))) {
+      this.missionManager.recordSol11RouteDistance(progress);
+      if (progress >= 200 && !this.sol11FinalVideoActive) this.beginSol11FinalVideo();
+    }
+  }
+
+  private beginSol11FinalVideo() {
+    if (this.sol11FinalVideoActive || !this.missionManager.isStepComplete("SOL11_COMPLETE_DEPARTURE_ROUTE")) return;
+    this.sol11FinalVideoActive = true;
+    this.roverSystem?.exit();
+    this.clearSol11DepartureRoute();
+    this.set({ finalDepartureVideo: true, roverActive: false, roverSpeed: 0, prompt: "", controlHint: "" });
+  }
+
+  public finishSol11FinalVideo() {
+    if (!this.sol11FinalVideoActive) return;
+    if (!this.missionManager.completeSol11FinalVideo()) return;
+    this.set({ notification: "The PHOBOSIA expedition is complete." });
   }
 
   private exitRover() {
@@ -2782,6 +2891,7 @@ export class Game {
       this.audioManager.setMarsTerrain(false);
     } else if (this.roverSystem?.isActive) {
       this.roverSystem.update(dt, this.roverKeys, (x, z) => this.groundHeight(new THREE.Vector3(x, 0, z)), (position, radius, height) => this.canOccupyRover(position, radius, height));
+      this.updateSol11DepartureRoute();
       if (this.frame % 8 === 0) this.publishRoverState();
       this.audioManager.setIndoorMovement("idle");
       this.audioManager.setMarsTerrain(this.evaSuitActive, "idle");
@@ -2861,6 +2971,7 @@ export class Game {
     this.roverSystem?.exit();
     this.roverKeys.clear();
     this.disposed = true;
+    this.clearSol11DepartureRoute();
     this.audioManager.dispose();
     this.sol7Storm.dispose();
     this.sol8PowerEffects.dispose();

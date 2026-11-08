@@ -1,0 +1,62 @@
+{
+  "missionId": "PHOBOSIA_SOL_11",
+  "sol": 11,
+  "title": "Final Farewell",
+  "subtitle": "The Final Departure",
+  "missionType": "story_driven_final_departure",
+  "status": "locked",
+  "description": "Conclude the PHOBOSIA expedition: acknowledge Selina's in-transit message from Deimosian Outpost to PHOBOSIA Outpost, write a personal expedition log, prepare the existing EVA suit, enter the assigned rover, travel the 200-metre departure route, and complete the final cinematic.",
+  "missionPrinciples": {
+    "preserveSOL01To10": true,
+    "noNewPhysicalScreens": true,
+    "useExistingMissionControlConsole": true,
+    "useExistingEVASuit": true,
+    "useExistingRover": true,
+    "selinaRemainsInTransit": true,
+    "noInventedDestinationOutpostName": true,
+    "completeOnlyAfterFinalVideoEnded": true
+  },
+  "prerequisites": [{ "type": "mission_completed", "missionId": "PHOBOSIA_SOL_10", "required": true }],
+  "initialMissionState": {
+    "selinaMessage": { "origin": "Deimosian Outpost", "destination": "PHOBOSIA Outpost", "status": "in_transit", "journeyDuration": "several hours", "acknowledged": false },
+    "finalPersonalLog": { "status": "not_submitted", "text": null, "submittedAt": null },
+    "evaSuitPrepared": false,
+    "vehicleEntered": false,
+    "departureRoute": { "status": "locked", "distanceMeters": 200, "distanceTravelledMeters": 0 },
+    "finalVideo": { "status": "not_started", "completedAt": null }
+  },
+  "missionZones": [
+    { "zoneId": "MissionControl", "purpose": "Receive Selina's incoming message and write the final personal expedition log at the existing main console." },
+    { "zoneId": "Airlock", "purpose": "Prepare the existing EVA suit at its registered preparation interaction." },
+    { "zoneId": "Master_Terrain", "purpose": "Enter the existing assigned rover and complete the 200-metre departure route." }
+  ],
+  "existingInteractionBindings": {
+    "missionControlMainConsole": { "triggerId": "MC_MAIN_01", "interaction": "existing_E_interaction", "createNewPhysicalScreen": false, "createNewTrigger": false },
+    "evaPreparation": { "triggerId": "Mars_Observation_Preparation_Trigger", "interaction": "existing_E_interaction", "createNewPhysicalScreen": false, "createNewTrigger": false },
+    "rover": { "triggerId": "terrainRover_trigger", "interaction": "existing_rover_entry_interaction", "createNewVehicle": false }
+  },
+  "interfaces": [
+    { "interfaceId": "SOL11_MISSION_CONTROL_FAREWELL", "triggerId": "MC_MAIN_01", "location": "Existing Mission Control Main Operations Console", "purpose": "Acknowledge Selina's message and submit the player-authored final expedition log." },
+    { "interfaceId": "SOL11_EVA_PREPARATION", "triggerId": "Mars_Observation_Preparation_Trigger", "location": "Existing Airlock EVA preparation point", "purpose": "Prepare the existing EVA suit." },
+    { "interfaceId": "SOL11_DEPARTURE_ROVER", "triggerId": "terrainRover_trigger", "location": "Existing Terrain Rover", "purpose": "Enter the assigned rover and follow the departure route." }
+  ],
+  "tasks": [
+    { "taskId": "SOL11_ACKNOWLEDGE_SELINAS_MESSAGE", "title": "Acknowledge Selina's Incoming Message", "zone": "MissionControl", "mandatory": true, "interfaceId": "SOL11_MISSION_CONTROL_FAREWELL", "objective": "Read and acknowledge Selina's message. She departed Deimosian Outpost and remains in transit to PHOBOSIA Outpost for several hours.", "completionCondition": "The player acknowledges the persisted incoming message." },
+    { "taskId": "SOL11_SUBMIT_FINAL_LOG", "title": "Write the Final Expedition Log", "zone": "MissionControl", "mandatory": true, "interfaceId": "SOL11_MISSION_CONTROL_FAREWELL", "objective": "Write and submit a personal reflection on the observations, discoveries, experiences and records of SOL 1 through SOL 10.", "completionCondition": "A non-empty player-authored log is persisted." },
+    { "taskId": "SOL11_PREPARE_EVA", "title": "Prepare for Departure", "zone": "Airlock", "mandatory": true, "triggerId": "Mars_Observation_Preparation_Trigger", "interfaceId": "SOL11_EVA_PREPARATION", "objective": "Collect or equip the existing EVA suit using its registered interaction.", "completionCondition": "The existing EVA suit is active after interaction at the existing preparation point." },
+    { "taskId": "SOL11_ENTER_VEHICLE", "title": "Enter the Assigned Vehicle", "zone": "Master_Terrain", "mandatory": true, "triggerId": "terrainRover_trigger", "interfaceId": "SOL11_DEPARTURE_ROVER", "objective": "Enter the existing assigned Terrain Rover using its normal interaction.", "completionCondition": "The existing rover controller confirms successful entry." },
+    { "taskId": "SOL11_COMPLETE_DEPARTURE_ROUTE", "title": "Follow the Departure Route", "zone": "Master_Terrain", "mandatory": true, "objective": "Drive approximately 200 metres along the configured visible route beam using actual rover movement.", "completionCondition": "The assigned rover has travelled 200 metres along the configured route." },
+    { "taskId": "SOL11_PLAY_FINAL_VIDEO", "title": "Final Departure", "zone": "Master_Terrain", "mandatory": true, "objective": "Watch the mandatory fullscreen final cinematic.", "completionCondition": "The final video element's ended event fires successfully." }
+  ],
+  "eventDefinitions": [
+    { "eventId": "SOL11_SELINAS_MESSAGE_ACKNOWLEDGED", "taskId": "SOL11_ACKNOWLEDGE_SELINAS_MESSAGE", "idempotent": true, "persist": true },
+    { "eventId": "SOL11_FINAL_LOG_SUBMITTED", "taskId": "SOL11_SUBMIT_FINAL_LOG", "idempotent": true, "persist": true },
+    { "eventId": "SOL11_EVA_PREPARED", "taskId": "SOL11_PREPARE_EVA", "idempotent": true, "persist": true },
+    { "eventId": "SOL11_VEHICLE_ENTERED", "taskId": "SOL11_ENTER_VEHICLE", "idempotent": true, "persist": true },
+    { "eventId": "SOL11_DEPARTURE_ROUTE_COMPLETED", "taskId": "SOL11_COMPLETE_DEPARTURE_ROUTE", "idempotent": true, "persist": true },
+    { "eventId": "SOL11_FINAL_VIDEO_ENDED", "taskId": "SOL11_PLAY_FINAL_VIDEO", "idempotent": true, "persist": true }
+  ],
+  "missionCompletion": { "requiredTasks": ["SOL11_ACKNOWLEDGE_SELINAS_MESSAGE", "SOL11_SUBMIT_FINAL_LOG", "SOL11_PREPARE_EVA", "SOL11_ENTER_VEHICLE", "SOL11_COMPLETE_DEPARTURE_ROUTE", "SOL11_PLAY_FINAL_VIDEO"], "completionCondition": "Mark campaign complete only after SOL11_FINAL_VIDEO_ENDED." },
+  "navigation": { "source": "Instructions/sol-11-navigation.json", "ordered": true },
+  "persistence": { "preserveSOL01To10": true, "persistAcknowledgement": true, "persistPlayerAuthoredLog": true, "persistRouteProgress": true, "persistFinalVideoCompletion": true, "noSOL12": true }
+}
