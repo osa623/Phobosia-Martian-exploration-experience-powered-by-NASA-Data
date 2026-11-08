@@ -431,7 +431,7 @@ export class Game {
   private applySol11HabitatPresentation(active: boolean) {
     const habitat = this.loaded.get("Habitat");
     if (!habitat) return;
-    const targets = new Set(["Laptop01", "Laptop02", "Sketchfab_model", "NoteBook", "SetOfBook", "Habitat_Workstation_Display"]);
+    const targets = new Set(["Laptop01", "Laptop02", "Sketchfab_model", "NoteBook", "SetOfBook", "PhotoGraph", "Habitat_Workstation_Display"]);
     const isTarget = (object: THREE.Object3D) => [object.name, object.userData?.name].some(name =>
       typeof name === "string" && [...targets].some(target => name === target || name.startsWith(`${target}.`))
     );
@@ -2809,10 +2809,11 @@ export class Game {
     this.set({ finalDepartureVideo: true, roverActive: false, roverSpeed: 0, prompt: "", controlHint: "" });
   }
 
-  public finishSol11FinalVideo() {
-    if (!this.sol11FinalVideoActive) return;
-    if (!this.missionManager.completeSol11FinalVideo()) return;
+  public finishSol11FinalVideo(): boolean {
+    if (!this.sol11FinalVideoActive) return false;
+    if (!this.missionManager.completeSol11FinalVideo()) return false;
     this.set({ notification: "The PHOBOSIA expedition is complete." });
+    return true;
   }
 
   private exitRover() {

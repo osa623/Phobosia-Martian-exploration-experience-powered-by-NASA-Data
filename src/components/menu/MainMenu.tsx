@@ -102,6 +102,7 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
     const audio = getPreparedAudioElement("/assets/sounds/PHOBOSIA.mp3");
     if (!audio) return;
     audio.loop = true;
+    audio.currentTime = 0;
     if (showTrailer) { audio.pause(); return; }
     audio.volume = 0.32;
     const start = () => { void audio.play().catch(() => {}); };
