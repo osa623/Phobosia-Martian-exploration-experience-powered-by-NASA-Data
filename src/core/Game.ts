@@ -88,18 +88,17 @@ const labels: Record<ModuleName, string> = {
   Drone: "Drone Section"
 };
 
-const videos: Partial<Record<ModuleName, string>> = {
-  Habitat: "/assets/videos/Habitat_Entrance.mp4",
-  Airlock: "/assets/videos/AirLock.mp4",
-  Engineering: "/assets/videos/Engineering_Entrance.mp4",
-  Science: "/assets/videos/ReserachLab_Entrance.mp4",
-  MissionControl: "/assets/videos/MissionControl_Entrance.mp4"
-};
-
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(70, 1, 0.05, 2500);
+  private transitionScene = new THREE.Scene();
+  private transitionCamera = new THREE.PerspectiveCamera(38, 1, 0.1, 20);
+  private transitionPlanet: THREE.Mesh;
+  private transitionPlanetMaterial: THREE.ShaderMaterial;
+  private transitionPlanetElapsed = 0;
+  private transitionPointer = new THREE.Vector2();
+  private transitionPointerTarget = new THREE.Vector2();
   private player = new Player(this.camera);
   private audioManager: GameAudioManager;
   private clock = new THREE.Clock();
@@ -131,7 +130,6 @@ export class Game {
   private evaSuitActive: boolean;
   private evaLastTickAt = Date.now();
   private pending?: Transition;
-  private transitionVideoPath?: string;
 
   public missionManager = new MissionManager();
   private screenRenderer = new ScreenRenderer();
@@ -222,6 +220,47 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.prepend(this.renderer.domElement);
+
+    this.transitionScene.background = new THREE.Color("#080d12");
+    this.transitionCamera.position.set(0, 0, 0);
+    this.transitionPlanetMaterial = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 } },
+      vertexShader: `varying vec3 vPlanetPosition; varying vec3 vPlanetNormal; void main(){ vPlanetPosition=position; vPlanetNormal=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader: `
+        varying vec3 vPlanetPosition; varying vec3 vPlanetNormal; uniform float uTime;
+        float hash31(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.yzx+33.33); return fract((p.x+p.y)*p.z); }
+        float noise3(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f); return mix(mix(mix(hash31(i),hash31(i+vec3(1,0,0)),f.x),mix(hash31(i+vec3(0,1,0)),hash31(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash31(i+vec3(0,0,1)),hash31(i+vec3(1,0,1)),f.x),mix(hash31(i+vec3(0,1,1)),hash31(i+vec3(1,1,1)),f.x),f.y),f.z); }
+        float fbm(vec3 p){ float n=0.0, a=0.5; for(int i=0;i<4;i++){ n+=noise3(p)*a; p*=2.03; a*=0.5; } return n; }
+        void main(){
+          vec3 n=normalize(vPlanetNormal); vec3 p=normalize(vPlanetPosition);
+          float broad=fbm(p*5.0+vec3(0.0,uTime*0.004,0.0));
+          float detail=fbm(p*22.0+vec3(4.1,1.7,3.2));
+          float craters=smoothstep(0.56,0.78,noise3(p*vec3(34.0,27.0,34.0)));
+          vec3 rust=vec3(0.43,0.16,0.075); vec3 ochre=vec3(0.69,0.34,0.18); vec3 pale=vec3(0.78,0.53,0.34);
+          vec3 surface=mix(rust,ochre,smoothstep(0.24,0.78,broad)); surface=mix(surface,pale,smoothstep(0.69,0.9,detail)*0.34); surface*=1.0-craters*0.19;
+          float diffuse=max(dot(n,normalize(vec3(-0.58,0.42,0.88))),0.0);
+          float shade=0.12+0.88*diffuse; float limb=pow(1.0-max(dot(n,vec3(0.0,0.0,1.0)),0.0),2.2);
+          vec3 color=surface*shade+vec3(0.9,0.36,0.16)*limb*0.32;
+          gl_FragColor=vec4(color,1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`
+    });
+    this.transitionPlanet = new THREE.Mesh(new THREE.SphereGeometry(1.2, 64, 48), this.transitionPlanetMaterial);
+    this.transitionPlanet.position.set(1.15, 0, -4.35);
+    this.transitionScene.add(this.transitionPlanet);
+    const starPositions = new Float32Array(420 * 3);
+    let starSeed = 17;
+    for (let i = 0; i < 420; i++) {
+      starSeed = (starSeed * 16807) % 2147483647;
+      starPositions[i * 3] = ((starSeed / 2147483647) * 2 - 1) * 7;
+      starSeed = (starSeed * 16807) % 2147483647;
+      starPositions[i * 3 + 1] = ((starSeed / 2147483647) * 2 - 1) * 4.5;
+      starPositions[i * 3 + 2] = -8;
+    }
+    const starsGeometry = new THREE.BufferGeometry();
+    starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starPositions, 3));
+    this.transitionScene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xb6c2c9, size: 0.012, transparent: true, opacity: 0.56, sizeAttenuation: true })));
 
     this.scene.background = new THREE.Color(0x0a1015);
     const initialHemi = getModuleHemisphereConfig("Habitat");
@@ -747,7 +786,7 @@ export class Game {
       error: "",
       transition: "loading",
       transitionLabel: labels[mod] || String(mod),
-      transitionProgress: this.loaded.has(mod) ? 100 : null
+      transitionProgress: null
     });
 
     try {
@@ -1432,6 +1471,8 @@ export class Game {
     if (!width || !height) return;
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
+    this.transitionCamera.aspect = width / height;
+    this.transitionCamera.updateProjectionMatrix();
     if (this.sol5CameraRig) {
       for (const camera of Object.values(this.sol5CameraRig)) {
         camera.aspect = width / height;
@@ -1440,6 +1481,14 @@ export class Game {
     }
     this.renderer.setSize(width, height, false);
   };
+
+  setTransitionPointer(x: number, y: number) {
+    this.transitionPointerTarget.set(THREE.MathUtils.clamp(x, -1, 1), THREE.MathUtils.clamp(y, -1, 1));
+  }
+
+  private waitForTransitionFrame() {
+    return new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  }
 
   private pointer = () => {
     if (document.pointerLockElement !== this.renderer.domElement) {
@@ -1496,12 +1545,6 @@ export class Game {
       return;
     }
     if (this.cameraPresentationManager.isPresentationActive()) return;
-
-    if (this.state.transition === "video" && e.code === "Enter" && !e.repeat) {
-      e.preventDefault();
-      this.videoFinished();
-      return;
-    }
 
     if (this.transitioning) return;
 
@@ -1712,15 +1755,11 @@ export class Game {
     return undefined;
   }
 
-  private async getModel(module: ModuleName, report?: (percent: number | null) => void) {
+  private async getModel(module: ModuleName) {
     const cached = this.loaded.get(module);
-    if (cached) {
-      report?.(100);
-      return cached;
-    }
+    if (cached) return cached;
     const model = clonePreparedModel(assetPaths[module]);
     this.loaded.set(module, model);
-    report?.(100);
     return model;
   }
 
@@ -2041,7 +2080,6 @@ export class Game {
     }
     this.transitioning = true;
     this.pending = route;
-    this.transitionVideoPath = videos[route.module];
     this.player.keys.clear();
     document.exitPointerLock();
 
@@ -2050,21 +2088,22 @@ export class Game {
       prompt: "",
       transition: "loading",
       transitionLabel: labels[route.module],
-      transitionProgress: this.loaded.has(route.module) ? 100 : null
+      transitionProgress: 0
     });
 
     try {
-      const model = await this.getModel(route.module, progress => this.set({ transitionProgress: progress }));
+      // Paint the transition scene before starting destination preparation.
+      await this.waitForTransitionFrame();
       if (this.disposed || !this.pending) return;
 
-      this.configureModule(model, route.module);
-      this.set({ transitionProgress: 100 });
+      const model = await this.getModel(route.module);
+      if (this.disposed || !this.pending) return;
 
-      if (this.transitionVideoPath) {
-        this.set({ transition: "video" });
-      } else {
-        await this.finishTransition();
-      }
+      this.set({ transitionProgress: 25 });
+      await this.waitForTransitionFrame();
+      if (this.disposed || !this.pending) return;
+
+      await this.finishTransition();
     } catch (error) {
       if (this.active === "Terrain" && this.evaSuitActive) this.evaResources.setLocation(true);
       this.set({
@@ -2074,25 +2113,13 @@ export class Game {
     }
   }
 
-  transitionVideo() {
-    return this.transitionVideoPath;
-  }
-
-  videoFinished() {
-    if (this.state.transition === "video") void this.finishTransition();
-  }
-
-  videoFailed(message: string) {
-    if (this.state.transition === "video") this.set({ transition: "error", error: message });
-  }
-
   retryTransition() {
     if (!this.pending) return;
     this.transitioning = false;
     void this.beginTransition(this.pending);
   }
 
-  continueWithoutVideo() {
+  continueTransition() {
     if (this.pending) void this.finishTransition();
   }
 
@@ -2121,6 +2148,9 @@ export class Game {
       this.updateEnvironment();
       this.player.setEyeHeight(route.module === "Hub" ? 0.95 : route.module === "Drone" ? 0.55 : 1.65);
       this.configureModule(model, route.module);
+      this.set({ transitionProgress: 50 });
+      await this.waitForTransitionFrame();
+      if (this.disposed || this.pending !== route) return;
 
       const marker = model.getObjectByName(route.spawn);
       if (!marker) throw new Error(`${labels[route.module]} does not contain required object “${route.spawn}”.`);
@@ -2171,6 +2201,9 @@ export class Game {
 
       this.player.resetVelocity();
       this.player.setEVAOutdoorMotion(route.module === "Terrain" && this.evaSuitActive);
+      this.set({ transitionProgress: 75 });
+      await this.waitForTransitionFrame();
+      if (this.disposed || this.pending !== route) return;
 
       // Sol 6 return completion is tied specifically to the successful Terrain → Airlock transition.
       if (this.missionManager.getState().currentDay === 6 && this.transitionSourceModule === "Terrain" && route.module === "Airlock") {
@@ -2180,6 +2213,11 @@ export class Game {
       // Trigger module entered event
       this.missionManager.handleContextEvent({ type: "module_entered", module: route.module });
       this.playZoneIntroduction(route.module);
+
+      // Show completion only after destination scene, spawn, and mission context are ready.
+      this.set({ transitionProgress: 100 });
+      await this.waitForTransitionFrame();
+      if (this.disposed || this.pending !== route) return;
 
       this.pending = undefined;
       this.transitioning = false;
@@ -2955,10 +2993,19 @@ export class Game {
     this.sol7Storm.update(dt);
     this.sol8PowerEffects.update(dt);
 
-    const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
-      ? this.sol5CameraRig[this.sol5Flight.cameraView]
-      : this.camera;
-    this.renderer.render(this.scene, renderCamera);
+    if (this.state.transition === "loading") {
+      this.transitionPlanetElapsed += dt;
+      this.transitionPointer.lerp(this.transitionPointerTarget, 1 - Math.exp(-dt * 3.5));
+      this.transitionPlanet.rotation.y = this.transitionPlanetElapsed * 0.075 + this.transitionPointer.x * 0.48;
+      this.transitionPlanet.rotation.x = this.transitionPointer.y * 0.2;
+      this.transitionPlanetMaterial.uniforms.uTime.value = this.transitionPlanetElapsed;
+      this.renderer.render(this.transitionScene, this.transitionCamera);
+    } else {
+      const renderCamera = this.sol5DroneActive && this.sol5Flight && this.sol5CameraRig
+        ? this.sol5CameraRig[this.sol5Flight.cameraView]
+        : this.camera;
+      this.renderer.render(this.scene, renderCamera);
+    }
 
     if (++this.frame % 30 === 0) {
       this.set({ fps: Math.round(1 / Math.max(dt, 0.001)) });
@@ -3036,6 +3083,14 @@ export class Game {
     });
 
     this.renderer.dispose();
+    this.transitionPlanet.geometry.dispose();
+    this.transitionPlanetMaterial.dispose();
+    this.transitionScene.traverse(object => {
+      const points = object as THREE.Points;
+      if (!points.isPoints) return;
+      points.geometry.dispose();
+      (points.material as THREE.Material).dispose();
+    });
     this.renderer.domElement.remove();
   }
 }

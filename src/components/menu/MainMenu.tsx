@@ -11,33 +11,6 @@ type SaveInfo = { key: string; state: MissionProgressState };
 type Page = "home" | "archive" | "delete-sols" | "confirm-new" | "credits" | "exit" | "briefing";
 const options = ["NEW EXPLORATION FROM SOL 1", "CONTINUE FROM THE CURRENT SOL", "SELECT PREVIOUS SOLS", "DELETE SOLS"] as const;
 
-function createMarsTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024; canvas.height = 512;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#a95432"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  let seed = 19;
-  const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-  for (let i = 0; i < 14000; i++) {
-    const x = random() * canvas.width, y = random() * canvas.height;
-    const radius = 1 + random() * random() * 18;
-    const shade = random();
-    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = shade > .55 ? `rgba(229,139,87,${.08 + random() * .2})` : `rgba(72,31,24,${.08 + random() * .24})`;
-    ctx.fill();
-  }
-  for (let i = 0; i < 130; i++) {
-    const x = random() * canvas.width, y = random() * canvas.height, radius = 2 + random() * 22;
-    const crater = ctx.createRadialGradient(x - radius * .2, y - radius * .25, radius * .08, x, y, radius);
-    crater.addColorStop(0, "rgba(70,35,27,.48)"); crater.addColorStop(.65, "rgba(82,39,27,.20)"); crater.addColorStop(1, "rgba(232,144,91,.32)");
-    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = crater; ctx.fill();
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.userData.proceduralMars = true;
-  return texture;
-}
-
 function readSave(): { save: SaveInfo | null; error: string } {
   try {
     for (const key of SAVE_KEYS) {
@@ -164,21 +137,6 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
       const max = Math.max(size.x, size.y, size.z);
       if (!Number.isFinite(max) || max <= 0) throw new Error("The Mars model has invalid dimensions.");
       globe.scale.setScalar(7.1 / max);
-      const proceduralMap = createMarsTexture();
-      globe.traverse(object => {
-        const mesh = object as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const material of materials) {
-          const standard = material as THREE.MeshStandardMaterial;
-          if (!standard.map) {
-            standard.map = proceduralMap;
-            standard.color.set(0xffffff);
-            standard.roughness = 0.92;
-            standard.needsUpdate = true;
-          }
-        }
-      });
       globePivot.add(globe); resize();
     } catch (error) {
       setAssetError(error instanceof Error ? error.message : "Prepared menu assets could not be initialized.");
@@ -197,7 +155,7 @@ export function MainMenu({ onStartGame }: { onStartGame: (mode: "new" | "continu
       scene.environment = null; scene.background = null;
       envTarget?.dispose();
       const disposedMaterials = new Set<THREE.Material>();
-      globe?.traverse(obj => { const mesh = obj as THREE.Mesh; for (const mat of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) { if (disposedMaterials.has(mat)) continue; disposedMaterials.add(mat); const standard = mat as THREE.MeshStandardMaterial; if (standard.map?.userData.proceduralMars) standard.map.dispose(); mat.dispose(); } });
+      globe?.traverse(obj => { const mesh = obj as THREE.Mesh; for (const mat of Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : []) { if (disposedMaterials.has(mat)) continue; disposedMaterials.add(mat); mat.dispose(); } });
       renderer.dispose(); renderer.domElement.remove();
     };
   }, []);

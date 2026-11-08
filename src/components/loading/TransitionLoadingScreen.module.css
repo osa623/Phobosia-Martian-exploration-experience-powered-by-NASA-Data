@@ -1,0 +1,12 @@
+.screen{position:fixed;z-index:50;inset:0;display:flex;align-items:center;overflow:hidden;padding:clamp(26px,8vw,130px);background:radial-gradient(ellipse at 75% 48%,rgba(5,10,15,.02) 0%,rgba(5,10,15,.12) 37%,rgba(5,10,15,.72) 100%),linear-gradient(90deg,rgba(5,9,13,.86),rgba(5,9,13,.15) 66%,rgba(5,9,13,.08));color:#f2eee8;font-family:var(--font-dm-sans,"DM Sans",sans-serif);text-shadow:none;pointer-events:auto;touch-action:none}
+.globe{position:absolute;z-index:0;inset:0;pointer-events:none}
+.globe canvas{display:block;width:100%;height:100%}
+.readout{position:relative;z-index:1;width:min(47vw,680px);min-width:270px;margin-top:-1vh}
+.kicker{margin-bottom:clamp(18px,3vh,34px);color:#d78651;font:500 10px var(--font-mono,monospace);letter-spacing:.24em}
+.percentage{display:flex;align-items:baseline;min-height:clamp(125px,24vw,300px);overflow:visible;font-family:var(--font-kanit,"Kanit",sans-serif);font-size:clamp(150px,27vw,390px);font-weight:600;line-height:.78;letter-spacing:-.07em;font-variant-numeric:tabular-nums;color:#f4f0e9;text-shadow:0 8px 70px rgba(0,0,0,.4)}
+.percentage>span{display:block}.percentage small{margin-left:.1em;color:#d78651;font-size:.28em;letter-spacing:-.02em}
+.status{margin-top:clamp(21px,4vh,43px);color:#c1c8c9;font:10px var(--font-mono,monospace);letter-spacing:.18em}
+.route{display:flex;align-items:center;gap:13px;margin-top:12px;color:#87969b;font:10px var(--font-mono,monospace);letter-spacing:.1em}.route i{color:#d78651;font-size:15px;font-style:normal}
+.progressTrack{width:min(390px,100%);height:2px;margin-top:22px;background:rgba(210,222,224,.16)}.progressTrack i{display:block;height:100%;background:#d78651;box-shadow:0 0 14px rgba(215,134,81,.35);transition:width .2s linear}
+.globeHint{position:absolute;right:clamp(24px,5vw,70px);bottom:clamp(22px,5vh,48px);color:rgba(204,214,216,.56);font:8px var(--font-mono,monospace);letter-spacing:.18em}
+@media(max-width:700px){.screen{align-items:flex-start;padding:17vh 8vw 10vh;background:linear-gradient(180deg,rgba(5,9,13,.58),rgba(5,9,13,.12) 45%,rgba(5,9,13,.28))}.readout{width:100%;min-width:0}.percentage{min-height:clamp(110px,30vw,185px);font-size:clamp(136px,34vw,210px)}.status{margin-top:18px}.route{font-size:9px}.globeHint{right:8vw;bottom:4vh}}

@@ -23,7 +23,7 @@ const laptopAssets = laptopManifest as unknown as {
 };
 
 export type AssetKind = "gltf" | "exr" | "image" | "audio" | "video" | "document";
-export type AssetCategory = "Branding" | "Habitat" | "Mission Control" | "Research Laboratory" | "Engineering Unit" | "Central Hub" | "Airlock" | "Mars Terrain" | "Drone Area" | "Gameplay Audio" | "Mission Imagery" | "Transition Video" | "Personal Laptop Media";
+export type AssetCategory = "Branding" | "Habitat" | "Mission Control" | "Research Laboratory" | "Engineering Unit" | "Central Hub" | "Airlock" | "Mars Terrain" | "Drone Area" | "Gameplay Audio" | "Mission Imagery" | "Transition Video" | "Cinematic Video" | "Personal Laptop Media";
 export type AssetStatus = "pending" | "downloading" | "processing" | "ready" | "failed";
 export type AssetPhase = "idle" | "loading" | "processing" | "verifying" | "ready" | "error";
 
@@ -116,17 +116,12 @@ export const REQUIRED_ASSETS: readonly AssetDefinition[] = [
   ...sol5Images
 ];
 
-const transitionVideos = [
+const cinematicVideos = [
   ["video.trailer", "/assets/videos/trailer_phobosia.mp4", "New Exploration Trailer"],
-  ["video.habitat", "/assets/videos/Habitat_Entrance.mp4", "Habitat Transition"],
-  ["video.airlock", "/assets/videos/AirLock.mp4", "Airlock Transition"],
-  ["video.engineering", "/assets/videos/Engineering_Entrance.mp4", "Engineering Transition"],
-  ["video.science", "/assets/videos/ReserachLab_Entrance.mp4", "Research Lab Transition"],
-  ["video.mission-control", "/assets/videos/MissionControl_Entrance.mp4", "Mission Control Transition"]
 ] as const;
 
 export const ON_DEMAND_ASSETS: readonly AssetDefinition[] = [
-  ...transitionVideos.map(([id, path, name]) => asset(id, path, name, "Transition Video", "video", false)),
+  ...cinematicVideos.map(([id, path, name]) => asset(id, path, name, "Cinematic Video", "video", false)),
   ...laptopAssets.songs.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "audio", false)),
   ...laptopAssets.images.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
   ...laptopAssets.wallpapers.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
