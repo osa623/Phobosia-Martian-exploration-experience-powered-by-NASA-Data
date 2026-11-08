@@ -8,7 +8,7 @@ import type {
 } from "./MissionManager";
 import type { ResolvedMissionNavigation } from "../systems/navigation/missionNavigation";
 
-export type TransitionPhase = "" | "loading" | "video" | "error";
+export type TransitionPhase = "" | "loading" | "error";
 
 export type ObjectiveState = "not_started" | "in_progress" | "completed" | "waiting_for_rest";
 
@@ -92,6 +92,7 @@ export interface GameState {
   sol5Images: Sol5ImageRecord[];
   sol5Flight: Sol5FlightSnapshot | null;
   sol5Message: string | null;
+  finalDepartureVideo: boolean;
 
   // Cinematic screen interaction + PHOBOSIA OS Desktop
   showCinematicOverlay: boolean;

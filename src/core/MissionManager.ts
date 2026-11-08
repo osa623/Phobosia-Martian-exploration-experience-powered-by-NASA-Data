@@ -21,7 +21,7 @@ import sol10Mission from "../jsons/Missions/sol-10.json";
 import { SOL10_TRIGGER_CHECKS, type Sol10TriggerVerification, type Sol10VerificationStatus } from "../missions/sol-10/taskDefinitions";
 import { SOL09_TASKS, createInitialSol09Progress, type Sol09Progress, type Sol09RackId, type Sol09TaskId } from "../missions/sol-09/taskDefinitions";
 
-export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+export type MissionDayNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export type ObjectiveState = "not_started" | "in_progress" | "completed" | "waiting_for_rest";
 
@@ -283,6 +283,7 @@ export interface MissionProgressState {
   sol8: Sol08Progress;
   sol9: Sol09Progress;
   sol10: { reviewedReportSols: number[]; triggerVerifications: Record<string, Sol10TriggerVerification> };
+  sol11: { selinaAcknowledged: boolean; finalLog: string | null; evaPrepared: boolean; vehicleEntered: boolean; routeDistanceMeters: number; finalVideoCompleted: boolean };
 }
 
 export interface Sol6MissionProgress {
@@ -298,6 +299,7 @@ export interface Sol6MissionProgress {
 
 const createInitialSol6Progress = (): Sol6MissionProgress => ({ equipmentPrepared: false, evaActive: false, targetReached: false, fieldObservations: [], sample: null, analysis: null, cultivation: null, report: null });
 const createInitialSol10Progress = (): MissionProgressState["sol10"] => ({ reviewedReportSols: [], triggerVerifications: {} });
+const createInitialSol11Progress = (): MissionProgressState["sol11"] => ({ selinaAcknowledged: false, finalLog: null, evaPrepared: false, vehicleEntered: false, routeDistanceMeters: 0, finalVideoCompleted: false });
 const sol6Steps = SOL06_TASKS.map(task => ({ stepId: task.stepId, label: task.label, description: task.description, targetTrigger: "targetTrigger" in task ? task.targetTrigger : undefined, targetModule: "targetModule" in task ? task.targetModule : undefined, requiresCompletedTasks: [...("requiresCompletedTasks" in task ? task.requiresCompletedTasks ?? [] : [])], completed: false }));
 const sol10NavigationRequirements: Record<string, string[]> = Object.fromEntries(
   sol10Mission.tasks.map((task, index) => [task.taskId, index ? [sol10Mission.tasks[index - 1].taskId] : []])
@@ -499,6 +501,24 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     })),
     allowedModules: ["MissionControl", "Habitat", "Science", "Engineering"],
     completionFeedback: "The Phase One final expedition report and crew handover are complete."
+  },
+  11: {
+    day: 11,
+    id: "PHOBOSIA_SOL_11",
+    title: "Final Farewell",
+    storyContext: "Selina is travelling from Deimosian Outpost to PHOBOSIA Outpost. The player prepares to depart on a separate route.",
+    briefing: "Read and acknowledge Selina's incoming message, write your personal expedition log, prepare for EVA, enter the assigned vehicle and follow the departure route.",
+    primaryObjective: "Complete the final personal log and departure sequence. The campaign ends only after the final cinematic finishes.",
+    steps: [
+      ["SOL11_ACKNOWLEDGE_SELINAS_MESSAGE", "Acknowledge Selina's Message", "Read the incoming message from Selina, who is still travelling from Deimosian Outpost to PHOBOSIA Outpost.", "MC_MAIN_01", []],
+      ["SOL11_SUBMIT_FINAL_LOG", "Write the Final Expedition Log", "Write and submit a personal reflection on SOL 1 through SOL 10.", "MC_MAIN_01", ["SOL11_ACKNOWLEDGE_SELINAS_MESSAGE"]],
+      ["SOL11_PREPARE_EVA", "Prepare for Departure", "Equip the existing EVA suit at the Airlock preparation point.", "Mars_Observation_Preparation_Trigger", ["SOL11_SUBMIT_FINAL_LOG"]],
+      ["SOL11_ENTER_VEHICLE", "Enter the Assigned Vehicle", "Enter the existing Terrain Rover.", "terrainRover_trigger", ["SOL11_PREPARE_EVA"]],
+      ["SOL11_COMPLETE_DEPARTURE_ROUTE", "Follow the Departure Route", "Drive 200 metres along the configured route using the existing rover.", undefined, ["SOL11_ENTER_VEHICLE"]],
+      ["SOL11_PLAY_FINAL_VIDEO", "Final Departure", "Watch the fullscreen final cinematic to completion.", undefined, ["SOL11_COMPLETE_DEPARTURE_ROUTE"]]
+    ].map(([stepId, label, description, triggerId, requiresCompletedTasks]) => ({ stepId: stepId as string, label: label as string, description: description as string, triggerId: triggerId as string | undefined, targetTrigger: triggerId as string | undefined, requiresCompletedTasks: requiresCompletedTasks as string[], completed: false })),
+    allowedModules: ["MissionControl", "Airlock", "Terrain"],
+    completionFeedback: "The PHOBOSIA expedition is complete."
   }
 };
 
@@ -512,8 +532,8 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   const steps = DAYS_CONFIG[day].steps;
   // Sols 2–5 expose the validated mission tasks individually; later legacy days
   // retain their existing single-objective progress treatment.
-  const total = day >= 2 && day <= 10 ? steps.length : steps.length ? 1 : 0;
-  const completed = day >= 2 && day <= 10
+  const total = day >= 2 && day <= 11 ? steps.length : steps.length ? 1 : 0;
+  const completed = day >= 2 && day <= 11
     ? new Set(steps.filter(step => completedSet.has(step.stepId)).map(step => step.stepId)).size
     : total > 0 && steps.every(step => completedSet.has(step.stepId)) ? 1 : 0;
   return { completed, total, remaining: total - completed };
@@ -543,7 +563,7 @@ export class MissionManager {
         }
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<MissionProgressState>;
-      if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 10) {
+      if (parsed && typeof parsed.currentDay === "number" && parsed.currentDay >= 1 && parsed.currentDay <= 11) {
             const rawSol5 = parsed.sol5 && typeof parsed.sol5 === "object"
               ? { ...createInitialSol5Progress(), ...(parsed.sol5 as Partial<Sol5MissionProgress>) }
               : createInitialSol5Progress();
@@ -621,6 +641,14 @@ export class MissionManager {
                 : sol10Defaults.reviewedReportSols,
               triggerVerifications
             };
+            const rawSol11 = parsed.sol11 && typeof parsed.sol11 === "object" ? parsed.sol11 : createInitialSol11Progress();
+            const sol11 = {
+              selinaAcknowledged: Boolean(rawSol11.selinaAcknowledged),
+              finalLog: typeof rawSol11.finalLog === "string" ? rawSol11.finalLog : null,
+              evaPrepared: Boolean(rawSol11.evaPrepared), vehicleEntered: Boolean(rawSol11.vehicleEntered),
+              routeDistanceMeters: Math.max(0, Math.min(200, Number(rawSol11.routeDistanceMeters) || 0)),
+              finalVideoCompleted: Boolean(rawSol11.finalVideoCompleted)
+            };
             const sol9Unlocked = Boolean(savedSol8.report?.validated && !savedSol8.powerFailureActive && !savedSol8.communicationFailureActive);
             const sol10Unlocked = Boolean(savedSol9.report?.validated);
             const loadedDay: MissionDayNumber = parsed.currentDay === 10 && !sol9Unlocked
@@ -663,7 +691,8 @@ export class MissionManager {
               sol7,
               sol8,
               sol9,
-              sol10
+              sol10,
+              sol11
             };
           }
         }
@@ -693,7 +722,8 @@ export class MissionManager {
       sol7: createInitialSol7Progress(),
       sol8: createInitialSol08Progress(),
       sol9: createInitialSol09Progress(),
-      sol10: createInitialSol10Progress()
+      sol10: createInitialSol10Progress(),
+      sol11: createInitialSol11Progress()
     };
   }
 
@@ -1304,7 +1334,7 @@ export class MissionManager {
   }
 
   public getCurrentNavigationInstruction() {
-    if (this.state.currentDay < 1 || this.state.currentDay > 10) return null;
+    if (this.state.currentDay < 1 || this.state.currentDay > 11) return null;
     return resolveNextMissionNavigation(this.state.currentDay, this.state.completedStepIds);
   }
 
@@ -1994,7 +2024,7 @@ export class MissionManager {
       return { canAdvance: false, reason: "Sol 8 requires both independent recovery states to be resolved and the final recovery report validated before resting." };
     }
 
-    if (this.state.currentDay === 10) return { canAdvance: false, reason: "Sol 10 is the final Phase One day. Complete the final report; no later Sol is configured." };
+    if (this.state.currentDay === 11) return { canAdvance: false, reason: this.state.campaignFinished ? "The campaign is complete." : "The final departure cinematic must finish before the campaign can complete." };
 
     return { canAdvance: true, reason: "Day objective validated. Ready to advance." };
   }
@@ -2013,8 +2043,8 @@ export class MissionManager {
       return { success: false, message: check.reason };
     }
 
-    if (this.state.currentDay >= 10) {
-      return { success: false, message: "Sol 10 is the final configured day." };
+    if (this.state.currentDay >= 11) {
+      return { success: false, message: "Sol 11 is the final configured day." };
     }
 
     this.isAdvancingDay = true;
@@ -2051,6 +2081,59 @@ export class MissionManager {
     }
   }
 
+  public acknowledgeSol11SelinaMessage(): boolean {
+    if (this.state.currentDay !== 11 || this.state.sol11.selinaAcknowledged) return false;
+    this.state.sol11.selinaAcknowledged = true;
+    this.completeStep("SOL11_ACKNOWLEDGE_SELINAS_MESSAGE");
+    this.state.notification = "Selina's message acknowledged. She remains in transit to PHOBOSIA Outpost.";
+    this.emit();
+    return true;
+  }
+
+  public submitSol11FinalLog(text: string): { success: boolean; message: string } {
+    const value = text.trim();
+    if (this.state.currentDay !== 11 || !this.state.sol11.selinaAcknowledged) return { success: false, message: "Acknowledge Selina's message before submitting the final log." };
+    if (!value) return { success: false, message: "Write your final expedition log before submitting." };
+    this.state.sol11.finalLog = value;
+    this.completeStep("SOL11_SUBMIT_FINAL_LOG");
+    this.emit();
+    return { success: true, message: "Final Expedition Log saved." };
+  }
+
+  public markSol11EVAPrepared(active: boolean): boolean {
+    if (this.state.currentDay !== 11 || !active || !this.isStepComplete("SOL11_SUBMIT_FINAL_LOG")) return false;
+    this.state.sol11.evaPrepared = true;
+    const done = this.completeStep("SOL11_PREPARE_EVA");
+    if (done) this.emit();
+    return done;
+  }
+
+  public markSol11VehicleEntered(): boolean {
+    if (this.state.currentDay !== 11 || !this.state.sol11.evaPrepared || this.state.sol11.vehicleEntered) return false;
+    this.state.sol11.vehicleEntered = true;
+    const done = this.completeStep("SOL11_ENTER_VEHICLE");
+    if (done) this.emit();
+    return done;
+  }
+
+  public recordSol11RouteDistance(distanceMeters: number): boolean {
+    if (this.state.currentDay !== 11 || !this.state.sol11.vehicleEntered || !Number.isFinite(distanceMeters) || distanceMeters <= this.state.sol11.routeDistanceMeters) return false;
+    this.state.sol11.routeDistanceMeters = Math.min(200, distanceMeters);
+    if (this.state.sol11.routeDistanceMeters >= 200) this.completeStep("SOL11_COMPLETE_DEPARTURE_ROUTE");
+    this.emit();
+    return true;
+  }
+
+  public completeSol11FinalVideo(): boolean {
+    if (this.state.currentDay !== 11 || this.state.sol11.finalVideoCompleted || !this.isStepComplete("SOL11_COMPLETE_DEPARTURE_ROUTE")) return false;
+    this.state.sol11.finalVideoCompleted = true;
+    this.completeStep("SOL11_PLAY_FINAL_VIDEO");
+    this.state.campaignFinished = true;
+    this.state.notification = "The PHOBOSIA expedition is complete.";
+    this.emit();
+    return true;
+  }
+
   public resetProgress(): void {
     if (typeof window !== "undefined") {
       try {
@@ -2081,7 +2164,8 @@ export class MissionManager {
       sol7: createInitialSol7Progress(),
       sol8: createInitialSol08Progress(),
       sol9: createInitialSol09Progress(),
-      sol10: createInitialSol10Progress()
+      sol10: createInitialSol10Progress(),
+      sol11: createInitialSol11Progress()
     };
     this.emit();
   }

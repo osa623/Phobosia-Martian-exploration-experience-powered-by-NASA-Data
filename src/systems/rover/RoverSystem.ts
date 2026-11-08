@@ -27,6 +27,7 @@ export class RoverSystem {
   private pitch = 0;
   private view: RoverView = "FIRST PERSON";
   private active = false;
+  private distanceTravelledMeters = 0;
   private cameraPosition = new THREE.Vector3();
   private cameraLook = new THREE.Vector3();
   private forward = new THREE.Vector3();
@@ -66,6 +67,7 @@ export class RoverSystem {
 
   get snapshot(): RoverSnapshot { return { active: this.active, speed: this.velocity, view: this.view }; }
   get isActive(): boolean { return this.active; }
+  get distanceTravelled(): number { return this.distanceTravelledMeters; }
   get interactionCenter(): THREE.Vector3 { return this.trigger.getWorldPosition(new THREE.Vector3()); }
   get interactionRange(): number {
     return Math.max(6, Math.min(9, this.dimensions.length() * 0.45));
@@ -83,7 +85,7 @@ export class RoverSystem {
     const height = groundHeight(this.worldPosition.x + this.centerOffset.x, this.worldPosition.z + this.centerOffset.z);
     if (Number.isFinite(height)) this.worldPosition.y = height - this.bottomOffset;
     this.setWorldPosition(this.worldPosition);
-    this.velocity = 0; this.steering = 0; this.active = true;
+    this.velocity = 0; this.steering = 0; this.active = true; this.distanceTravelledMeters = 0;
     const initialForward = new THREE.Vector3(0, -1, 0).applyQuaternion(this.baseWorldQuaternion);
     this.yaw = Math.atan2(-initialForward.x, -initialForward.z);
     this.followCamera(0, groundHeight);
@@ -108,9 +110,11 @@ export class RoverSystem {
 
     this.forward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this.rover.getWorldPosition(this.worldPosition);
+    const previousX = this.worldPosition.x, previousZ = this.worldPosition.z;
     this.testPosition.copy(this.worldPosition).addScaledVector(this.forward, this.velocity * dt);
     if (canOccupy(this.testPosition, this.dimensions.x * 0.34, this.dimensions.y * 0.5)) {
       this.worldPosition.x = this.testPosition.x; this.worldPosition.z = this.testPosition.z;
+      this.distanceTravelledMeters += Math.hypot(this.worldPosition.x - previousX, this.worldPosition.z - previousZ);
     } else this.velocity = 0;
 
     // Three terrain samples approximate a compliant six-wheel suspension without physics overhead.

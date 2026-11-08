@@ -1,0 +1,516 @@
+{
+  "missionId": "PHOBOSIA_SOL_11",
+  "sol": 11,
+  "title": "SOL 11 - Final Farewell",
+  "subtitle": "The Final Departure",
+  "missionType": "final_expedition_departure",
+  "description": "The final day at PHOBOSIA Outpost. The player receives an incoming message from Selina, an astronaut who has departed from Deimosian Outpost and is travelling towards PHOBOSIA Outpost. Her journey will take several hours. The player does not wait for her arrival. After acknowledging the message, the player writes the final expedition log at Mission Control, prepares for the final EVA, collects the existing EVA suit, enters the assigned vehicle and follows a visible 200-metre departure route towards an unnamed outpost. The final route ends the playable outpost scene and triggers the mandatory final cinematic.",
+  "missionStatus": "locked",
+  "missionCategory": "final_story_mission",
+  "isFinalMission": true,
+
+  "prerequisites": {
+    "requiredCompletedMission": "PHOBOSIA_SOL_10",
+    "required": true,
+    "preservePreviousSOLProgress": true
+  },
+
+  "missionRules": {
+    "shortStoryDrivenMission": true,
+    "noAdditionalScientificInvestigation": true,
+    "noNewResearchObjectives": true,
+    "noNewPhysicalModules": true,
+    "noNewPhysicalScreens": true,
+    "reuseExistingMissionControl": true,
+    "reuseExistingEVASection": true,
+    "reuseExistingEVASuit": true,
+    "reuseExistingAssignedVehicle": true,
+    "reuseExistingInteractionSystem": true,
+    "reuseExistingNavigationSystem": true,
+    "reuseExistingScreenRenderer": true,
+    "doNotModifyCompletedSOL01ToSOL10": true,
+    "doNotCreateSOL12": true,
+    "doNotAutomaticallyAdvanceDay": true,
+    "finalVideoMustComplete": true
+  },
+
+  "initialState": {
+    "selinaMessage": {
+      "received": false,
+      "acknowledged": false,
+      "characterName": "Selina",
+      "characterGender": "female",
+      "originOutpost": "Deimosian Outpost",
+      "destinationOutpost": "PHOBOSIA Outpost",
+      "travelStatus": "in_transit",
+      "estimatedTravelDuration": "several_hours",
+      "arrivalConfirmed": false,
+      "arrivalRequired": false,
+      "playerMustWait": false
+    },
+    "finalMissionLog": {
+      "started": false,
+      "submitted": false,
+      "text": ""
+    },
+    "evaPreparation": {
+      "started": false,
+      "suitCollected": false
+    },
+    "vehicleDeparture": {
+      "vehicleEntered": false,
+      "routeStarted": false,
+      "routeCompleted": false,
+      "targetDistanceMeters": 200,
+      "actualDistanceMeters": 0
+    },
+    "finalCinematic": {
+      "started": false,
+      "completed": false
+    },
+    "campaign": {
+      "completed": false
+    }
+  },
+
+  "story": {
+    "selinaIncomingMessage": {
+      "eventId": "SOL11_SELINA_INCOMING_MESSAGE",
+      "trigger": "SOL11_START",
+      "location": "MissionControl",
+      "deliveryMethod": "existing_notification_system",
+      "sender": "Selina",
+      "character": {
+        "name": "Selina",
+        "gender": "female",
+        "role": "astronaut"
+      },
+      "journey": {
+        "origin": "Deimosian Outpost",
+        "destination": "PHOBOSIA Outpost",
+        "status": "in_transit",
+        "travelDuration": "several_hours",
+        "arrivalDuringSOL11": "not_required",
+        "arrivalEvent": "not_required"
+      },
+      "notification": {
+        "title": "Incoming Message - Selina",
+        "message": "Hello, PHOBOSIA Outpost. This is Selina. I have departed from Deimosian Outpost and I am currently travelling towards your outpost. My journey will take several hours. I wanted to send you this message before I arrive. I hope everything is going well at PHOBOSIA. I will contact you again when I get closer.",
+        "requiresAcknowledgement": true,
+        "acknowledgementLabel": "Acknowledge Message",
+        "requiresDepartureConfirmation": false,
+        "requiresPlayerReply": false,
+        "requiresPlayerToWait": false
+      },
+      "completionEvent": "SOL11_SELINA_MESSAGE_ACKNOWLEDGED"
+    },
+
+    "playerFinalDeparture": {
+      "eventId": "SOL11_PLAYER_FINAL_DEPARTURE",
+      "originOutpost": "PHOBOSIA Outpost",
+      "destinationOutpost": "Unnamed Outpost",
+      "destinationNameVisible": false,
+      "destinationNameRevealed": false,
+      "journeyType": "vehicle_departure",
+      "requiredPlayableDistanceMeters": 200,
+      "fullInterOutpostJourneySimulation": false
+    }
+  },
+
+  "tasks": [
+    {
+      "taskId": "SOL11_TASK_01",
+      "order": 1,
+      "title": "Receive Selina's Message",
+      "description": "Go to the existing Mission Control main console and review the incoming message from Selina. She has departed from Deimosian Outpost and is travelling towards PHOBOSIA Outpost. Her journey will take several hours.",
+      "zone": "MissionControl",
+      "required": true,
+      "interaction": "existing_mission_control_interaction",
+      "completionCondition": "The incoming message is displayed and acknowledged by the player.",
+      "completionEvent": "SOL11_SELINA_MESSAGE_ACKNOWLEDGED",
+      "waitForSelina": false,
+      "requireSelinaArrival": false,
+      "requirePlayerReply": false,
+      "requireDepartureConfirmation": false
+    },
+    {
+      "taskId": "SOL11_TASK_02",
+      "order": 2,
+      "title": "Write the Final Mission Log",
+      "description": "Remain at Mission Control and write your final personal expedition log. Reflect on the observations, discoveries and experiences recorded throughout SOL 1 to SOL 10. Submit your own final message to complete the last mission record.",
+      "zone": "MissionControl",
+      "required": true,
+      "interaction": "existing_mission_control_interaction",
+      "input": {
+        "type": "multiline_text",
+        "required": true,
+        "minimumLength": 1,
+        "maximumLength": 5000,
+        "placeholder": "Write your final expedition log...",
+        "submitLabel": "Submit Final Log",
+        "allowPlayerTyping": true,
+        "allowEditingBeforeSubmission": true
+      },
+      "completionCondition": "The player submits a non-empty final mission log and the submitted text is successfully persisted.",
+      "completionEvent": "SOL11_FINAL_LOG_SUBMITTED"
+    },
+    {
+      "taskId": "SOL11_TASK_03",
+      "order": 3,
+      "title": "Prepare for the Final EVA",
+      "description": "Leave Mission Control and go to the existing EVA section. Collect or equip the existing EVA suit before heading outside.",
+      "zone": "Airlock",
+      "required": true,
+      "interaction": "existing_EVA_suit_interaction",
+      "completionCondition": "The existing EVA suit interaction reports successful collection or equipment.",
+      "completionEvent": "SOL11_EVA_SUIT_COLLECTED",
+      "createNewSuit": false,
+      "createNewEVASection": false
+    },
+    {
+      "taskId": "SOL11_TASK_04",
+      "order": 4,
+      "title": "Enter Your Expedition Vehicle",
+      "description": "After preparing the EVA suit, go outside and reach the existing vehicle assigned to the player. Enter that vehicle to begin the final departure.",
+      "zone": "Master_Terrain",
+      "required": true,
+      "interaction": "existing_vehicle_entry_interaction",
+      "vehicleReference": "resolve_existing_assigned_player_vehicle",
+      "completionCondition": "The player successfully enters the existing assigned vehicle.",
+      "completionEvent": "SOL11_VEHICLE_ENTERED",
+      "createNewVehicle": false
+    },
+    {
+      "taskId": "SOL11_TASK_05",
+      "order": 5,
+      "title": "The Final 200 Metres",
+      "description": "Drive the assigned vehicle along the visible route beam. Follow the marked departure path for approximately 200 metres away from PHOBOSIA Outpost. When the complete route has been travelled, the playable outpost scene will end.",
+      "zone": "Master_Terrain",
+      "required": true,
+      "targetDistanceMeters": 200,
+      "routeConfiguration": "SOL11_FINAL_DEPARTURE_ROUTE",
+      "completionCondition": "The actual vehicle travel distance along the configured route reaches 200 metres.",
+      "completionEvent": "SOL11_FINAL_ROUTE_COMPLETED"
+    },
+    {
+      "taskId": "SOL11_TASK_06",
+      "order": 6,
+      "title": "Final Farewell",
+      "description": "After completing the final departure route, watch the complete final cinematic. The video cannot be skipped.",
+      "zone": "FinalCinematic",
+      "required": true,
+      "mediaReference": "SOL11_FINAL_VIDEO",
+      "completionCondition": "The final video reaches its actual ended event.",
+      "completionEvent": "SOL11_FINAL_VIDEO_COMPLETED"
+    }
+  ],
+
+  "objectives": [
+    {
+      "objectiveId": "SOL11_OBJ_01",
+      "taskId": "SOL11_TASK_01",
+      "required": true,
+      "type": "notification_acknowledgement"
+    },
+    {
+      "objectiveId": "SOL11_OBJ_02",
+      "taskId": "SOL11_TASK_02",
+      "required": true,
+      "type": "player_text_submission"
+    },
+    {
+      "objectiveId": "SOL11_OBJ_03",
+      "taskId": "SOL11_TASK_03",
+      "required": true,
+      "type": "existing_world_interaction"
+    },
+    {
+      "objectiveId": "SOL11_OBJ_04",
+      "taskId": "SOL11_TASK_04",
+      "required": true,
+      "type": "existing_vehicle_entry"
+    },
+    {
+      "objectiveId": "SOL11_OBJ_05",
+      "taskId": "SOL11_TASK_05",
+      "required": true,
+      "type": "vehicle_route_distance",
+      "targetDistanceMeters": 200
+    },
+    {
+      "objectiveId": "SOL11_OBJ_06",
+      "taskId": "SOL11_TASK_06",
+      "required": true,
+      "type": "mandatory_video_completion"
+    }
+  ],
+
+  "interactions": {
+    "missionControl": {
+      "reuseExisting": true,
+      "screenReference": "resolve_existing_mission_control_main_screen",
+      "triggerReference": "resolve_existing_mission_control_main_trigger",
+      "notificationApplication": "existing_notification_application",
+      "finalLogApplication": "existing_or_SOL11_CONTEXTUAL_FINAL_LOG_INTERFACE",
+      "createNewPhysicalScreen": false,
+      "createNew3DObject": false
+    },
+    "eva": {
+      "reuseExisting": true,
+      "sectionReference": "resolve_existing_EVA_section",
+      "suitReference": "resolve_existing_EVA_suit_object",
+      "createNewSuit": false
+    },
+    "vehicle": {
+      "reuseExisting": true,
+      "vehicleReference": "resolve_existing_assigned_player_vehicle",
+      "entryTriggerReference": "resolve_existing_vehicle_entry_trigger",
+      "createNewVehicle": false
+    }
+  },
+
+  "navigation": {
+    "enabled": true,
+    "reuseExistingNavigationSystem": true,
+    "showCurrentObjective": true,
+    "destinations": [
+      {
+        "destinationId": "SOL11_DEST_MISSION_CONTROL",
+        "label": "Mission Control",
+        "zone": "MissionControl",
+        "resolveFromExistingScene": true
+      },
+      {
+        "destinationId": "SOL11_DEST_EVA",
+        "label": "EVA Preparation",
+        "zone": "Airlock",
+        "resolveFromExistingScene": true
+      },
+      {
+        "destinationId": "SOL11_DEST_VEHICLE",
+        "label": "Expedition Vehicle",
+        "zone": "Master_Terrain",
+        "resolveFromExistingScene": true
+      }
+    ],
+    "doNotInventCoordinates": true,
+    "navigationDoesNotCompleteObjectives": true
+  },
+
+  "finalDepartureRoute": {
+    "routeId": "SOL11_FINAL_DEPARTURE_ROUTE",
+    "enabled": true,
+    "origin": "PHOBOSIA Outpost",
+    "destination": "Unnamed Outpost",
+    "destinationNameVisible": false,
+    "startingPosition": "existing_assigned_vehicle_world_position_at_route_start",
+    "targetDistanceMeters": 200,
+    "distanceMeasurement": {
+      "source": "actual_vehicle_world_position",
+      "measureActualTravel": true,
+      "measureAlongConfiguredRoute": true,
+      "useElapsedTimeAsDistance": false,
+      "useStraightLineDistanceAsSoleCompletionCheck": false,
+      "targetDistanceMeters": 200,
+      "preventDistanceDuplication": true
+    },
+    "routeGuide": {
+      "enabled": true,
+      "type": "visible_world_space_beam",
+      "purpose": "Show the vehicle's intended final departure path.",
+      "followConfiguredRoute": true,
+      "visibleAfterVehicleEntry": true,
+      "visibleDuringDeparture": true,
+      "removeAfterRouteCompletion": true,
+      "mustNotObstructDriving": true,
+      "mustFollowSafeExistingTerrain": true
+    },
+    "vehicleRules": {
+      "useExistingVehicleController": true,
+      "preserveExistingVehiclePhysics": true,
+      "preserveExistingVehicleControls": true,
+      "doNotTeleportVehicleToDestination": true,
+      "doNotMoveVehicleAutomatically": true,
+      "playerMustDrive": true
+    },
+    "onRouteCompleted": {
+      "event": "SOL11_FINAL_ROUTE_COMPLETED",
+      "stopVehicleInput": true,
+      "stopPlayerMovement": true,
+      "disableMissionInteractions": true,
+      "hideMissionHUD": true,
+      "stopPlayableOutpostScene": true,
+      "startFinalVideo": true
+    },
+    "doNotInventCoordinates": true,
+    "resolveTerrainAndRouteFromExistingScene": true
+  },
+
+  "visibility": {
+    "configurationId": "SOL11_TEMPORARY_OBJECT_VISIBILITY",
+    "applyOnlyWhen": "PHOBOSIA_SOL_11_ACTIVE",
+    "objects": [
+      "Laptop01",
+      "Laptop02",
+      "Sketchfab_model",
+      "NoteBook",
+      "SetOfBook"
+    ],
+    "operation": "set_visible_false",
+    "scope": "SOL11_ONLY",
+    "preserveOriginalVisibilityState": true,
+    "restoreOriginalVisibilityWhenSOL11Ends": true,
+    "doNotDeleteObjects": true,
+    "doNotDisposeObjects": true,
+    "doNotChangeOtherSOLVisibility": true,
+    "doNotModifyObjectTransforms": true,
+    "doNotModifyObjectMaterials": true,
+    "resolveByExactExistingSceneObjectName": true,
+    "missingObjectHandling": "warn_without_crashing"
+  },
+
+  "screenPresentation": {
+    "configurationId": "SOL11_FAREWELL_SCREEN_PRESENTATION",
+    "enabled": true,
+    "scope": "all_existing_registered_physical_screens",
+    "activation": "PHOBOSIA_SOL_11_ACTIVE",
+    "deactivation": "PHOBOSIA_SOL_11_INACTIVE",
+    "primaryMessage": "VISION SUCCESS",
+    "secondaryMessage": "SOL 11 - FAREWELL",
+    "presentationStyle": "existing_PHOBOSIA_visual_language",
+    "preserveExistingScreenApplications": true,
+    "preserveExistingScreenContent": true,
+    "useContextualHeaderOrOverlay": true,
+    "doNotReplaceExistingApplicationContent": true,
+    "doNotCreateNewScreens": true,
+    "doNotInventScreenIds": true,
+    "resolveScreensFromExistingScreenRegistry": true
+  },
+
+  "media": {
+    "finalVideo": {
+      "mediaId": "SOL11_FINAL_VIDEO",
+      "source": "public/assets/videos/finalVideo/finalVideo.mp4",
+      "trigger": "SOL11_FINAL_ROUTE_COMPLETED",
+      "playAutomatically": true,
+      "fullscreen": true,
+      "viewportCoverage": "100_percent",
+      "objectFit": "cover",
+      "showGameHUD": false,
+      "showGameWidgets": false,
+      "showMissionInterface": false,
+      "showNavigation": false,
+      "showCaptions": false,
+      "showPlaybackControls": false,
+      "showCountdown": false,
+      "allowSkip": false,
+      "allowEscapeToSkip": false,
+      "allowClickToSkip": false,
+      "allowSeek": false,
+      "waitForActualEndedEvent": true,
+      "completionEvent": "SOL11_FINAL_VIDEO_COMPLETED"
+    },
+    "carlsMessage": {
+      "mediaId": "SOL1_CARLS_MESSAGE",
+      "source": "public/assets/videos/carlsMessage.mp4",
+      "trigger": "NEW_EXPLORATION_FROM_SOL1",
+      "playSequence": {
+        "first": "existing_intro_trailer",
+        "second": "SOL1_CARLS_MESSAGE",
+        "third": "SOL1_GAMEPLAY_START"
+      },
+      "playAfterExistingIntroVideo": true,
+      "playBeforeSOL1Gameplay": true,
+      "fullscreen": true,
+      "viewportCoverage": "100_percent",
+      "objectFit": "cover",
+      "showGameHUD": false,
+      "showGameWidgets": false,
+      "showMainMenu": false,
+      "showCaptions": false,
+      "showTitles": false,
+      "showAdditionalText": false,
+      "showPlaybackControls": false,
+      "showCountdown": true,
+      "countdown": {
+        "enabled": true,
+        "position": "top_right",
+        "source": "HTMLVideoElement.duration_minus_currentTime",
+        "format": "MM:SS",
+        "updateFromActualPlaybackTime": true,
+        "showOnlyCountdown": true,
+        "doNotUseFixedDuration": true,
+        "doNotDisplayNegativeTime": true
+      },
+      "allowSkip": false,
+      "allowEscapeToSkip": false,
+      "allowClickToSkip": false,
+      "allowSeek": false,
+      "waitForActualEndedEvent": true,
+      "startSOL1OnlyAfterEnded": true,
+      "completionEvent": "SOL1_CARLS_MESSAGE_COMPLETED"
+    },
+    "globalVideoRules": {
+      "allMissionCinematicsFullscreen": true,
+      "hideAllGameWidgetsDuringPlayback": true,
+      "hideAllGameHUDDuringPlayback": true,
+      "disableUnintendedPlayerInput": true,
+      "preventDuplicateVideoPlayback": true,
+      "restoreGameplayOnlyWhenSequenceAllows": true,
+      "handleVideoLoadErrors": true,
+      "doNotMarkVideoCompletedBeforeEnded": true
+    }
+  },
+
+  "completion": {
+    "allRequiredObjectivesMustBeComplete": true,
+    "requiredEvents": [
+      "SOL11_SELINA_MESSAGE_ACKNOWLEDGED",
+      "SOL11_FINAL_LOG_SUBMITTED",
+      "SOL11_EVA_SUIT_COLLECTED",
+      "SOL11_VEHICLE_ENTERED",
+      "SOL11_FINAL_ROUTE_COMPLETED",
+      "SOL11_FINAL_VIDEO_COMPLETED"
+    ],
+    "onComplete": {
+      "setMissionStatus": "completed",
+      "setCampaignStatus": "completed",
+      "persistMissionCompletion": true,
+      "persistFinalMissionLog": true,
+      "persistSelinaMessageAcknowledgement": true,
+      "persistFinalRouteResult": true,
+      "persistFinalVideoCompletion": true,
+      "unlockSOL12": false,
+      "advanceDay": false,
+      "returnToPlayableOutpost": false,
+      "showAdditionalMission": false
+    }
+  },
+
+  "persistence": {
+    "useExistingSaveManager": true,
+    "preserveSOL01ToSOL10Data": true,
+    "persistFinalMissionLog": true,
+    "persistNotificationAcknowledgement": true,
+    "persistEVASuitCompletion": true,
+    "persistVehicleEntry": true,
+    "persistActualRouteDistance": true,
+    "persistFinalVideoCompletion": true,
+    "preventDuplicateNotifications": true,
+    "preventDuplicateMissionCompletion": true,
+    "preserveOriginalVisibilityForRestoration": true,
+    "avoidDestructiveSaveMigration": true
+  },
+
+  "dataIntegrity": {
+    "noInventedObjectNames": true,
+    "noInventedTriggerIds": true,
+    "noInventedScreenIds": true,
+    "noInventedWorldCoordinates": true,
+    "noFabricatedNASAData": true,
+    "SelinaJourneyIsFictionalStoryContent": true,
+    "preserveAllCompletedSOLs": true,
+    "doNotDeleteExistingObjects": true,
+    "doNotChangeGlobalMissionSchemaWithoutApproval": true
+  }
+}
