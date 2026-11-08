@@ -56,6 +56,7 @@ const mockState: GameState = {
   sol5Images: [],
   sol5Flight: null,
   sol5Message: null,
+  finalDepartureVideo: false,
   showCinematicOverlay: false,
   showOSDesktop: true,
   showPersonalLaptop: false,

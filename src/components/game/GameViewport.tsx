@@ -14,6 +14,7 @@ import { Sol6FieldCapture } from "@/missions/SOL_06/components/Sol6FieldCapture"
 import { PersonalLaptopOS } from "@/systems/personal-laptop/PersonalLaptopOS";
 import { LaptopAudioController, type LaptopAudioSnapshot } from "@/systems/personal-laptop/LaptopAudioController";
 import { areRequiredAssetsReady, getPreparedAssetUrl } from "@/core/AssetLoading";
+import { TransitionLoadingScreen } from "@/components/loading/TransitionLoadingScreen";
 
 const initialState: GameState = {
   ready: false,
@@ -73,6 +74,7 @@ const initialState: GameState = {
   sol5Images: [],
   sol5Flight: null,
   sol5Message: null,
+  finalDepartureVideo: false,
 
   showCinematicOverlay: false,
   showOSDesktop: false,
@@ -93,6 +95,7 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
   const [state, setState] = useState<GameState>(initialState);
   const [laptopAudio, setLaptopAudio] = useState<LaptopAudioController | null>(null);
   const [laptopAudioSnapshot, setLaptopAudioSnapshot] = useState<Readonly<LaptopAudioSnapshot> | null>(null);
+  const [finalVideoError, setFinalVideoError] = useState(false);
 
   useEffect(() => { if (state.ready) onReady?.(); }, [state.ready, onReady]);
 
@@ -140,13 +143,10 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
   }, [laptopAudio, state.module]);
 
   useEffect(() => {
-    if (state.transition !== "video" || !video.current) return;
+    if (!state.finalDepartureVideo || !video.current) return;
     const element = video.current;
-    element.currentTime = 0;
-    void element.play().catch(() =>
-      game.current?.videoFailed("The transition video could not start. You can continue to the destination.")
-    );
-  }, [state.transition]);
+    void element.play().then(() => setFinalVideoError(false)).catch(() => setFinalVideoError(true));
+  }, [state.finalDepartureVideo]);
 
   const canClickToLock =
     !state.panel &&
@@ -169,6 +169,10 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
 
   return (
     <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+      {state.finalDepartureVideo && <div role="dialog" aria-label="Final departure cinematic" onKeyDown={event => event.preventDefault()} style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 10000, background: "#000", overflow: "hidden" }}>
+        <video ref={video} src="/assets/videos/finalVideo/finalVideo.mp4" autoPlay playsInline preload="auto" disablePictureInPicture onCanPlay={() => setFinalVideoError(false)} onError={() => setFinalVideoError(true)} onEnded={() => { if (game.current?.finishSol11FinalVideo()) onReturnToMenu?.(); }} aria-label="Final PHOBOSIA departure" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />
+        {finalVideoError && <div style={{ position: "absolute", inset: 0, display: "grid", placeContent: "center", gap: 12, color: "#fff", background: "rgba(0,0,0,.88)", fontFamily: "monospace", textAlign: "center" }}><p>Final cinematic could not start. The campaign remains incomplete.</p><button onClick={() => { setFinalVideoError(false); void video.current?.play().catch(() => setFinalVideoError(true)); }} style={{ justifySelf: "center", padding: "10px 16px", border: "1px solid #7ca9b5", background: "#14242b", color: "white", cursor: "pointer" }}>RETRY PLAYBACK</button></div>}
+      </div>}
       {onReturnToMenu && <button
         type="button"
         className="[position:fixed] [top:16px] [left:16px] [z-index:60] [border:1px_solid_rgba(85,205,232,0.45)] [background:rgba(5,14,20,0.88)] [padding:8px_12px] [color:#c9e3e9] [font:10px_var(--font-mono,monospace)] [letter-spacing:0.1em] hover:[background:rgba(20,42,52,0.96)]"
@@ -272,7 +276,7 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9 || state.missionDay === 10) && (
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9 || state.missionDay === 10 || state.missionDay === 11) && (
           <section className="[position:absolute] [top:72px] [right:24px] [z-index:30] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
@@ -1009,31 +1013,15 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
           </div>
         )}
 
-        {/* 12. LOADING SCREEN */}
-        {state.transition === "loading" && (
-          <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] loading">
-            <img className="[width:min(440px,_74vw)] [height:auto] [object-fit:contain]" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png")} alt="PHOBOSIA" />
-            <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px]">Loading {state.transitionLabel}...</p>
-            <strong className="[font-size:28px] [font-weight:500] [color:#e88747]">{state.transitionProgress === null ? "Preparing…" : `${state.transitionProgress}%`}</strong>
-          </section>
-        )}
-
-        {/* 13. DESTINATION TRANSITION VIDEO */}
-        {state.transition === "video" && (
-          <section className="[position:fixed] [z-index:50] [inset:0] [pointer-events:auto] [background:#000] [color:#eaf2f4] [display:flex] [align-items:center] [justify-content:center] [flex-direction:column] [text-align:center] [text-shadow:none] video">
-            <video className="[width:100%] [height:100%] [object-fit:contain] [background:#000]"
-              ref={video}
-              src={game.current?.transitionVideo()}
-              muted
-              playsInline
-              onEnded={() => game.current?.videoFinished()}
-              onError={() =>
-                game.current?.videoFailed("The transition video could not be loaded. You can continue to the destination.")
-              }
-            />
-            <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px] [position:absolute] [bottom:28px] [left:50%] [transform:translateX(-50%)] [margin:0] [padding:7px_12px] [background:rgba(0,_0,_0,_0.8)] [border:1px_solid_rgba(85,_205,_232,_0.3)] [color:#e7f1f4] text-[12px] font-mono">Press ENTER to skip</p>
-          </section>
-        )}
+        {state.transition === "loading" && <TransitionLoadingScreen
+          destination={state.transitionLabel}
+          source={state.module}
+          progress={state.transitionProgress}
+          onPointerMove={event => {
+            const bounds = event.currentTarget.getBoundingClientRect();
+            game.current?.setTransitionPointer(((event.clientX - bounds.left) / bounds.width) * 2 - 1, ((event.clientY - bounds.top) / bounds.height) * 2 - 1);
+          }}
+        />}
 
         {/* 14. TRANSITION ERROR */}
         {state.transition === "error" && (
@@ -1042,7 +1030,7 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
             <p className="[margin:20px_0_8px] [letter-spacing:0.08em] [font-size:14px] [max-width:min(520px,_85vw)] [line-height:1.5]">{state.error}</p>
             <div className="[display:flex] [gap:10px] [margin-top:14px]">
               <button className="[border:1px_solid_#d8763b] [background:#d8763b] [color:#071016] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.retryTransition()}>Retry</button>
-              <button className="[border:1px_solid_#d8763b] [background:transparent] [color:#e8f1f4] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.continueWithoutVideo()}>Continue</button>
+              <button className="[border:1px_solid_#d8763b] [background:transparent] [color:#e8f1f4] [padding:9px_16px] [font-weight:bold] [cursor:pointer]" onClick={() => game.current?.continueTransition()}>Continue</button>
             </div>
           </section>
         )}

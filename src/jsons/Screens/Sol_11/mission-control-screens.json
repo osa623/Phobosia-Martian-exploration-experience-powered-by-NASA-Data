@@ -1,0 +1,1152 @@
+{
+  "project": "PHOBOSIA",
+  "zone": "MISSION_CONTROL",
+  "configVersion": "1.0.0",
+  "dataPolicy": {
+    "mode": "SIMULATED_DEMO",
+    "liveTelemetry": false,
+    "disclaimer": "SIMULATED MISSION DATA - NOT LIVE NASA TELEMETRY",
+    "scientificIntegrity": "Use scientifically plausible Mars mission values for demonstration. Do not present simulated readings as real NASA measurements.",
+    "units": {
+      "distance": "m",
+      "temperature": "°C",
+      "pressure": "kPa",
+      "power": "W",
+      "energy": "Wh",
+      "percentage": "%",
+      "time": "Sol / mission elapsed time"
+    }
+  },
+  "rendering": {
+    "rendererId": "MissionControlScreenRenderer",
+    "renderMode": "PHYSICAL_SCREEN",
+    "independentScreenRendering": true,
+    "fullscreenOSSeparation": true,
+    "screenContentSource": "JSON",
+    "updateStrategy": "UPDATE_CHANGED_CONTENT_ONLY",
+    "textureStrategy": "REUSE_CANVAS_TEXTURES",
+    "allowScreenSpecificOrientation": true,
+    "preserveBlenderMeshNames": true,
+    "fallbackOnMissingData": "SHOW_DIAGNOSTIC_PLACEHOLDER",
+    "fallbackOnMissingMesh": "LOG_ERROR_AND_CONTINUE"
+  },
+  "visualTheme": {
+    "style": "NASA_INSPIRED_MARS_MISSION_CONTROL",
+    "background": "#08111B",
+    "panelBackground": "#101D2A",
+    "primaryText": "#E7F0F7",
+    "secondaryText": "#8FA8BC",
+    "accent": "#E5A04B",
+    "success": "#5BC69A",
+    "warning": "#F0BD55",
+    "critical": "#F16B66",
+    "grid": "#24394B",
+    "fontFamily": "monospace",
+    "avoidExcessiveAnimation": true,
+    "avoidNeonEffects": true,
+    "highContrast": true
+  },
+  "globalLayout": {
+    "headerHeightRatio": 0.14,
+    "footerHeightRatio": 0.09,
+    "outerPaddingRatio": 0.035,
+    "panelGapRatio": 0.025,
+    "minimumTextScale": 0.65,
+    "showScreenTitle": true,
+    "showMissionSol": true,
+    "showSimulationIndicator": true,
+    "showTimestamp": true,
+    "showStatusLegendWhenRelevant": true
+  },
+  "orientationDefaults": {
+    "mirrorHorizontal": false,
+    "mirrorVertical": false,
+    "rotationDegrees": 0,
+    "useConfiguredOrientationOnlyWhenVerified": true,
+    "allowPerScreenOverride": true,
+    "doNotGuessBlenderTransform": true
+  },
+  "missionContext": {
+    "missionName": "PHOBOSIA Mars Observation Mission",
+    "missionSol": 4,
+    "missionDurationSols": 14,
+    "missionPhase": "SURFACE_OBSERVATION",
+    "primaryGoal": "Observe Mars terrain and environmental conditions, monitor outpost systems, coordinate exploration assets, and record scientific findings.",
+    "dayProgressionPolicy": "Mission sol advances only through the gameplay progression system, not because a display refreshes.",
+    "crossZoneIntegration": {
+      "habitat": "Use compatible shared mission-state data when available.",
+      "engineering": "Read engineering and power-system state through the existing application data layer.",
+      "researchLab": "Read science experiment state through the existing application data layer.",
+      "centralHub": "Expose a compact operational summary for Central Hub status displays.",
+      "doNotDuplicateAuthoritativeState": true
+    }
+  },
+  "sections": [
+    {
+      "sectionId": "SECTION_01",
+      "sectionName": "MISSION_OVERVIEW_AND_OBJECTIVES",
+      "purpose": "Mission planning, objective tracking, and high-level outpost awareness."
+    },
+    {
+      "sectionId": "SECTION_02",
+      "sectionName": "COMMUNICATIONS_AND_SYSTEMS",
+      "purpose": "Communication link status, subsystem health, and operational alerts."
+    },
+    {
+      "sectionId": "SECTION_03",
+      "sectionName": "DRONE_AND_TERRAIN_OPERATIONS",
+      "purpose": "Drone coordination, observation-site selection, and terrain awareness."
+    }
+  ],
+  "screens": [
+    {
+      "screenId": "MC_OBJECTIVES",
+      "meshName": "MissionControl_ObjectivesScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "MISSION_PLANNING",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show the current mission objective, progress, completion criteria, and next available action.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1000
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "current_sol",
+            "label": "CURRENT SOL",
+            "source": "missionState.currentSol",
+            "fallback": 4,
+            "unit": "SOL"
+          },
+          {
+            "id": "completed_objectives",
+            "label": "COMPLETED",
+            "source": "missionState.objectives.completedCount",
+            "fallback": 2,
+            "unit": "OBJECTIVES"
+          },
+          {
+            "id": "objective_progress",
+            "label": "CURRENT PROGRESS",
+            "source": "missionState.objectives.currentProgressPercent",
+            "fallback": 45,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "active_objective",
+            "type": "OBJECTIVE_CARD",
+            "title": "ACTIVE OBJECTIVE",
+            "dataSource": "missionState.objectives.active",
+            "fallback": {
+              "name": "Complete the scheduled surface observation",
+              "description": "Inspect the designated terrain area and record the observation.",
+              "status": "IN_PROGRESS",
+              "progressPercent": 45
+            }
+          },
+          {
+            "id": "objective_checklist",
+            "type": "CHECKLIST",
+            "title": "COMPLETION CRITERIA",
+            "dataSource": "missionState.objectives.active.checklist",
+            "fallback": [
+              {
+                "label": "Reach the designated observation location",
+                "completed": true
+              },
+              {
+                "label": "Inspect terrain features",
+                "completed": false
+              },
+              {
+                "label": "Record scientific observation",
+                "completed": false
+              },
+              {
+                "label": "Submit observation report",
+                "completed": false
+              }
+            ]
+          },
+          {
+            "id": "upcoming_objectives",
+            "type": "SCHEDULE_LIST",
+            "title": "UPCOMING",
+            "dataSource": "missionState.objectives.upcoming",
+            "fallback": [
+              {
+                "title": "Review collected observation",
+                "status": "QUEUED"
+              },
+              {
+                "title": "Review outpost environmental status",
+                "status": "QUEUED"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Objective completion is controlled by gameplay state.",
+          "right": "SIMULATED MISSION DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OUTPOST_STATUS",
+      "meshName": "MissionControl_OutpostStatusScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "OUTPOST_HEALTH",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Provide a high-level operational picture of habitat, power, environmental control, research, and rover availability.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "overall_readiness",
+            "label": "OUTPOST READINESS",
+            "source": "outpostState.readinessPercent",
+            "fallback": 94,
+            "unit": "%"
+          },
+          {
+            "id": "power_reserve",
+            "label": "POWER RESERVE",
+            "source": "outpostState.power.reservePercent",
+            "fallback": 78,
+            "unit": "%"
+          },
+          {
+            "id": "active_alerts",
+            "label": "ACTIVE ALERTS",
+            "source": "outpostState.alerts.activeCount",
+            "fallback": 1,
+            "unit": "ALERTS"
+          }
+        ],
+        "panels": [
+          {
+            "id": "module_health",
+            "type": "COMPONENT_STATUS",
+            "title": "MODULE HEALTH",
+            "dataSource": "outpostState.modules",
+            "fallback": [
+              {
+                "name": "Habitat",
+                "status": "NOMINAL",
+                "healthPercent": 98
+              },
+              {
+                "name": "Mission Control",
+                "status": "NOMINAL",
+                "healthPercent": 96
+              },
+              {
+                "name": "Research Lab",
+                "status": "NOMINAL",
+                "healthPercent": 93
+              },
+              {
+                "name": "Engineering Unit",
+                "status": "NOMINAL",
+                "healthPercent": 95
+              },
+              {
+                "name": "Central Hub",
+                "status": "NOMINAL",
+                "healthPercent": 97
+              }
+            ]
+          },
+          {
+            "id": "resource_summary",
+            "type": "RESOURCE_BARS",
+            "title": "RESOURCE STATUS",
+            "dataSource": "outpostState.resources",
+            "fallback": [
+              {
+                "name": "Electrical power",
+                "percent": 78,
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Water reserve",
+                "percent": 71,
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Oxygen reserve",
+                "percent": 86,
+                "status": "NOMINAL"
+              }
+            ]
+          },
+          {
+            "id": "outpost_alerts",
+            "type": "ALERT_LIST",
+            "title": "OPERATIONAL ALERTS",
+            "dataSource": "outpostState.alerts.items",
+            "fallback": [
+              {
+                "severity": "INFO",
+                "message": "Routine systems inspection pending",
+                "source": "ENGINEERING",
+                "status": "OPEN"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Subsystem values are demonstration values unless connected to live simulation state.",
+          "right": "SIMULATED DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OVERVIEW",
+      "meshName": "MissionControl_OverviewScreen",
+      "sectionId": "SECTION_01",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "MISSION_OVERVIEW",
+      "dimensionsMeters": {
+        "x": 0,
+        "y": 3.31,
+        "z": 2.64
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "z",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show a unified mission snapshot combining timeline, science progress, asset readiness, and the next major milestone.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "mission_sol",
+            "label": "MISSION SOL",
+            "source": "missionState.currentSol",
+            "fallback": 4,
+            "unit": "/ 14"
+          },
+          {
+            "id": "science_records",
+            "label": "SCIENCE RECORDS",
+            "source": "scienceState.records.count",
+            "fallback": 6,
+            "unit": "RECORDS"
+          },
+          {
+            "id": "asset_readiness",
+            "label": "ASSET READINESS",
+            "source": "outpostState.readinessPercent",
+            "fallback": 94,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "mission_timeline",
+            "type": "TIMELINE",
+            "title": "MISSION TIMELINE",
+            "dataSource": "missionState.timeline",
+            "fallback": [
+              {
+                "time": "SOL 01",
+                "event": "Initial habitat inspection",
+                "status": "COMPLETED"
+              },
+              {
+                "time": "SOL 03",
+                "event": "Research equipment validation",
+                "status": "COMPLETED"
+              },
+              {
+                "time": "SOL 04",
+                "event": "Surface terrain observation",
+                "status": "IN_PROGRESS"
+              },
+              {
+                "time": "SOL 05",
+                "event": "Review and classify observations",
+                "status": "PLANNED"
+              }
+            ]
+          },
+          {
+            "id": "mission_subsystems",
+            "type": "STATUS_MATRIX",
+            "title": "SUBSYSTEM SUMMARY",
+            "dataSource": "outpostState.modules",
+            "fallback": [
+              {
+                "name": "Life Support",
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Power",
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Communications",
+                "status": "NOMINAL"
+              },
+              {
+                "name": "Science",
+                "status": "ACTIVE"
+              },
+              {
+                "name": "Rover",
+                "status": "STANDBY"
+              },
+              {
+                "name": "Drone",
+                "status": "STANDBY"
+              }
+            ]
+          },
+          {
+            "id": "next_milestone",
+            "type": "STATUS_CARD",
+            "title": "NEXT MILESTONE",
+            "dataSource": "missionState.nextMilestone",
+            "fallback": {
+              "name": "Submit surface observation report",
+              "status": "PENDING",
+              "description": "Record terrain findings and submit the report to the mission log."
+            }
+          }
+        ],
+        "footer": {
+          "left": "Unified operational snapshot",
+          "right": "SIMULATED MISSION DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_COMMUNICATIONS",
+      "meshName": "MissionControl_CommunicationsScreen",
+      "sectionId": "SECTION_02",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "COMMUNICATIONS",
+      "dimensionsMeters": {
+        "x": 4.0375,
+        "y": null,
+        "z": 2.12675
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Monitor communication links, message queues, signal quality, and simulated communication events.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "link_quality",
+            "label": "LINK QUALITY",
+            "source": "communicationsState.linkQualityPercent",
+            "fallback": 92,
+            "unit": "%"
+          },
+          {
+            "id": "queued_messages",
+            "label": "MESSAGE QUEUE",
+            "source": "communicationsState.queuedMessages",
+            "fallback": 2,
+            "unit": "MESSAGES"
+          },
+          {
+            "id": "signal_strength",
+            "label": "SIGNAL LEVEL",
+            "source": "communicationsState.signalStrengthDb",
+            "fallback": -64,
+            "unit": "dBm"
+          }
+        ],
+        "panels": [
+          {
+            "id": "link_status",
+            "type": "COMPONENT_STATUS",
+            "title": "COMMUNICATION LINKS",
+            "dataSource": "communicationsState.links",
+            "fallback": [
+              {
+                "name": "Habitat internal network",
+                "status": "ONLINE"
+              },
+              {
+                "name": "Mission Control network",
+                "status": "ONLINE"
+              },
+              {
+                "name": "Surface relay",
+                "status": "AVAILABLE"
+              },
+              {
+                "name": "Orbital relay",
+                "status": "SIMULATED"
+              }
+            ]
+          },
+          {
+            "id": "message_queue",
+            "type": "DATA_TABLE",
+            "title": "MESSAGE QUEUE",
+            "dataSource": "communicationsState.messages",
+            "columns": [
+              "id",
+              "destination",
+              "priority",
+              "status"
+            ],
+            "fallback": [
+              {
+                "id": "MSG-014",
+                "destination": "Engineering Unit",
+                "priority": "NORMAL",
+                "status": "DELIVERED"
+              },
+              {
+                "id": "MSG-015",
+                "destination": "Research Lab",
+                "priority": "HIGH",
+                "status": "QUEUED"
+              }
+            ]
+          },
+          {
+            "id": "communication_events",
+            "type": "EVENT_FEED",
+            "title": "RECENT EVENTS",
+            "dataSource": "communicationsState.events",
+            "fallback": [
+              {
+                "time": "SOL 04 / 09:12",
+                "severity": "INFO",
+                "message": "Internal network check completed"
+              },
+              {
+                "time": "SOL 04 / 09:18",
+                "severity": "INFO",
+                "message": "Surface relay status refreshed"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Communication values are simulated.",
+          "right": "NOT A LIVE DEEP SPACE NETWORK LINK"
+        }
+      }
+    },
+    {
+      "screenId": "MC_SYSTEMS",
+      "meshName": "MissionControl_SystemsScreen",
+      "sectionId": "SECTION_02",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "SYSTEMS_HEALTH",
+      "dimensionsMeters": {
+        "x": 4.0375,
+        "y": null,
+        "z": 2.12675
+      },
+      "orientation": {
+        "mirrorHorizontal": true,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Display subsystem health, power distribution, thermal conditions, fault history, and maintenance needs.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "power_output",
+            "label": "POWER OUTPUT",
+            "source": "systemsState.powerOutputW",
+            "fallback": 4200,
+            "unit": "W"
+          },
+          {
+            "id": "thermal_status",
+            "label": "THERMAL STATUS",
+            "source": "systemsState.thermalStatus",
+            "fallback": "STABLE",
+            "unit": ""
+          },
+          {
+            "id": "fault_count",
+            "label": "OPEN FAULTS",
+            "source": "systemsState.openFaultCount",
+            "fallback": 0,
+            "unit": "FAULTS"
+          }
+        ],
+        "panels": [
+          {
+            "id": "subsystem_health",
+            "type": "COMPONENT_STATUS",
+            "title": "SUBSYSTEM HEALTH",
+            "dataSource": "systemsState.subsystems",
+            "fallback": [
+              {
+                "name": "Electrical distribution",
+                "status": "NOMINAL",
+                "healthPercent": 97
+              },
+              {
+                "name": "Thermal regulation",
+                "status": "NOMINAL",
+                "healthPercent": 94
+              },
+              {
+                "name": "Environmental monitoring",
+                "status": "NOMINAL",
+                "healthPercent": 96
+              },
+              {
+                "name": "Internal network",
+                "status": "NOMINAL",
+                "healthPercent": 98
+              }
+            ]
+          },
+          {
+            "id": "power_distribution",
+            "type": "RESOURCE_BARS",
+            "title": "POWER DISTRIBUTION",
+            "dataSource": "systemsState.powerConsumers",
+            "fallback": [
+              {
+                "name": "Habitat",
+                "percent": 28,
+                "status": "ACTIVE"
+              },
+              {
+                "name": "Research Lab",
+                "percent": 24,
+                "status": "ACTIVE"
+              },
+              {
+                "name": "Engineering",
+                "percent": 20,
+                "status": "ACTIVE"
+              },
+              {
+                "name": "Communications",
+                "percent": 12,
+                "status": "ACTIVE"
+              },
+              {
+                "name": "Reserve",
+                "percent": 16,
+                "status": "AVAILABLE"
+              }
+            ]
+          },
+          {
+            "id": "maintenance_log",
+            "type": "EVENT_FEED",
+            "title": "MAINTENANCE LOG",
+            "dataSource": "systemsState.maintenanceEvents",
+            "fallback": [
+              {
+                "time": "SOL 04",
+                "severity": "INFO",
+                "message": "Routine thermal system inspection completed"
+              },
+              {
+                "time": "SOL 04",
+                "severity": "INFO",
+                "message": "No active critical faults in demo state"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Use actual simulation state when available.",
+          "right": "SIMULATED SYSTEMS DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_DRONE_OPERATIONS",
+      "meshName": "MissionControl_DroneOperationScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "DRONE_OPERATIONS",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Show drone readiness, battery, mission assignment, navigation progress, and recent flight events.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1000
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "drone_readiness",
+            "label": "DRONE STATUS",
+            "source": "droneState.status",
+            "fallback": "STANDBY",
+            "unit": ""
+          },
+          {
+            "id": "drone_battery",
+            "label": "BATTERY",
+            "source": "droneState.batteryPercent",
+            "fallback": 88,
+            "unit": "%"
+          },
+          {
+            "id": "flight_progress",
+            "label": "FLIGHT PROGRESS",
+            "source": "droneState.mission.progressPercent",
+            "fallback": 0,
+            "unit": "%"
+          }
+        ],
+        "panels": [
+          {
+            "id": "drone_mission",
+            "type": "STATUS_CARD",
+            "title": "CURRENT FLIGHT PLAN",
+            "dataSource": "droneState.mission",
+            "fallback": {
+              "name": "Terrain Reconnaissance Alpha",
+              "status": "READY",
+              "target": "Observation Site A",
+              "progressPercent": 0
+            }
+          },
+          {
+            "id": "drone_systems",
+            "type": "COMPONENT_STATUS",
+            "title": "DRONE SYSTEMS",
+            "dataSource": "droneState.components",
+            "fallback": [
+              {
+                "name": "Navigation",
+                "status": "READY"
+              },
+              {
+                "name": "Imaging sensor",
+                "status": "READY"
+              },
+              {
+                "name": "Telemetry",
+                "status": "READY"
+              },
+              {
+                "name": "Propulsion",
+                "status": "STANDBY"
+              }
+            ]
+          },
+          {
+            "id": "flight_events",
+            "type": "EVENT_FEED",
+            "title": "FLIGHT LOG",
+            "dataSource": "droneState.events",
+            "fallback": [
+              {
+                "time": "SOL 04 / 09:20",
+                "severity": "INFO",
+                "message": "Pre-flight diagnostics passed"
+              },
+              {
+                "time": "SOL 04 / 09:22",
+                "severity": "INFO",
+                "message": "Awaiting operator launch command"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Launch and flight progression require application events.",
+          "right": "SIMULATED DRONE DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_OBSERVATION_SITES",
+      "meshName": "MissionControl_ObservationSitesScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "OBSERVATION_PLANNING",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "List observation locations, scientific objectives, access status, and collected evidence.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 1500
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "site_count",
+            "label": "REGISTERED SITES",
+            "source": "observationState.sites.length",
+            "fallback": 4,
+            "unit": "SITES"
+          },
+          {
+            "id": "visited_sites",
+            "label": "VISITED",
+            "source": "observationState.visitedCount",
+            "fallback": 1,
+            "unit": "SITES"
+          },
+          {
+            "id": "reports",
+            "label": "REPORTS LOGGED",
+            "source": "observationState.reportCount",
+            "fallback": 2,
+            "unit": "REPORTS"
+          }
+        ],
+        "panels": [
+          {
+            "id": "site_registry",
+            "type": "DATA_TABLE",
+            "title": "SITE REGISTRY",
+            "dataSource": "observationState.sites",
+            "columns": [
+              "siteId",
+              "siteName",
+              "scientificTarget",
+              "accessStatus",
+              "visitStatus"
+            ],
+            "fallback": [
+              {
+                "siteId": "OBS-A",
+                "siteName": "Ridge Transect",
+                "scientificTarget": "Terrain morphology",
+                "accessStatus": "AVAILABLE",
+                "visitStatus": "VISITED"
+              },
+              {
+                "siteId": "OBS-B",
+                "siteName": "Regolith Patch",
+                "scientificTarget": "Surface material observation",
+                "accessStatus": "AVAILABLE",
+                "visitStatus": "PENDING"
+              },
+              {
+                "siteId": "OBS-C",
+                "siteName": "Slope Boundary",
+                "scientificTarget": "Slope and elevation comparison",
+                "accessStatus": "AVAILABLE",
+                "visitStatus": "PENDING"
+              },
+              {
+                "siteId": "OBS-D",
+                "siteName": "Rock Cluster",
+                "scientificTarget": "Rock distribution",
+                "accessStatus": "AVAILABLE",
+                "visitStatus": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "selected_site",
+            "type": "STATUS_CARD",
+            "title": "SELECTED TARGET",
+            "dataSource": "observationState.selectedSite",
+            "fallback": {
+              "siteId": "OBS-B",
+              "siteName": "Regolith Patch",
+              "objective": "Record a structured surface observation",
+              "status": "READY"
+            }
+          },
+          {
+            "id": "site_notes",
+            "type": "EVENT_FEED",
+            "title": "LATEST OBSERVATIONS",
+            "dataSource": "observationState.recentReports",
+            "fallback": [
+              {
+                "time": "SOL 04",
+                "severity": "INFO",
+                "message": "Ridge Transect terrain notes saved"
+              },
+              {
+                "time": "SOL 04",
+                "severity": "INFO",
+                "message": "Regolith Patch inspection pending"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Site completion is controlled by the observation gameplay system.",
+          "right": "SIMULATED SITE DATA"
+        }
+      }
+    },
+    {
+      "screenId": "MC_TERRAIN_MAP",
+      "meshName": "MissionControl_TerrainMapScreen",
+      "sectionId": "SECTION_03",
+      "rendererId": "MissionControlScreenRenderer",
+      "subsystem": "TERRAIN_INTELLIGENCE",
+      "dimensionsMeters": {
+        "x": 2.5,
+        "y": null,
+        "z": 2.5
+      },
+      "orientation": {
+        "mirrorHorizontal": false,
+        "mirrorVertical": false,
+        "rotationDegrees": 0,
+        "uAxis": "x",
+        "vAxis": "y",
+        "verifyAgainstBlender": true
+      },
+      "purpose": "Display a compact terrain overview, navigation markers, elevation information, and rover/drone routes.",
+      "refreshPolicy": {
+        "mode": "ON_STATE_CHANGE",
+        "minimumIntervalMs": 2000
+      },
+      "content": {
+        "header": {
+          "title": "VISION SUCCESS",
+          "subtitle": "SOL 11 - FAREWELL",
+          "status": "FINAL DEPARTURE"
+        },
+        "primaryMetrics": [
+          {
+            "id": "mapped_area",
+            "label": "MAPPED AREA",
+            "source": "terrainState.mappedAreaSquareMeters",
+            "fallback": 12500,
+            "unit": "m²"
+          },
+          {
+            "id": "waypoints",
+            "label": "WAYPOINTS",
+            "source": "terrainState.waypointCount",
+            "fallback": 6,
+            "unit": "POINTS"
+          },
+          {
+            "id": "route_risk",
+            "label": "ROUTE RISK",
+            "source": "terrainState.selectedRoute.risk",
+            "fallback": "MODERATE",
+            "unit": ""
+          }
+        ],
+        "panels": [
+          {
+            "id": "terrain_overview",
+            "type": "TERRAIN_MINIMAP",
+            "title": "LOCAL TERRAIN",
+            "dataSource": "terrainState.map",
+            "fallback": {
+              "mapSource": "APPLICATION_TERRAIN_SCENE",
+              "showElevationContours": true,
+              "showObservationMarkers": true,
+              "showRoverPosition": true,
+              "showDronePosition": true,
+              "showPlannedRoute": true,
+              "showLegend": true
+            }
+          },
+          {
+            "id": "route_summary",
+            "type": "STATUS_CARD",
+            "title": "SELECTED ROUTE",
+            "dataSource": "terrainState.selectedRoute",
+            "fallback": {
+              "name": "Route Alpha",
+              "distanceMeters": 420,
+              "estimatedTravelMinutes": 12,
+              "risk": "MODERATE",
+              "status": "PLANNED"
+            }
+          },
+          {
+            "id": "terrain_features",
+            "type": "DATA_TABLE",
+            "title": "FEATURE REGISTER",
+            "dataSource": "terrainState.features",
+            "columns": [
+              "featureId",
+              "type",
+              "elevationMeters",
+              "accessStatus"
+            ],
+            "fallback": [
+              {
+                "featureId": "TR-01",
+                "type": "Ridge",
+                "elevationMeters": 12.4,
+                "accessStatus": "CAUTION"
+              },
+              {
+                "featureId": "DP-02",
+                "type": "Depression",
+                "elevationMeters": -3.2,
+                "accessStatus": "AVAILABLE"
+              },
+              {
+                "featureId": "RK-03",
+                "type": "Rock cluster",
+                "elevationMeters": 1.8,
+                "accessStatus": "AVAILABLE"
+              }
+            ]
+          }
+        ],
+        "footer": {
+          "left": "Terrain preview should reflect the actual application terrain when integration exists.",
+          "right": "ILLUSTRATIVE TERRAIN DATA"
+        }
+      }
+    }
+  ],
+  "rendererRules": {
+    "screenRegistration": "Register each screen by its exact meshName and screenId.",
+    "dataBinding": "Resolve source paths safely. If unavailable, render the configured fallback and log a development warning.",
+    "panelRendering": "Implement a panel-type registry. Unsupported panel types must render a readable fallback rather than a blank screen.",
+    "supportedPanelTypes": [
+      "OBJECTIVE_CARD",
+      "CHECKLIST",
+      "SCHEDULE_LIST",
+      "COMPONENT_STATUS",
+      "RESOURCE_BARS",
+      "ALERT_LIST",
+      "STATUS_MATRIX",
+      "TIMELINE",
+      "STATUS_CARD",
+      "DATA_TABLE",
+      "EVENT_FEED",
+      "TERRAIN_MINIMAP"
+    ],
+    "terrainMinimap": "If no map-rendering implementation exists, render a compact schematic from application terrain data or a labeled placeholder. Do not fabricate an actual terrain image.",
+    "orientation": "Apply per-screen mirror and rotation settings exactly once. Verify texture orientation against Blender UVs before introducing corrective flips.",
+    "materialAssignment": "Use the intended screen surface material; do not replace unrelated module materials.",
+    "textureUpdates": "Reuse CanvasTexture or equivalent resources where practical. Set texture.needsUpdate only when content changes.",
+    "interaction": "Screens are informational unless an existing application interaction explicitly enables controls.",
+    "errors": "A failed screen must not stop other screens from rendering."
+  },
+  "performance": {
+    "targetHardware": "NVIDIA MX350 2GB VRAM, 12GB RAM",
+    "avoidFullSceneRerenderForScreenUpdates": true,
+    "reuseCanvasAndMaterials": true,
+    "avoidUnboundedAnimationLoops": true,
+    "disposeReplacedTextures": true,
+    "limitFrequentTextRedraws": true,
+    "useLowCostCharts": true
+  }
+}

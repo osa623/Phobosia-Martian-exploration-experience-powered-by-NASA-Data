@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { EXRLoader } from "three/examples/jsm/loaders/EXRLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { assetPaths, type ModuleName } from "./Discovery";
@@ -22,7 +23,7 @@ const laptopAssets = laptopManifest as unknown as {
 };
 
 export type AssetKind = "gltf" | "exr" | "image" | "audio" | "video" | "document";
-export type AssetCategory = "Branding" | "Habitat" | "Mission Control" | "Research Laboratory" | "Engineering Unit" | "Central Hub" | "Airlock" | "Mars Terrain" | "Drone Area" | "Gameplay Audio" | "Mission Imagery" | "Transition Video" | "Personal Laptop Media";
+export type AssetCategory = "Branding" | "Habitat" | "Mission Control" | "Research Laboratory" | "Engineering Unit" | "Central Hub" | "Airlock" | "Mars Terrain" | "Drone Area" | "Gameplay Audio" | "Mission Imagery" | "Transition Video" | "Cinematic Video" | "Personal Laptop Media";
 export type AssetStatus = "pending" | "downloading" | "processing" | "ready" | "failed";
 export type AssetPhase = "idle" | "loading" | "processing" | "verifying" | "ready" | "error";
 
@@ -115,17 +116,12 @@ export const REQUIRED_ASSETS: readonly AssetDefinition[] = [
   ...sol5Images
 ];
 
-const transitionVideos = [
+const cinematicVideos = [
   ["video.trailer", "/assets/videos/trailer_phobosia.mp4", "New Exploration Trailer"],
-  ["video.habitat", "/assets/videos/Habitat_Entrance.mp4", "Habitat Transition"],
-  ["video.airlock", "/assets/videos/AirLock.mp4", "Airlock Transition"],
-  ["video.engineering", "/assets/videos/Engineering_Entrance.mp4", "Engineering Transition"],
-  ["video.science", "/assets/videos/ReserachLab_Entrance.mp4", "Research Lab Transition"],
-  ["video.mission-control", "/assets/videos/MissionControl_Entrance.mp4", "Mission Control Transition"]
 ] as const;
 
 export const ON_DEMAND_ASSETS: readonly AssetDefinition[] = [
-  ...transitionVideos.map(([id, path, name]) => asset(id, path, name, "Transition Video", "video", false)),
+  ...cinematicVideos.map(([id, path, name]) => asset(id, path, name, "Cinematic Video", "video", false)),
   ...laptopAssets.songs.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "audio", false)),
   ...laptopAssets.images.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
   ...laptopAssets.wallpapers.map(item => asset(`laptop.${item.id}`, item.url, item.title, "Personal Laptop Media", "image", false)),
@@ -139,6 +135,9 @@ const LOADING_TRACKS: readonly AssetDefinition[] = [
 const loadingTrackIds = new Set(LOADING_TRACKS.map(item => item.id));
 
 type PreparedResource = GLTF | THREE.DataTexture | string;
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("/draco/");
+dracoLoader.setWorkerLimit(1);
 const prepared = new Map<string, PreparedResource>();
 const blobUrls = new Map<string, string>();
 const audioElements = new Map<string, HTMLAudioElement>();
@@ -294,7 +293,9 @@ function validateAudio(blobUrl: string): Promise<HTMLAudioElement> {
 async function processAsset(definition: AssetDefinition, bytes: ArrayBuffer): Promise<void> {
   if (definition.kind === "gltf") {
     const basePath = new URL(definition.path, window.location.href).href.replace(/[^/]*$/, "");
-    const gltf = await new GLTFLoader().parseAsync(bytes, basePath);
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+    const gltf = await loader.parseAsync(bytes, basePath);
     let meshes = 0;
     gltf.scene.traverse(object => {
       const mesh = object as THREE.Mesh;
@@ -356,6 +357,10 @@ async function prepareOne(definition: AssetDefinition): Promise<void> {
     if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
     const { bytes, totalBytes } = await readResponse(response, definition.id);
     if (!bytes.byteLength) throw new Error("The server returned an empty file.");
+    const filePrefix = new TextDecoder().decode(bytes.slice(0, 160));
+    if (filePrefix.startsWith("version https://git-lfs.github.com/spec/v1")) {
+      throw new Error("The host served a Git LFS pointer instead of the model file. Configure deployment to download Git LFS objects before publishing public assets.");
+    }
     updateAsset(definition.id, { status: "processing", totalBytes, loadedBytes: bytes.byteLength });
     await processAsset(definition, bytes);
     updateAsset(definition.id, { status: "ready", totalBytes, loadedBytes: bytes.byteLength, error: undefined });
