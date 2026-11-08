@@ -17,13 +17,15 @@ import sol09Navigation from "../../jsons/Instructions/sol-09-navigation.json";
 import sol08Navigation from "../../jsons/Instructions/sol-08-navigation.json";
 import sol10Mission from "../../jsons/Missions/sol-10.json";
 import sol10Navigation from "../../jsons/Instructions/sol-10-navigation.json";
+import sol11Mission from "../../jsons/Missions/sol-11.json";
+import sol11Navigation from "../../jsons/Instructions/sol-11-navigation.json";
 import { SOL10_TRIGGER_CHECKS } from "../../missions/sol-10/taskDefinitions";
 import { DAY1_TASKS } from "../../core/Day1Config";
 
-type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation | typeof sol10Navigation;
+type NavigationFile = typeof sol02Navigation | typeof sol03Navigation | typeof sol04Navigation | typeof sol05Navigation | typeof sol06Navigation | typeof sol07Navigation | typeof sol08Navigation | typeof sol09Navigation | typeof sol10Navigation | typeof sol11Navigation;
 type NavigationTask = NavigationFile["instructions"][number];
 
-const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission | typeof sol10Mission; navigation: NavigationFile }>> = {
+const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol03Mission | typeof sol04Mission | typeof sol05Mission | typeof sol06Mission | typeof sol07Mission | typeof sol08Mission | typeof sol09Mission | typeof sol10Mission | typeof sol11Mission; navigation: NavigationFile }>> = {
   2: { mission: sol02Mission, navigation: sol02Navigation },
   3: { mission: sol03Mission, navigation: sol03Navigation },
   4: { mission: sol04Mission, navigation: sol04Navigation },
@@ -32,7 +34,8 @@ const FILES: Partial<Record<number, { mission: typeof sol02Mission | typeof sol0
   7: { mission: sol07Mission, navigation: sol07Navigation },
   8: { mission: sol08Mission, navigation: sol08Navigation },
   9: { mission: sol09Mission, navigation: sol09Navigation },
-  10: { mission: sol10Mission, navigation: sol10Navigation }
+  10: { mission: sol10Mission, navigation: sol10Navigation },
+  11: { mission: sol11Mission, navigation: sol11Navigation }
 };
 
 // Runtime validator IDs that differ from the corresponding mission JSON task IDs.
