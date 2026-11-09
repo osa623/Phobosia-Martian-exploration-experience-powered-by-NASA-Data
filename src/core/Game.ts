@@ -1058,7 +1058,7 @@ export class Game {
     this.sol5DroneAnchor = anchor;
     this.sol5TargetNode = resolvedTarget.object;
     this.sol5TakeoffNode = takeoffRef;
-    this.sol5BuildingColliders = buildTerrainBuildingColliders(terrainModel);
+    this.sol5BuildingColliders = buildTerrainBuildingColliders(terrainModel, false, false, false, true);
     const direction = resolvedTarget.position.clone().sub(takeoff);
     this.sol5BodyYaw = Math.atan2(-direction.x, -direction.z);
     this.setSol5DroneWorldPose(this.sol5Flight.position, this.sol5BodyYaw);
@@ -1916,7 +1916,11 @@ export class Game {
       if (authored.missingNames.length || authored.invalidNames.length) {
         console.warn(`[Master Scene] Collider mapping: found ${authored.foundNames.length}/18; missing: ${authored.missingNames.join(", ") || "none"}; invalid geometry: ${authored.invalidNames.join(", ") || "none"}.`);
       }
-      this.colliders = [...buildTerrainBuildingColliders(model, true, true, true), ...authored.colliders];
+      const isDroneMissionDay = this.state.missionDay === 5 || this.state.missionDay === 9;
+      this.colliders = [
+        ...buildTerrainBuildingColliders(model, true, true, true, isDroneMissionDay),
+        ...authored.colliders
+      ];
     } else if (["Engineering", "MissionControl", "Airlock"].includes(module)) {
       this.colliders = buildCustomColliderSections(model, ["Collider_Section01"]);
     }
