@@ -1800,6 +1800,14 @@ export class Game {
     model.updateWorldMatrix(true, true);
 
     model.traverse(o => {
+      if (module === "Terrain") {
+        let owner: THREE.Object3D | null = o;
+        while (owner && owner !== model && owner.name !== "RoverStation") owner = owner.parent;
+        if (owner?.name === "RoverStation") {
+          o.visible = false;
+          return;
+        }
+      }
       if (module === "Habitat" && this.state.missionDay === 11 &&
         (o.name === "HAB_WORKSTATION_01" || o.userData?.name === "HAB_WORKSTATION_01")) return;
       const route = this.resolve(transitions[module], o);
