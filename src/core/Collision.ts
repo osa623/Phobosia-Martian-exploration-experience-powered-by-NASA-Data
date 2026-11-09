@@ -58,9 +58,9 @@ export function buildInteriorColliders(
 }
 
 /** Static coarse AABBs for solid mesh objects across mars_Terrain, including buildings, vehicles and rocks. */
-export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false, excludeSolarStructures = false, excludeSatelliteCommunication = false): THREE.Box3[] {
+export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks = false, excludeSolarStructures = false, excludeSatelliteCommunication = false, excludeRoverStructures = false): THREE.Box3[] {
   const skipped = excludeRocks
-    ? /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky|rock|rover/i
+    ? /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky|rock/i
     : /floor|walkway|screen|display|monitor|console|light|lamp|trigger|spawn|entrance|drone_object|takeoffpoint|target_|panorama|sky/i;
   const colliders: THREE.Box3[] = [];
   root.updateWorldMatrix(true, true);
@@ -78,6 +78,13 @@ export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks
     }
     if (excludeSolarStructures && belongsToSolarStructure) return;
     if (excludeSatelliteCommunication && belongsToSatelliteCommunication) return;
+    if (excludeRoverStructures) {
+      let roverAncestor: THREE.Object3D | null = object;
+      while (roverAncestor && roverAncestor !== root) {
+        if (/rover/i.test(roverAncestor.name)) return;
+        roverAncestor = roverAncestor.parent;
+      }
+    }
     ancestor = object;
     let authoredColliderAncestor = false;
     while (ancestor && ancestor !== root && ancestor.name !== "Drone_Zone") {
