@@ -44,6 +44,37 @@ function print(value: unknown, field = ""): string {
   return typeof value === "number" && FIELD_UNITS[field] ? `${value} ${FIELD_UNITS[field]}` : String(value);
 }
 
+function StructuredRecordValue({ value, field = "" }: { value: unknown; field?: string }) {
+  if (value === null || value === undefined || value === "") return <span>Unavailable in this record</span>;
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      const emptyValue = field === "data" || field === "series"
+        ? "No measurement values are supplied in this record."
+        : field === "rows"
+          ? "No dataset records are listed in this panel."
+          : field === "events"
+            ? "No provenance events are recorded."
+            : "No entries are recorded in this field.";
+      return <span>{emptyValue}</span>;
+    }
+    return <ul className="[margin:5px_0_0] [padding-left:18px] [display:grid] [gap:5px]">{value.map((item, index) => <li key={index}><StructuredRecordValue value={item} field={field} /></li>)}</ul>;
+  }
+  if (typeof value === "object") {
+    return <dl className="[margin:5px_0_0] [display:grid] [gap:5px]">{Object.entries(value as Record<string, unknown>).map(([key, child]) => <div key={key} className="[display:grid] [grid-template-columns:minmax(90px,_0.35fr)_1fr] [gap:8px]"><dt className="[color:#8ca8b5]">{humanize(key)}</dt><dd className="[margin:0]"><StructuredRecordValue value={child} field={key} /></dd></div>)}</dl>;
+  }
+  return <span>{print(value, field)}</span>;
+}
+
+function TriggerPanelDetails({ panel }: { panel: any }) {
+  const entries = Object.entries(panel).filter(([key, value]) =>
+    !["id", "type", "title"].includes(key) && value !== undefined && value !== null && value !== ""
+  );
+  if (!entries.length) {
+    return <p className="font-dm-sans [margin:0] [color:#bdcbd1] [font-size:12px] [line-height:1.5]">{panel.fallback ?? "No additional data is recorded for this panel."}</p>;
+  }
+  return <div className="font-dm-sans [display:grid] [gap:8px] [color:#bdcbd1] [font-size:12px] [line-height:1.5]">{entries.map(([key, value]) => <div key={key}><div className="[color:#8ca8b5] [font-size:10px] [text-transform:uppercase]">{humanize(key)}</div><StructuredRecordValue value={value} /></div>)}</div>;
+}
+
 function getScreens(section: Section, sol: number): ScreenRecord[] {
   const source = SECTION_CONFIG[section];
   const config: any = getScreenConfigForSol(section, sol, source.legacy);
@@ -52,17 +83,17 @@ function getScreens(section: Section, sol: number): ScreenRecord[] {
   return Object.entries(screens ?? {}).map(([mesh, screen]: [string, any]) => ({ id: mesh, mesh: screen.physicalMesh ?? mesh, title: screen.displayName ?? mesh, purpose: screen.purpose, data: screen.data }));
 }
 
-function TriggerScreenView({ record, location, dataMode, showSol3TargetGallery = false, selectedTargetId = null }: { record?: ScreenRecord; location: string; dataMode: string; showSol3TargetGallery?: boolean; selectedTargetId?: string | null }) {
+function TriggerScreenView({ record, location, dataMode, sol, missionTitle, showSol3TargetGallery = false, selectedTargetId = null }: { record?: ScreenRecord; location: string; dataMode: string; sol: number; missionTitle: string; showSol3TargetGallery?: boolean; selectedTargetId?: string | null }) {
   const [expandedImage, setExpandedImage] = useState<{ target: string; label: string; src: string } | null>(null);
   if (!record) return <div className="[padding:18px] [color:#d4ad72]">The configured display record is unavailable.</div>;
   const metricRows = Array.isArray(record.content?.primaryMetrics) ? record.content.primaryMetrics : [];
   const fields = record.data && typeof record.data === "object" ? Object.entries(record.data as Record<string, unknown>) : [];
   const panels = Array.isArray(record.content?.panels) ? record.content.panels : [];
   return <article className="[display:flex] [flex-direction:column] [gap:12px] [overflow-y:auto] [padding:12px]">
-    <header className="[border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">{dataMode}</div><h2 className="font-kdam-thmor-pro [margin:5px_0] [color:#f2f7f9] [font-size:20px]">{record.title}</h2><p className="font-dm-sans [margin:0] [color:#9fb4c0] [font-size:13px]">{record.purpose ?? "Existing operational display record."}</p><span className="[color:#758e9c] [font-size:11px]">{location} · Time not recorded in source</span></header>
+    <header className="[border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL {String(sol).padStart(2, "0")} · {missionTitle} · {dataMode}</div><h2 className="font-kdam-thmor-pro [margin:5px_0] [color:#f2f7f9] [font-size:20px]">{record.title}</h2><p className="font-dm-sans [margin:0] [color:#9fb4c0] [font-size:13px]">{record.purpose ?? `Operational display for ${missionTitle}.`}</p><span className="[color:#758e9c] [font-size:11px]">{location} · Screen record {record.id}</span></header>
     {fields.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:8px]">{fields.map(([key, value]) => <div key={key} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px] [text-transform:uppercase]">{humanize(key)}</div><div className="font-dm-sans [margin-top:4px] [color:#e1edf1] [font-size:13px]">{print(value, key)}</div></div>)}</section>}
     {metricRows.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(170px,_1fr))] [gap:8px]">{metricRows.map((metric: any) => { const supplied = metric.value !== undefined && metric.value !== null; return <div key={metric.id ?? metric.label} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px]">{metric.label ?? humanize(metric.id ?? "Metric")}</div><strong className="font-dm-sans [display:block] [margin-top:4px] [color:#e1edf1]">{supplied ? `${metric.value}${metric.unit ? ` ${metric.unit}` : ""}` : "Unavailable"}</strong>{metric.status && <span className="[color:#88a9b7] [font-size:10px]">{print(metric.status)}</span>}{!supplied && metric.fallback !== undefined && <span className="[display:block] [color:#d2b47e] [font-size:10px]">Display fallback exists; not treated as live telemetry.</span>}</div>; })}</section>}
-    {panels.filter((panel: any) => !(showSol3TargetGallery && panel.type === "IMAGE_GALLERY")).map((panel: any, index: number) => <section key={panel.id ?? index} className="[border-left:2px_solid_#376478] [background:#0d1923] [padding:10px_12px]"><h3 className="[margin:0_0_6px] [color:#9bd9ea] [font-size:12px]">{panel.title ?? humanize(panel.id ?? `Record ${index + 1}`)}</h3><p className="font-dm-sans [margin:0] [color:#bdcbd1] [font-size:12px] [line-height:1.5]">{print(panel.description ?? panel.body ?? panel.status ?? panel.content ?? panel.items ?? "No additional detail supplied by this record.")}</p></section>)}
+    {panels.filter((panel: any) => !(showSol3TargetGallery && panel.type === "IMAGE_GALLERY")).map((panel: any, index: number) => <section key={panel.id ?? index} className="[border-left:2px_solid_#376478] [background:#0d1923] [padding:10px_12px]"><h3 className="[margin:0_0_6px] [color:#9bd9ea] [font-size:12px]">{panel.title ?? humanize(panel.id ?? `Record ${index + 1}`)}</h3><TriggerPanelDetails panel={panel} /></section>)}
     {showSol3TargetGallery && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.2)] [padding-top:12px]">
       <header className="[margin-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL 3 · TARGET IMAGE CATALOGUE</div><p className="[margin:4px_0_0] [color:#9fb4c0] [font-size:11px]">Project imagery for comparison. Acquisition, instrument, and georeferencing metadata are unavailable; these images are not verified NASA observations.</p></header>
       <div className="[display:flex] [flex-direction:column] [gap:14px]">
@@ -93,7 +124,7 @@ function TriggerScreenView({ record, location, dataMode, showSol3TargetGallery =
         <img src={getPreparedAssetUrl(encodeURI(expandedImage.src))} alt={`${expandedImage.target} — ${expandedImage.label}`} className="[display:block] [max-width:100%] [max-height:78vh] [margin:auto] [object-contain]" />
       </div>
     </div>}
-    <details className="[border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:9px]"><summary className="[cursor:pointer] [color:#55cde8] [font-size:12px]">Record details and limitations</summary><dl className="[display:grid] [grid-template-columns:150px_1fr] [gap:6px] [font-size:11px]"><dt>Source log ID</dt><dd>Not provided by this display configuration</dd><dt>Source</dt><dd>PHOBOSIA display configuration</dd><dt>Data provenance</dt><dd>{dataMode}</dd><dt>Observed at</dt><dd>Timestamp unavailable in source configuration</dd><dt>Reference limits</dt><dd>Unavailable unless shown in the measurement record</dd><dt>Technical interpretation</dt><dd>No diagnosis is inferred from a display snapshot</dd><dt>Follow-up</dt><dd>Use the section-specific inspection workflow if one is available</dd></dl></details>
+    <details className="[border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:9px]"><summary className="[cursor:pointer] [color:#55cde8] [font-size:12px]">Record details and limitations</summary><dl className="[display:grid] [grid-template-columns:150px_1fr] [gap:6px] [font-size:11px]"><dt>Mission</dt><dd>SOL {String(sol).padStart(2, "0")} · {missionTitle}</dd><dt>Physical screen</dt><dd>{record.mesh}</dd><dt>Source record</dt><dd>{record.id}</dd><dt>Data provenance</dt><dd>{dataMode}; values are from the configured PHOBOSIA display record.</dd><dt>Timestamp</dt><dd>This source configuration does not timestamp the displayed record.</dd><dt>Interpretation</dt><dd>Values are presented as recorded; no diagnosis is inferred from this display.</dd></dl></details>
   </article>;
 }
 
@@ -109,35 +140,36 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
   const spec = TRIGGERS[triggerId];
   const [selected, setSelected] = useState(0);
   const missionState = game?.missionManager.getState();
+  const activeSol = missionState?.currentDay ?? state.missionDay;
   const selectedTargetId = game?.missionManager.getSelectedSiteId() ?? game?.missionManager.getProposedSiteId() ?? null;
-  const mission = DAYS_CONFIG[state.missionDay as MissionDayNumber] ?? DAYS_CONFIG[1];
-  const records = useMemo(() => spec?.section ? getScreens(spec.section, state.missionDay) : [], [spec, state.missionDay]);
+  const mission = DAYS_CONFIG[activeSol as MissionDayNumber] ?? DAYS_CONFIG[1];
+  const records = useMemo(() => spec?.section ? getScreens(spec.section, activeSol) : [], [spec, activeSol]);
   const relevant = resolveTriggerScreens(records, spec?.screens ?? []);
   useEffect(() => setSelected(0), [triggerId]);
   const selectedRecord = relevant[selected] ?? relevant[0];
   const dataMode = spec?.section === "habitat" || spec?.section === "engineering" ? "SIMULATED OUTPOST TELEMETRY" : "SIMULATED PHOBOSIA DISPLAY DATA";
   if (!spec) return <div className="[position:fixed] [inset:0] [z-index:70] [background:#07111b] [color:white] [padding:30px]">No interface is configured for this trigger.<button onClick={onClose}>Close</button></div>;
-  const allowedTasks = spec.tasks?.filter(id => mission.steps.some(step => step.stepId === id)) ?? [];
+  const allowedTasks = mission.steps.filter(step => step.targetTrigger === triggerId || step.triggerId === triggerId || step.interfaceId === triggerId || spec.tasks?.includes(step.stepId));
   return <div onClick={event => event.stopPropagation()} style={{ pointerEvents: "auto", zIndex: 70 }} className="[pointer-events:auto] [position:fixed] [inset:0] [z-index:70] [display:flex] [align-items:center] [justify-content:center] [background:rgba(3,_8,_13,_0.96)] [backdrop-filter:blur(12px)] [padding:16px]">
     <div className="[width:min(1120px,_98vw)] [height:min(790px,_94vh)] [display:flex] [flex-direction:column] [overflow:hidden] [border:1px_solid_rgba(85,_205,_232,_0.3)] [border-radius:14px] [background:#080f17] [box-shadow:0_24px_90px_rgba(0,_0,_0,_0.7)] [color:#dce8ed]">
-      <header className="[display:flex] [justify-content:space-between] [align-items:center] [gap:12px] [border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding:14px_20px]"><div><div className="font-russo-one [color:#e88747] [font-size:10px] [letter-spacing:0.16em]">PHOBOSIA · SOL {state.missionDay} · ACCESS CONTROLLED</div><h1 className="font-kdam-thmor-pro [margin:4px_0] [color:white] [font-size:20px]">{spec.title}</h1><span className="font-dm-sans [color:#8faab8] [font-size:12px]">{spec.location}</span></div><button className="[border:1px_solid_#456272] [border-radius:5px] [background:#101d28] [padding:8px_12px] [color:#d9e7eb] [cursor:pointer]" onClick={onClose}>Close · Esc</button></header>
+      <header className="[display:flex] [justify-content:space-between] [align-items:center] [gap:12px] [border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding:14px_20px]"><div><div className="font-russo-one [color:#e88747] [font-size:10px] [letter-spacing:0.16em]">PHOBOSIA · SOL {activeSol} · ACCESS CONTROLLED</div><h1 className="font-kdam-thmor-pro [margin:4px_0] [color:white] [font-size:20px]">{spec.title}</h1><span className="font-dm-sans [color:#8faab8] [font-size:12px]">{spec.location}</span></div><button className="[border:1px_solid_#456272] [border-radius:5px] [background:#101d28] [padding:8px_12px] [color:#d9e7eb] [cursor:pointer]" onClick={onClose}>Close · Esc</button></header>
       <div className="[display:flex] [min-height:0] [flex:1]">
         <nav aria-label={`${spec.title} views`} className="[width:220px] [flex-shrink:0] [overflow-y:auto] [border-right:1px_solid_rgba(85,_205,_232,_0.14)] [background:#0a141e] [padding:10px]">
           {spec.screens.map((screenName, index) => { const screen = relevant.find(item => item.mesh === screenName || item.id === screenName); return <button key={screenName} className={`font-dm-sans [display:block] [width:100%] [margin-bottom:6px] [border:1px_solid_transparent] [border-radius:7px] [padding:10px] [text-align:left] [cursor:pointer] ${selected === index ? "[border-color:rgba(85,205,232,0.4)] [background:#122735] [color:#dff8ff]" : "[background:transparent] [color:#91aab7]"}`} onClick={() => setSelected(index)}>{screen?.title ?? screenName}</button>; })}
           {spec.workstation && <div className="[margin-top:12px] [border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:12px] [color:#8da5b0] [font-size:12px]">Personal workstation interface. No additional systems are exposed from this terminal.</div>}
-          {allowedTasks.length > 0 && <div className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:12px]"><div className="font-mono [color:#e88747] [font-size:10px] [letter-spacing:0.1em]">MISSION TASKS HERE</div>{allowedTasks.map(id => { const task = mission.steps.find(step => step.stepId === id); return <p key={id} className="[margin:8px_0] [color:#c6d6dc] [font-size:11px]">{game?.missionManager.isStepComplete(id) ? "✓ " : "○ "}{task?.label}</p>; })}</div>}
+          {allowedTasks.length > 0 && <div className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:12px]"><div className="font-mono [color:#e88747] [font-size:10px] [letter-spacing:0.1em]">MISSION TASKS HERE</div>{allowedTasks.map(task => { const id = task.stepId; return <p key={id} className="[margin:8px_0] [color:#c6d6dc] [font-size:11px]">{game?.missionManager.isStepComplete(id) ? "✓ " : "○ "}{task?.label}</p>; })}</div>}
         </nav>
         <main className="[min-width:0] [flex:1] [overflow-y:auto] [padding:14px]">
-          {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} showSol3TargetGallery={state.missionDay === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {state.missionDay}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
-          {state.missionDay === 5 && triggerId === "MC_NAVIGATION_01" && <section className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.18)] [padding-top:16px]"><Sol5MissionPanel game={game} state={state} /></section>}
-          {state.missionDay === 6 && ["MC_NAVIGATION_01", "MC_MAIN_01", "LAB_RESEARCH_ANALYSIS_01", "LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"].includes(triggerId) && <Sol6MissionPanel manager={game?.missionManager} triggerId={triggerId} />}
-          {state.missionDay === 7 && <Sol7MissionPanel manager={game?.missionManager} game={game ?? undefined} triggerId={triggerId} />}
-          {state.missionDay === 8 && <Sol08MissionPanel game={game} triggerId={triggerId} />}
-          {state.missionDay === 9 && ["HAB_WATER_NUTRITION_01", "LAB_CULTIVATION_01", "Engineering_LifeSupport_Trigger", "MC_MAIN_01"].includes(triggerId) && <Sol09MissionPanel game={game} triggerId={triggerId} />}
-          {state.missionDay === 10 && <Sol10MissionPanel game={game} triggerId={triggerId} />}
-          {state.missionDay === 11 && triggerId === "MC_MAIN_01" && <Sol11MissionPanel game={game} />}
-          {allowedTasks.length > 0 && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.18)] [margin-top:10px] [padding-top:10px]"><MissionInvestigationPanel game={game} initialTaskId={allowedTasks[0]} availableTaskIds={allowedTasks} showSavedRecords={allowedTasks.includes("SOL02_READINESS_ASSESSMENT") || allowedTasks.includes("SOL03_SUBMIT_TARGET_RECORD")} /></section>}
-          {triggerId === "HAB_MONITOR_01" && <section className="[margin:8px_12px] [border-top:1px_solid_rgba(85,_205,_232,_0.15)] [padding:12px]"><div className="font-mono [color:#55cde8] [font-size:10px]">OUTPOST OVERVIEW</div><p className="[color:#dce8ed]">Sol {state.missionDay} · {mission.title} · {missionState?.objectiveState ?? state.objectiveState}</p><p className="[color:#9fb4c0] [font-size:12px]">{mission.primaryObjective}</p><p className="[color:#d4ad72] [font-size:12px]">{game?.missionManager.getMissionTaskProgress().remaining ?? 0} required mission tasks remain. System-specific records stay in their own consoles.</p>{state.notification && <p role="status" className="[border-left:2px_solid_#e88747] [padding-left:8px] [color:#e8c18d] [font-size:12px]">Mission notification: {state.notification}</p>}</section>}
+          {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} sol={activeSol} missionTitle={mission.title} showSol3TargetGallery={activeSol === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {activeSol}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
+          {activeSol === 5 && triggerId === "MC_NAVIGATION_01" && <section className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.18)] [padding-top:16px]"><Sol5MissionPanel game={game} state={state} /></section>}
+          {activeSol === 6 && ["MC_NAVIGATION_01", "MC_MAIN_01", "LAB_RESEARCH_ANALYSIS_01", "LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"].includes(triggerId) && <Sol6MissionPanel manager={game?.missionManager} triggerId={triggerId} />}
+          {activeSol === 7 && <Sol7MissionPanel manager={game?.missionManager} game={game ?? undefined} triggerId={triggerId} />}
+          {activeSol === 8 && <Sol08MissionPanel game={game} triggerId={triggerId} />}
+          {activeSol === 9 && ["HAB_WATER_NUTRITION_01", "LAB_CULTIVATION_01", "Engineering_LifeSupport_Trigger", "MC_MAIN_01"].includes(triggerId) && <Sol09MissionPanel game={game} triggerId={triggerId} />}
+          {activeSol === 10 && <Sol10MissionPanel game={game} triggerId={triggerId} />}
+          {activeSol === 11 && triggerId === "MC_MAIN_01" && <Sol11MissionPanel game={game} />}
+          {allowedTasks.length > 0 && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.18)] [margin-top:10px] [padding-top:10px]"><MissionInvestigationPanel game={game} initialTaskId={allowedTasks[0].stepId} availableTaskIds={allowedTasks.map(task => task.stepId)} showSavedRecords={allowedTasks.some(task => task.stepId === "SOL02_READINESS_ASSESSMENT" || task.stepId === "SOL03_SUBMIT_TARGET_RECORD")} /></section>}
+          {triggerId === "HAB_MONITOR_01" && <section className="[margin:8px_12px] [border-top:1px_solid_rgba(85,_205,_232,_0.15)] [padding:12px]"><div className="font-mono [color:#55cde8] [font-size:10px]">OUTPOST OVERVIEW</div><p className="[color:#dce8ed]">Sol {activeSol} · {mission.title} · {missionState?.objectiveState ?? state.objectiveState}</p><p className="[color:#9fb4c0] [font-size:12px]">{mission.primaryObjective}</p><p className="[color:#d4ad72] [font-size:12px]">{game?.missionManager.getMissionTaskProgress().remaining ?? 0} required mission tasks remain. System-specific records stay in their own consoles.</p>{state.notification && <p role="status" className="[border-left:2px_solid_#e88747] [padding-left:8px] [color:#e8c18d] [font-size:12px]">Mission notification: {state.notification}</p>}</section>}
         </main>
       </div>
     </div>

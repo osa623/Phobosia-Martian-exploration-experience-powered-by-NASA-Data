@@ -136,7 +136,7 @@
       },
       {
         "name": "ScienceLab_Entrance_Trigger",
-        "destination": "Research Lab",
+        "destination": "Science Lab",
         "instruction": "Preserve the exact name and existing behaviour."
       }
     ],
@@ -506,7 +506,7 @@
           "Instructions for performing and saving the surface observation",
           "Simulated-data disclosure"
         ],
-        "narrative_guidance": "Mission Control requests a focused observation of a selected surface feature. The resulting record will be reviewed in the Research Lab on Day 8.",
+        "narrative_guidance": "Mission Control requests a focused observation of a selected surface feature. The resulting record will be reviewed in the Science Lab on Day 8.",
         "data_truthfulness": "Do not imply that a real physical sample was collected or that a real scientific instrument was used unless the existing project genuinely implements that functionality."
       },
       "objectives": [
@@ -533,7 +533,7 @@
           "id": "D7_OBJ_04_SAVE_OBSERVATION",
           "label": "Save the surface observation record",
           "required": true,
-          "completion_condition": "A valid SurfaceObservationRecord is saved and made available to the Research Lab."
+          "completion_condition": "A valid SurfaceObservationRecord is saved and made available to the Science Lab."
         }
       ],
       "interactions": [
@@ -656,7 +656,7 @@
       "completion_summary": [
         "Surface observation completed",
         "Observation record saved",
-        "Record ready for Day 8 Research Lab analysis"
+        "Record ready for Day 8 Science Lab analysis"
       ],
       "failure_recovery": [
         "Do not permit scanning outside the valid observation area.",
@@ -677,14 +677,14 @@
     {
       "day": 8,
       "day_id": "DAY_08_RESEARCH_LAB_ANALYSIS",
-      "title": "Research Lab Analysis",
+      "title": "Science Lab Analysis",
       "mission_phase": "Scientific Analysis",
       "primary_location": "Research/Science Lab",
       "supporting_locations": [
         "Central Hub",
         "Mission Control"
       ],
-      "narrative_purpose": "Analyse the saved Day 7 surface observation in the existing Research Lab. Where available, compare it with the Day 6 geological survey, choose a cautious interpretation, and save a scientific analysis record for later mission synthesis.",
+      "narrative_purpose": "Analyse the saved Day 7 surface observation in the existing Science Lab. Where available, compare it with the Day 6 geological survey, choose a cautious interpretation, and save a scientific analysis record for later mission synthesis.",
       "briefing": {
         "delivery": "Use the established daily briefing UI.",
         "required_content": [
@@ -695,7 +695,7 @@
           "Instruction to select and save an interpretation",
           "Explicit simulated-analysis disclosure"
         ],
-        "narrative_guidance": "The Research Lab has received the surface observation from Day 7. The astronaut must inspect the source record, compare relevant notes, select a cautious interpretation, and save the result.",
+        "narrative_guidance": "The Science Lab has received the surface observation from Day 7. The astronaut must inspect the source record, compare relevant notes, select a cautious interpretation, and save the result.",
         "data_truthfulness": "This is a simulated educational interpretation, not a claim of actual mineral identification or a new scientific discovery."
       },
       "prerequisites": [
@@ -718,7 +718,7 @@
           "id": "D8_OBJ_01_OPEN_SOURCE_RECORD",
           "label": "Open the Day 7 surface observation",
           "required": true,
-          "completion_condition": "The player opens the actual saved Day 7 record in the Research Lab interface."
+          "completion_condition": "The player opens the actual saved Day 7 record in the Science Lab interface."
         },
         {
           "id": "D8_OBJ_02_REVIEW_COMPARISON",
@@ -740,8 +740,8 @@
         }
       ],
       "analysis_interface": {
-        "title": "RESEARCH LAB — OBSERVATION ANALYSIS",
-        "layout": "Use a professional console layout adapted to the real dimensions and aspect ratio of the existing Research Lab screen planes.",
+        "title": "SCIENCE LAB — OBSERVATION ANALYSIS",
+        "layout": "Use a professional console layout adapted to the real dimensions and aspect ratio of the existing Science Lab screen planes.",
         "panels": [
           {
             "id": "source_observation",
@@ -838,7 +838,7 @@
       },
       "screen_requirements": [
         {
-          "role": "Research Lab primary screen",
+          "role": "Science Lab primary screen",
           "content": [
             "Source observation",
             "Comparison notes",
@@ -846,10 +846,10 @@
             "Save Analysis action",
             "Record status"
           ],
-          "activation": "Only when the player is in the Research Lab and the relevant screen is active."
+          "activation": "Only when the player is in the Science Lab and the relevant screen is active."
         },
         {
-          "role": "Research Lab supporting screen",
+          "role": "Science Lab supporting screen",
           "content": [
             "Current analysis step",
             "Short contextual instructions",
@@ -878,8 +878,8 @@
         "Save Analysis requires a source record and a selected interpretation.",
         "The saved analysis references the correct source ID.",
         "The analysis is clearly marked as simulated.",
-        "The Research Lab UI fits actual screen-plane dimensions and remains readable.",
-        "Only relevant Research Lab screens are active."
+        "The Science Lab UI fits actual screen-plane dimensions and remains readable.",
+        "Only relevant Science Lab screens are active."
       ]
     },
     {

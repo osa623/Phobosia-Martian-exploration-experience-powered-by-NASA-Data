@@ -343,7 +343,7 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
     introduction: {
       id: "INTRO_CENTRAL_HUB",
       title: "Central Hub",
-      description: "This central connection area links the Habitat, Engineering Unit, Research Laboratory, and Mission Control through the existing internal passages.",
+      description: "This central connection area links the Habitat, Engineering Unit, Science Lab, and Mission Control through the existing internal passages.",
       cameraPresentationId: "CAM_CENTRAL_HUB_OVERVIEW",
       durationSeconds: 5,
       skipKey: "Enter"
@@ -483,13 +483,13 @@ export const DAY1_ZONES: Day1ZoneDefinition[] = [
   },
   {
     zoneId: "RESEARCH_LAB",
-    friendlyName: "Research Laboratory",
+    friendlyName: "Science Lab",
     description: "The scientific heart of the outpost, supporting research monitoring, analysis, seed preservation, and plant cultivation.",
     moduleName: "Science",
     introduction: {
       id: "INTRO_RESEARCH_LAB",
-      title: "Research Laboratory",
-      description: "The Research Laboratory is dedicated to sample analysis, agricultural research, seed inventory, water quality testing, and cultivation experiments.",
+      title: "Science Lab",
+      description: "The Science Lab is dedicated to sample analysis, agricultural research, seed inventory, water quality testing, and cultivation experiments.",
       cameraPresentationId: "CAM_RESEARCH_LAB_OVERVIEW",
       durationSeconds: 5,
       skipKey: "Enter"

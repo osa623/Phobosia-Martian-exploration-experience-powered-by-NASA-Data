@@ -16,7 +16,7 @@
           "y": 0.0,
           "z": 1.73859
         },
-        "task": "Add screen rendering using the established pattern used by Habitat, Engineering, Research Lab, Central Console, and Mission Control.",
+        "task": "Add screen rendering using the established pattern used by Habitat, Engineering, Science Lab, Central Console, and Mission Control.",
         "behavior": "Inspect the existing Airlock screen behavior and implement appropriate UI and interactions consistent with the project's current screen architecture. Do not invent unrelated functionality.",
         "requirements": [
           "Use the exact screen object/name and supplied position as the reference.",

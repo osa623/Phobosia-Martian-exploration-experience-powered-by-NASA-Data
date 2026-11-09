@@ -8,6 +8,7 @@ import { SpeedTravelBar } from "./SpeedTravelBar";
 import {
   MASTER_TERRAIN_TARGETS,
   PREDEFINED_INTERPRETATIONS,
+  type MissionProgressState,
   type TerrainRouteTarget
 } from "@/core/MissionManager";
 import { Sol6FieldCapture } from "@/missions/SOL_06/components/Sol6FieldCapture";
@@ -86,9 +87,10 @@ const initialState: GameState = {
 type GameViewportProps = {
   onReturnToMenu?: () => void;
   onReady?: () => void;
+  replayState?: MissionProgressState;
 };
 
-export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}) {
+export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewportProps = {}) {
   const host = useRef<HTMLDivElement>(null);
   const game = useRef<Game | null>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -121,11 +123,15 @@ export function GameViewport({ onReturnToMenu, onReady }: GameViewportProps = {}
 
   useEffect(() => {
     if (!areRequiredAssetsReady() || !host.current) return;
-    const instance = new Game(host.current, setState);
+    const instance = new Game(host.current, setState, replayState);
     game.current = instance;
     void instance.start();
     return () => instance.dispose();
-  }, []);
+  }, [replayState]);
+
+  useEffect(() => {
+    if (game.current?.missionManager.isReplayComplete) onReturnToMenu?.();
+  }, [state.notification, state.objectiveState, onReturnToMenu]);
 
   useEffect(() => {
     const controller = new LaptopAudioController();
