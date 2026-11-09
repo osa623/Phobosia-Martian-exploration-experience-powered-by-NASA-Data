@@ -169,13 +169,13 @@
     {
       "interfaceId": "SOL10_SCIENTIFIC_ANALYSIS",
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
-      "location": "Existing Research Lab Scientific Analysis Station",
+      "location": "Existing Science Lab Scientific Analysis Station",
       "purpose": "Review target and observation records through the existing scientific analysis display."
     },
     {
       "interfaceId": "SOL10_CULTIVATION_RECORDS",
       "triggerId": "LAB_CULTIVATION_01",
-      "location": "Existing Research Lab Cultivation Environment Display",
+      "location": "Existing Science Lab Cultivation Environment Display",
       "purpose": "Review persisted cultivation history and its available sample provenance."
     },
     {
@@ -229,25 +229,25 @@
     {
       "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
       "triggerId": "LAB_RESEARCH_MONITORING_01",
-      "location": "Research Lab — Monitoring Station",
+      "location": "Science Lab — Monitoring Station",
       "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Research Monitoring."
     },
     {
       "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
       "triggerId": "LAB_SEED_STORAGE_01",
-      "location": "Research Lab — Seed Storage",
+      "location": "Science Lab — Seed Storage",
       "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Seed Storage."
     },
     {
       "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
       "triggerId": "LAB_WATER_NUTRITION_01",
-      "location": "Research Lab — Nutrient Preparation Station",
+      "location": "Science Lab — Nutrient Preparation Station",
       "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Water and Nutrition Mixing."
     },
     {
       "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
       "triggerId": "LAB_WATER_SERVICE_01",
-      "location": "Research Lab — Water Quality Station",
+      "location": "Science Lab — Water Quality Station",
       "purpose": "Sol 10 physical interaction task for verifying the persisted module status at Water Quality and Service."
     },
     {
@@ -690,7 +690,7 @@
       "mandatory": true,
       "triggerId": "LAB_RESEARCH_MONITORING_01",
       "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
-      "objective": "Use the existing Research Monitoring physical interaction point in Research Lab — Monitoring Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Research Monitoring physical interaction point in Science Lab — Monitoring Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_RESEARCH_MONITORING_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -700,7 +700,7 @@
       "mandatory": true,
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
       "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_ANALYSIS_01",
-      "objective": "Use the existing Scientific Analysis physical interaction point in Research Lab — Scientific Analysis Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Scientific Analysis physical interaction point in Science Lab — Scientific Analysis Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_RESEARCH_ANALYSIS_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -710,7 +710,7 @@
       "mandatory": true,
       "triggerId": "LAB_SEED_STORAGE_01",
       "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
-      "objective": "Use the existing Seed Storage physical interaction point in Research Lab — Seed Storage. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Seed Storage physical interaction point in Science Lab — Seed Storage. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_SEED_STORAGE_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -720,7 +720,7 @@
       "mandatory": true,
       "triggerId": "LAB_WATER_NUTRITION_01",
       "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
-      "objective": "Use the existing Water and Nutrition Mixing physical interaction point in Research Lab — Nutrient Preparation Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Water and Nutrition Mixing physical interaction point in Science Lab — Nutrient Preparation Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_WATER_NUTRITION_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -730,7 +730,7 @@
       "mandatory": true,
       "triggerId": "LAB_WATER_SERVICE_01",
       "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
-      "objective": "Use the existing Water Quality and Service physical interaction point in Research Lab — Water Quality Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Water Quality and Service physical interaction point in Science Lab — Water Quality Station. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_WATER_SERVICE_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -740,7 +740,7 @@
       "mandatory": true,
       "triggerId": "LAB_CULTIVATION_01",
       "interfaceId": "SOL10_TRIGGER_LAB_CULTIVATION_01",
-      "objective": "Use the existing Cultivation Environment physical interaction point in Research Lab — Cultivation Bay Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
+      "objective": "Use the existing Cultivation Environment physical interaction point in Science Lab — Cultivation Bay Console. Review the persisted SOL 1-9 records associated with this trigger, then record its current status and any limitation.",
       "completionCondition": "The player interacted with LAB_CULTIVATION_01 and persisted a Sol 10 verification result for this trigger."
     },
     {
@@ -1114,42 +1114,42 @@
         "zone": "Research_Zone",
         "triggerId": "LAB_RESEARCH_MONITORING_01",
         "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_MONITORING_01",
-        "description": "Existing physical interaction point: Research Monitoring (LAB_RESEARCH_MONITORING_01) at Research Lab — Monitoring Station."
+        "description": "Existing physical interaction point: Research Monitoring (LAB_RESEARCH_MONITORING_01) at Science Lab — Monitoring Station."
       },
       {
         "destinationId": "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01",
         "zone": "Research_Zone",
         "triggerId": "LAB_RESEARCH_ANALYSIS_01",
         "interfaceId": "SOL10_TRIGGER_LAB_RESEARCH_ANALYSIS_01",
-        "description": "Existing physical interaction point: Scientific Analysis (LAB_RESEARCH_ANALYSIS_01) at Research Lab — Scientific Analysis Station."
+        "description": "Existing physical interaction point: Scientific Analysis (LAB_RESEARCH_ANALYSIS_01) at Science Lab — Scientific Analysis Station."
       },
       {
         "destinationId": "SOL10_VERIFY_LAB_SEED_STORAGE_01",
         "zone": "Research_Zone",
         "triggerId": "LAB_SEED_STORAGE_01",
         "interfaceId": "SOL10_TRIGGER_LAB_SEED_STORAGE_01",
-        "description": "Existing physical interaction point: Seed Storage (LAB_SEED_STORAGE_01) at Research Lab — Seed Storage."
+        "description": "Existing physical interaction point: Seed Storage (LAB_SEED_STORAGE_01) at Science Lab — Seed Storage."
       },
       {
         "destinationId": "SOL10_VERIFY_LAB_WATER_NUTRITION_01",
         "zone": "Research_Zone",
         "triggerId": "LAB_WATER_NUTRITION_01",
         "interfaceId": "SOL10_TRIGGER_LAB_WATER_NUTRITION_01",
-        "description": "Existing physical interaction point: Water and Nutrition Mixing (LAB_WATER_NUTRITION_01) at Research Lab — Nutrient Preparation Station."
+        "description": "Existing physical interaction point: Water and Nutrition Mixing (LAB_WATER_NUTRITION_01) at Science Lab — Nutrient Preparation Station."
       },
       {
         "destinationId": "SOL10_VERIFY_LAB_WATER_SERVICE_01",
         "zone": "Research_Zone",
         "triggerId": "LAB_WATER_SERVICE_01",
         "interfaceId": "SOL10_TRIGGER_LAB_WATER_SERVICE_01",
-        "description": "Existing physical interaction point: Water Quality and Service (LAB_WATER_SERVICE_01) at Research Lab — Water Quality Station."
+        "description": "Existing physical interaction point: Water Quality and Service (LAB_WATER_SERVICE_01) at Science Lab — Water Quality Station."
       },
       {
         "destinationId": "SOL10_VERIFY_LAB_CULTIVATION_01",
         "zone": "Research_Zone",
         "triggerId": "LAB_CULTIVATION_01",
         "interfaceId": "SOL10_TRIGGER_LAB_CULTIVATION_01",
-        "description": "Existing physical interaction point: Cultivation Environment (LAB_CULTIVATION_01) at Research Lab — Cultivation Bay Console."
+        "description": "Existing physical interaction point: Cultivation Environment (LAB_CULTIVATION_01) at Science Lab — Cultivation Bay Console."
       },
       {
         "destinationId": "SOL10_VERIFY_MC_MAIN_01",

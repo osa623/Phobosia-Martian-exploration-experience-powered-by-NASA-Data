@@ -5,7 +5,7 @@
   "title": "Selected Target Investigation and Drone Mission Preparation",
   "subtitle": "Investigate the selected Mars target and prepare the drone for the next observation mission.",
   "missionType": "trigger_scoped_scientific_investigation",
-  "description": "Conduct a detailed scientific investigation of the target selected during Sol 3. Review available scientific records, historical observations, terrain information, operational constraints, and relevant mission logs through Mission Control and Research Lab interfaces. Physically visit the Drone Section to inspect the existing drone and verify its visible preparation state. Submit a preliminary terrain assessment and a preparation report for the Sol 5 aerial reconnaissance mission.",
+  "description": "Conduct a detailed scientific investigation of the target selected during Sol 3. Review available scientific records, historical observations, terrain information, operational constraints, and relevant mission logs through Mission Control and Science Lab interfaces. Physically visit the Drone Section to inspect the existing drone and verify its visible preparation state. Submit a preliminary terrain assessment and a preparation report for the Sol 5 aerial reconnaissance mission.",
   "prerequisites": {
     "completedMissions": [
       "PHOBOSIA_SOL_03"
@@ -60,7 +60,7 @@
     "The selected target must be resolved from the existing persistent mission state.",
     "Do not provide a second target-selection process during Sol 4.",
     "Mission Control is the primary location for scientific investigation and mission planning.",
-    "Research Lab is used for scientific dataset review and terrain assessment.",
+    "Science Lab is used for scientific dataset review and terrain assessment.",
     "The player must physically visit the Drone Section and inspect the existing drone.",
     "The Drone Section has no dedicated computer or screen interface.",
     "The drone must not be remotely inspected through Mission Control as a substitute for the physical inspection task.",
@@ -228,7 +228,7 @@
     },
     {
       "interfaceId": "RESEARCH_ANALYSIS",
-      "location": "Research Lab",
+      "location": "Science Lab",
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
       "screens": [
         "ResearchMonitoring_SystemScreen"
@@ -256,7 +256,7 @@
     },
     {
       "interfaceId": "RESEARCH_MONITORING",
-      "location": "Research Lab",
+      "location": "Science Lab",
       "triggerId": "LAB_RESEARCH_MONITORING_01",
       "screens": [
         "ResearchMonitoring_MainScreen"

@@ -3,7 +3,7 @@ import { TRIGGERS } from "../../systems/operating-system/triggerRegistry";
 const moduleFromLocation = (location: string): string => {
   if (location.startsWith("Habitat")) return "Habitat";
   if (location.startsWith("Engineering Unit")) return "Engineering";
-  if (location.startsWith("Research Lab")) return "Science";
+  if (location.startsWith("Science Lab")) return "Science";
   if (location.startsWith("Mission Control")) return "MissionControl";
   if (location.startsWith("Central Connector")) return "Hub";
   if (location.startsWith("Airlock")) return "Airlock";
@@ -13,7 +13,7 @@ const moduleFromLocation = (location: string): string => {
 
 const displayModule = (module: string): string => ({
   MissionControl: "Mission Control",
-  Science: "Research Lab",
+  Science: "Science Lab",
   Engineering: "Engineering Unit",
   Hub: "Central Hub",
   Terrain: "Mars Terrain"

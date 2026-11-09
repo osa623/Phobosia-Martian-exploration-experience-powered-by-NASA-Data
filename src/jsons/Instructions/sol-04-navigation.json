@@ -25,7 +25,7 @@
       "title": "Review Terrain and Scientific Dataset Evidence",
       "message": "Continue to the Research Analysis Station.",
       "guidance": "Review dataset provenance and coverage where available. Assess what the supplied evidence can establish about terrain, and note missing slope, elevation, or obstacle measurements rather than estimating them.",
-      "destination": { "name": "Research Analysis Station", "module": "Research Lab", "section": "Analysis Station" },
+      "destination": { "name": "Research Analysis Station", "module": "Science Lab", "section": "Analysis Station" },
       "activity": "Submit a preliminary terrain assessment with its limitations.",
       "requiresCompletedTasks": ["SOL04_SELECTED_TARGET_INVESTIGATION"]
     },

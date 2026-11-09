@@ -283,7 +283,7 @@
                 "healthPercent": 96
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "status": "NOMINAL",
                 "healthPercent": 93
               },
@@ -573,7 +573,7 @@
               },
               {
                 "id": "MSG-015",
-                "destination": "Research Lab",
+                "destination": "Science Lab",
                 "priority": "HIGH",
                 "status": "QUEUED"
               }
@@ -698,7 +698,7 @@
                 "status": "ACTIVE"
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "percent": 24,
                 "status": "ACTIVE"
               },

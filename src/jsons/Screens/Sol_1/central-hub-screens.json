@@ -55,7 +55,7 @@
   "missionContext": {
     "missionName": "PHOBOSIA Mars Observation Mission",
     "missionDurationSols": 14,
-    "purpose": "Provide a shared status and communication point linking Habitat, Mission Control, Research Lab, and Engineering Unit.",
+    "purpose": "Provide a shared status and communication point linking Habitat, Mission Control, Science Lab, and Engineering Unit.",
     "crossZoneIntegration": {
       "readExistingStateWhenAvailable": true,
       "avoidDuplicateAuthoritativeState": true,
@@ -129,7 +129,7 @@
                 "summary": "Pressure and temperature stable"
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "status": "NOMINAL",
                 "summary": "Environmental monitoring active"
               },
@@ -262,7 +262,7 @@
                 "status": "ONLINE"
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "status": "ONLINE"
               },
               {
@@ -286,7 +286,7 @@
               {
                 "time": "SOL 01 / 09:16",
                 "severity": "INFO",
-                "source": "Research Lab",
+                "source": "Science Lab",
                 "message": "Science monitoring systems nominal"
               },
               {
@@ -387,7 +387,7 @@
                 "summary": "Mission planning and surface operations"
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "status": "NOMINAL",
                 "healthPercent": 93,
                 "summary": "Science and sample observation"
@@ -434,7 +434,7 @@
               {
                 "time": "SOL 01 / 09:16",
                 "severity": "INFO",
-                "message": "Research Lab reported nominal state"
+                "message": "Science Lab reported nominal state"
               }
             ]
           }
