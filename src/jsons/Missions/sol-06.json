@@ -4,7 +4,7 @@
   "title": "Mars Surface Field Investigation",
   "subtitle": "Ground-Level Geological Observation, Soil Sampling and Laboratory Analysis",
   "missionType": "surface_geological_investigation",
-  "description": "Continue investigating the exact target selected in Sol 3 and studied in Sols 4 and 5. Travel on foot to the target, record ground-level geological observations, collect and secure one soil/regolith sample, return through the existing Airlock, analyse the sample in the Research Lab and start a cultivation experiment whose result remains pending until Sol 8.",
+  "description": "Continue investigating the exact target selected in Sol 3 and studied in Sols 4 and 5. Travel on foot to the target, record ground-level geological observations, collect and secure one soil/regolith sample, return through the existing Airlock, analyse the sample in the Science Lab and start a cultivation experiment whose result remains pending until Sol 8.",
   "status": "locked",
   "prerequisites": [
     "PHOBOSIA_SOL_05"
@@ -34,7 +34,7 @@
   },
   "missionZones": [
     "Mission Control",
-    "Research Lab",
+    "Science Lab",
     "Airlock",
     "Central Hub",
     "Mars Terrain",
@@ -50,19 +50,19 @@
     {
       "interfaceId": "RESEARCH_LAB_SAMPLE_PREPARATION",
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
-      "location": "Existing Research Lab sample preparation area",
+      "location": "Existing Science Lab sample preparation area",
       "resolution": "Resolve actual scene objects and interaction mappings; report missing mappings instead of inventing them."
     },
     {
       "interfaceId": "RESEARCH_LAB_SAMPLE_ANALYSIS",
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
-      "location": "Existing Research Lab analysis equipment",
+      "location": "Existing Science Lab analysis equipment",
       "resolution": "Resolve actual scene objects and interaction mappings."
     },
     {
       "interfaceId": "RESEARCH_LAB_CULTIVATION_UNIT",
       "triggerId": "LAB_CULTIVATION_01",
-      "location": "Existing Research Lab cultivation unit",
+      "location": "Existing Science Lab cultivation unit",
       "resolution": "Reuse the actual existing unit; do not create a replacement."
     },
     {
@@ -142,7 +142,7 @@
     },
     {
       "taskId": "SOL06_TRANSFER_SAMPLE",
-      "title": "Transfer Sample to the Research Lab",
+      "title": "Transfer Sample to the Science Lab",
       "interfaceId": "RESEARCH_LAB_SAMPLE_PREPARATION",
       "mandatory": true,
       "objective": "Register receipt of the same sample ID and preserve its provenance."
@@ -182,8 +182,8 @@
     {
       "id": "SOL06_OBJ_02",
       "title": "Prepare Field Equipment",
-      "description": "Review and prepare the available sample container, identification label, sealing method, collection tool and contamination-control documentation in the existing Research Lab.",
-      "zone": "Research Lab",
+      "description": "Review and prepare the available sample container, identification label, sealing method, collection tool and contamination-control documentation in the existing Science Lab.",
+      "zone": "Science Lab",
       "type": "equipment_preparation",
       "required": true,
       "completionCondition": "Available required equipment is reviewed and marked ready; do not require nonexistent equipment."
@@ -256,18 +256,18 @@
     },
     {
       "id": "SOL06_OBJ_09",
-      "title": "Transfer Sample to the Research Lab",
-      "description": "Register the secured sample at the existing Research Lab sample-handling area without changing its ID or provenance.",
-      "zone": "Research Lab",
+      "title": "Transfer Sample to the Science Lab",
+      "description": "Register the secured sample at the existing Science Lab sample-handling area without changing its ID or provenance.",
+      "zone": "Science Lab",
       "type": "sample_transfer",
       "required": true,
-      "completionCondition": "Research Lab acknowledges receipt of the same sample ID without creating a duplicate."
+      "completionCondition": "Science Lab acknowledges receipt of the same sample ID without creating a duplicate."
     },
     {
       "id": "SOL06_OBJ_10",
       "title": "Perform Preliminary Sample Analysis",
       "description": "Use existing analysis equipment to record visible appearance, grain size/texture, colour and genuinely supported indicators. Label simulated gameplay readings as simulated.",
-      "zone": "Research Lab",
+      "zone": "Science Lab",
       "type": "sample_analysis",
       "required": true,
       "analysisFields": [
@@ -285,7 +285,7 @@
       "id": "SOL06_OBJ_11",
       "title": "Initiate Soil Cultivation Experiment",
       "description": "Load/register the analysed sample in the existing cultivation unit and start the experiment. It takes approximately two in-game Sols; result is not available in Sol 6.",
-      "zone": "Research Lab",
+      "zone": "Science Lab",
       "type": "cultivation_experiment_start",
       "required": true,
       "cultivation": {
@@ -335,8 +335,8 @@
         },
         {
           "id": "SOL06_NAV_RESEARCH_PREPARATION",
-          "label": "Research Lab Equipment Preparation",
-          "zone": "Research Lab",
+          "label": "Science Lab Equipment Preparation",
+          "zone": "Science Lab",
           "purpose": "Prepare available sample collection equipment."
         },
         {
@@ -356,14 +356,14 @@
         },
         {
           "id": "SOL06_NAV_RESEARCH_ANALYSIS",
-          "label": "Research Lab Sample Analysis",
-          "zone": "Research Lab",
+          "label": "Science Lab Sample Analysis",
+          "zone": "Science Lab",
           "purpose": "Register and analyse the collected sample."
         },
         {
           "id": "SOL06_NAV_CULTIVATION",
-          "label": "Research Lab Cultivation Unit",
-          "zone": "Research Lab",
+          "label": "Science Lab Cultivation Unit",
+          "zone": "Science Lab",
           "purpose": "Start and verify the pending Sol 8 cultivation experiment."
         },
         {

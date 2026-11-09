@@ -37,6 +37,7 @@ export const SCREEN_CONFIG_OVERRIDES: Record<string, ScreenConfigOverride> = {
 export interface ScreenMeshBinding {
   nodeName: string;
   mesh: THREE.Mesh;
+  originalMaterial: THREE.Material | THREE.Material[];
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
@@ -44,6 +45,15 @@ export interface ScreenMeshBinding {
   width: number;
   height: number;
   rendererType: string;
+}
+
+export function isTriggerMesh(mesh: THREE.Mesh): boolean {
+  let object: THREE.Object3D | null = mesh;
+  while (object) {
+    if (/trigger|spawn|entrance/i.test(object.name)) return true;
+    object = object.parent;
+  }
+  return false;
 }
 
 export class ScreenRenderer {
@@ -63,7 +73,7 @@ export class ScreenRenderer {
 
     model.traverse(child => {
       const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry) return;
+      if (!mesh.isMesh || !mesh.geometry || isTriggerMesh(mesh)) return;
 
       const name = mesh.name || "";
       const parentName = mesh.parent?.name || "";
@@ -207,12 +217,14 @@ export class ScreenRenderer {
       side: THREE.DoubleSide
     });
 
+    const originalMaterial = mesh.material;
     mesh.material = material;
     mesh.visible = true;
 
     this.activeBindings.push({
       nodeName: identifier,
       mesh,
+      originalMaterial,
       canvas,
       ctx,
       texture,
@@ -926,6 +938,7 @@ export class ScreenRenderer {
 
   public dispose(): void {
     for (const b of this.activeBindings) {
+      b.mesh.material = b.originalMaterial;
       b.material.dispose();
       b.texture.dispose();
     }

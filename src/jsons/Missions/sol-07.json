@@ -25,7 +25,7 @@
     "Mission Control",
     "Central Hub",
     "Airlock",
-    "Research Lab",
+    "Science Lab",
     "Engineering"
   ],
   "tasks": [
@@ -60,7 +60,7 @@
     {
       "taskId": "SOL07_ASSESS_SCIENCE_POWER",
       "title": "Assess Science and Cultivation Power Availability",
-      "zone": "Research Lab",
+      "zone": "Science Lab",
       "mandatory": true,
       "objective": "Review research/cultivation power availability and the existing Sol 6 cultivation experiment without changing its sample, record or IN_PROGRESS status."
     },
@@ -115,7 +115,7 @@
     {
       "id": "SOL07_OBJ_05",
       "title": "Assess Science Power",
-      "zone": "Research Lab",
+      "zone": "Science Lab",
       "type": "science_power_assessment",
       "required": true,
       "completionCondition": "Science/cultivation power is recorded and the Sol 6 experiment remains preserved and IN_PROGRESS."
@@ -264,7 +264,7 @@
       "Mission Control Assessment",
       "Central Hub Status and Power Distribution",
       "Airlock EVA Lockdown",
-      "Research Lab and Cultivation Power",
+      "Science Lab and Cultivation Power",
       "Solar Generation",
       "Available Reserve and Estimated Duration",
       "Solar Panel A Status",

@@ -244,7 +244,7 @@
       "introduction": {
         "id": "INTRO_CENTRAL_HUB",
         "title": "Central Hub",
-        "description": "This central connection area links the Habitat, Engineering Unit, Research Laboratory, and Mission Control through the existing internal passages.",
+        "description": "This central connection area links the Habitat, Engineering Unit, Science Lab, and Mission Control through the existing internal passages.",
         "cameraPresentationId": "CAM_CENTRAL_HUB_OVERVIEW",
         "durationSeconds": 5,
         "skipKey": "Enter"
@@ -528,7 +528,7 @@
     },
     {
       "zoneId": "RESEARCH_LAB",
-      "friendlyName": "Research Laboratory",
+      "friendlyName": "Science Lab",
       "description": "The outpost's scientific workspace for research monitoring, analysis, seed inventory, water quality, nutrient preparation, and cultivation-environment monitoring.",
       "entry": {
         "triggerObjectName": "ScienceLab_Entrance_Trigger",
@@ -537,8 +537,8 @@
       },
       "introduction": {
         "id": "INTRO_RESEARCH_LAB",
-        "title": "Research Laboratory",
-        "description": "The Research Laboratory is where the crew reviews observations, examines research systems, monitors resources, and evaluates the conditions required for cultivation.",
+        "title": "Science Lab",
+        "description": "The Science Lab is where the crew reviews observations, examines research systems, monitors resources, and evaluates the conditions required for cultivation.",
         "cameraPresentationId": "CAM_RESEARCH_LAB_OVERVIEW",
         "durationSeconds": 5,
         "skipKey": "Enter"

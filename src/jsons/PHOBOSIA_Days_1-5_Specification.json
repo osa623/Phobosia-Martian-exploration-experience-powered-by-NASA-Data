@@ -916,7 +916,7 @@
     {
       "test_id": "P2-012",
       "description": "Existing entrance triggers continue to work.",
-      "pass_condition": "Engineering, Habitat, AirLock, Mission Control and Research Lab transitions are tested and outcomes documented."
+      "pass_condition": "Engineering, Habitat, AirLock, Mission Control and Science Lab transitions are tested and outcomes documented."
     },
     {
       "test_id": "P2-013",

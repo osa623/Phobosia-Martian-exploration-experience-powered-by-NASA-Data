@@ -21,6 +21,7 @@
  */
 
 import * as THREE from "three";
+import { isTriggerMesh } from "./ScreenRenderer";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
 import { drawSol07Banner, isSol07StormPresentationActive } from "../missions/sol-07/Sol07ScreenRenderer";
@@ -55,6 +56,7 @@ export interface EngineeringScreenBinding {
   screenKey: string;
   nodeName: string;
   mesh: THREE.Mesh;
+  originalMaterial: THREE.Material | THREE.Material[];
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
@@ -150,7 +152,7 @@ export class EngineeringScreenRenderer {
 
     model.traverse((child) => {
       const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry) return;
+      if (!mesh.isMesh || !mesh.geometry || isTriggerMesh(mesh)) return;
 
       const name = mesh.name || "";
       const cleanName = name.replace(/\./g, "");
@@ -240,6 +242,7 @@ export class EngineeringScreenRenderer {
       toneMapped: false
     });
 
+    const originalMaterial = mesh.material;
     mesh.material = material;
     mesh.visible = true;
 
@@ -247,6 +250,7 @@ export class EngineeringScreenRenderer {
       screenKey,
       nodeName: mesh.name,
       mesh,
+      originalMaterial,
       canvas,
       ctx,
       texture,
@@ -1421,6 +1425,7 @@ export class EngineeringScreenRenderer {
 
   public dispose(): void {
     for (const binding of this.activeBindings) {
+      binding.mesh.material = binding.originalMaterial;
       if (binding.texture) {
         binding.texture.dispose();
       }

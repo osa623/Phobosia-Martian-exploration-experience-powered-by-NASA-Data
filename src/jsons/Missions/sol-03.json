@@ -4,7 +4,7 @@
   "title": "Scientific Target Selection",
   "subtitle": "Select a Mars observation target and establish a research objective.",
   "missionType": "trigger_scoped_scientific_investigation",
-  "description": "Use Mission Control and Research Lab interfaces to review available Mars observation sites, examine operational constraints, select a scientific target, evaluate available datasets, and submit a justified observation proposal.",
+  "description": "Use Mission Control and Science Lab interfaces to review available Mars observation sites, examine operational constraints, select a scientific target, evaluate available datasets, and submit a justified observation proposal.",
   "prerequisites": {
     "completedMissions": ["PHOBOSIA_SOL_02"]
   },
@@ -235,7 +235,7 @@
     },
     {
       "interfaceId": "RESEARCH_ANALYSIS",
-      "location": "Research Lab",
+      "location": "Science Lab",
       "triggerId": "LAB_RESEARCH_ANALYSIS_01",
       "screens": ["ResearchMonitoring_SystemScreen"],
       "interfaceMode": "single_section",
@@ -253,7 +253,7 @@
     },
     {
       "interfaceId": "RESEARCH_MONITORING",
-      "location": "Research Lab",
+      "location": "Science Lab",
       "triggerId": "LAB_RESEARCH_MONITORING_01",
       "screens": ["ResearchMonitoring_MainScreen"],
       "interfaceMode": "single_section",

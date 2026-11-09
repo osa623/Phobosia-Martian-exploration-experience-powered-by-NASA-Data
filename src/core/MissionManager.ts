@@ -62,8 +62,12 @@ const TRIGGER_GUIDANCE: Record<string, { moduleName: string; sectionName: string
   MC_MAIN_01: { moduleName: "Mission Control", sectionName: "Main Operations Console", interfaceName: "Mission Control Main" },
   MC_SYSTEMS_01: { moduleName: "Mission Control", sectionName: "Systems Console", interfaceName: "Mission Control Systems" },
   MC_NAVIGATION_01: { moduleName: "Mission Control", sectionName: "Navigation Console", interfaceName: "Mission Control Navigation" },
-  LAB_RESEARCH_ANALYSIS_01: { moduleName: "Research Laboratory", sectionName: "Analysis Station", interfaceName: "Research Analysis" },
-  LAB_RESEARCH_MONITORING_01: { moduleName: "Research Laboratory", sectionName: "Monitoring Station", interfaceName: "Research Monitoring" },
+  LAB_RESEARCH_ANALYSIS_01: { moduleName: "Science Lab", sectionName: "Analysis Station", interfaceName: "Research Analysis" },
+  LAB_RESEARCH_MONITORING_01: { moduleName: "Science Lab", sectionName: "Monitoring Station", interfaceName: "Research Monitoring" },
+  LAB_SEED_STORAGE_01: { moduleName: "Science Lab", sectionName: "Seed Storage", interfaceName: "Seed Storage Inventory" },
+  LAB_WATER_NUTRITION_01: { moduleName: "Science Lab", sectionName: "Nutrient Preparation Station", interfaceName: "Water and Nutrition Mixing" },
+  LAB_WATER_SERVICE_01: { moduleName: "Science Lab", sectionName: "Water Quality Station", interfaceName: "Water Quality and Service" },
+  LAB_CULTIVATION_01: { moduleName: "Science Lab", sectionName: "Cultivation Bay Console", interfaceName: "Cultivation Environment" },
   Airlock_Control_Console_Trigger: { moduleName: "Airlock", sectionName: "Control Console", interfaceName: "Airlock Control Console" },
   Spwaning_Position: { moduleName: "Mars Terrain", sectionName: "Airlock Return Entrance", interfaceName: "Existing Airlock Return Transition" },
   HAB_REST_01: { moduleName: "Habitat", sectionName: "Rest Area", interfaceName: "Habitat Rest Area" },
@@ -406,13 +410,13 @@ export const DAYS_CONFIG: Record<MissionDayNumber, DayMissionDefinition> = {
     day: 4,
     id: "DAY_04_LIFE_SUPPORT_VERIFICATION",
     title: "Selected Target Investigation and Drone Mission Preparation",
-    storyContext: "The target submitted and validated during Sol 3 is now the focus of a careful scientific review. Mission Control and the Research Lab support the investigation; the Drone Section must be visited physically for inspection. The drone remains grounded until Sol 5.",
-    briefing: "Continue with the target you selected during Sol 3; do not choose another. Review its available records in Mission Control, assess datasets and terrain evidence in the Research Lab, then physically visit and inspect the drone. Prepare the Sol 5 aerial observation plan and submit the preliminary assessment. No drone flight takes place today.",
+    storyContext: "The target submitted and validated during Sol 3 is now the focus of a careful scientific review. Mission Control and the Science Lab support the investigation; the Drone Section must be visited physically for inspection. The drone remains grounded until Sol 5.",
+    briefing: "Continue with the target you selected during Sol 3; do not choose another. Review its available records in Mission Control, assess datasets and terrain evidence in the Science Lab, then physically visit and inspect the drone. Prepare the Sol 5 aerial observation plan and submit the preliminary assessment. No drone flight takes place today.",
     primaryObjective: "Investigate the selected target, assess evidence and terrain limitations, inspect the drone in person, and submit the Sol 5 preparation report.",
     steps: [
       { stepId: "SOL04_MISSION_CONTEXT", label: "Review Sol 4 Mission Objectives", description: "Review the selected target and Sol 4 constraints.", targetTrigger: "MC_MAIN_01", completed: false },
       { stepId: "SOL04_SELECTED_TARGET_INVESTIGATION", label: "Investigate Selected Observation Target", description: "Review available records for the Sol 3 target and record uncertainties.", targetTrigger: "MC_NAVIGATION_01", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT"] },
-      { stepId: "SOL04_TERRAIN_DATA_REVIEW", label: "Review Terrain and Scientific Dataset Evidence", description: "Assess available datasets and terrain evidence in the Research Lab.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false, requiresCompletedTasks: ["SOL04_SELECTED_TARGET_INVESTIGATION"] },
+      { stepId: "SOL04_TERRAIN_DATA_REVIEW", label: "Review Terrain and Scientific Dataset Evidence", description: "Assess available datasets and terrain evidence in the Science Lab.", targetTrigger: "LAB_RESEARCH_ANALYSIS_01", completed: false, requiresCompletedTasks: ["SOL04_SELECTED_TARGET_INVESTIGATION"] },
       { stepId: "SOL04_DRONE_PHYSICAL_INSPECTION", label: "Visit and Inspect the Drone", description: "Physically enter the Drone Section and interact with the existing drone.", targetModule: "Drone Section", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT"] },
       { stepId: "SOL04_DRONE_MISSION_PLAN", label: "Prepare the Sol 5 Drone Observation Plan", description: "Prepare observation objectives and constraints for Sol 5.", targetTrigger: "MC_NAVIGATION_01", completed: false, requiresCompletedTasks: ["SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION"] },
       { stepId: "SOL04_SUBMIT_PREPARATION_REPORT", label: "Submit the Preliminary Terrain Assessment and Preparation Report", description: "Submit the evidence-linked Sol 4 assessment and preparation report.", targetTrigger: "MC_MAIN_01", completed: false, requiresCompletedTasks: ["SOL04_MISSION_CONTEXT", "SOL04_SELECTED_TARGET_INVESTIGATION", "SOL04_TERRAIN_DATA_REVIEW", "SOL04_DRONE_PHYSICAL_INSPECTION", "SOL04_DRONE_MISSION_PLAN"] }
@@ -539,8 +543,71 @@ export function getMissionTaskProgressFor(day: MissionDayNumber, completedStepId
   return { completed, total, remaining: total - completed };
 }
 
+function getStepSol(stepId: string): MissionDayNumber | undefined {
+  for (const day of Object.keys(DAYS_CONFIG).map(Number) as MissionDayNumber[]) {
+    if (DAYS_CONFIG[day].steps.some(step => step.stepId === stepId)) return day;
+  }
+  if (stepId.startsWith("DAY1_")) return 1;
+  return undefined;
+}
+
+export function isMissionSolComplete(state: MissionProgressState, sol: MissionDayNumber): boolean {
+  const steps = DAYS_CONFIG[sol].steps;
+  if (!steps.length || !steps.every(step => state.completedStepIds.includes(step.stepId))) return false;
+  if (sol === 5) return Boolean(state.sol5.report && state.sol5.flight?.landed);
+  if (sol === 7) return Boolean(state.sol7.report?.validated && state.sol7.stormEnded && state.sol7.powerAssessment);
+  if (sol === 8) return Boolean(state.sol8.report?.validated && !state.sol8.powerFailureActive && !state.sol8.communicationFailureActive);
+  if (sol === 9) return Boolean(state.sol9.report?.validated);
+  if (sol === 11) return Boolean(state.campaignFinished && state.sol11.finalVideoCompleted);
+  return true;
+}
+
+export function createSolReplayState(canonical: MissionProgressState, sol: MissionDayNumber): MissionProgressState {
+  const replay = JSON.parse(JSON.stringify(canonical)) as MissionProgressState;
+  replay.currentDay = sol;
+  replay.objectiveState = "in_progress";
+  replay.dayBriefingSeen = false;
+  replay.campaignFinished = false;
+  replay.notification = null;
+  replay.completedStepIds = replay.completedStepIds.filter(stepId => {
+    const stepSol = getStepSol(stepId);
+    return stepSol !== undefined && stepSol < sol;
+  });
+  replay.completedIntroductionIds = sol === 1 ? [] : replay.completedIntroductionIds;
+  replay.observationRecords = replay.observationRecords.filter(record => record.day < sol);
+  replay.investigationRecords = replay.investigationRecords.filter(record => record.sol < sol);
+
+  if (sol <= 3) replay.selectedSiteId = null;
+  if (sol <= 5) replay.selectedRouteTarget = null;
+  if (sol <= 6) replay.geologicalSurvey = null;
+  if (sol <= 7) replay.surfaceObservation = null;
+  if (sol <= 8) replay.scienceAnalysis = null;
+  if (sol <= 9) replay.droneSurvey = null;
+  if (sol <= 5) replay.sol5 = createInitialSol5Progress();
+  if (sol <= 6) replay.sol6 = createInitialSol6Progress();
+  if (sol <= 7) replay.sol7 = createInitialSol7Progress();
+  if (sol <= 8) {
+    replay.sol8 = createInitialSol08Progress();
+    if (sol === 8) replay.sol8 = { ...replay.sol8, started: true, powerFailureActive: true, communicationFailureActive: true };
+  }
+  if (sol <= 9) {
+    replay.sol9 = createInitialSol09Progress();
+    if (sol === 9) replay.sol9.started = true;
+  }
+  if (sol <= 10) replay.sol10 = createInitialSol10Progress();
+  if (sol <= 11) replay.sol11 = createInitialSol11Progress();
+  return replay;
+}
+
+export function getCompletedMissionSols(state: MissionProgressState): MissionDayNumber[] {
+  return (Object.keys(DAYS_CONFIG).map(Number) as MissionDayNumber[]).filter(sol => isMissionSolComplete(state, sol));
+}
+
 export class MissionManager {
   private state: MissionProgressState;
+  public readonly isReplaySession: boolean;
+  public readonly replayDay: MissionDayNumber | null;
+  private replayCompleted = false;
   private listeners = new Set<(state: Readonly<MissionProgressState>) => void>();
   private isAdvancingDay = false;
   private sol6ValidatedMutation = false;
@@ -548,10 +615,14 @@ export class MissionManager {
   private sol9ValidatedMutation = false;
   private sol10ValidatedMutation = false;
 
-  constructor() {
-    this.state = this.loadState();
+  constructor(replayState?: MissionProgressState) {
+    this.isReplaySession = Boolean(replayState);
+    this.replayDay = replayState?.currentDay ?? null;
+    this.state = replayState ? JSON.parse(JSON.stringify(replayState)) as MissionProgressState : this.loadState();
     if (this.state.sol5.attemptStatus === "aborted") this.saveState();
   }
+
+  public get isReplayComplete(): boolean { return this.replayCompleted; }
 
   private loadState(): MissionProgressState {
     if (typeof window !== "undefined" || (typeof globalThis !== "undefined" && globalThis.localStorage)) {
@@ -728,6 +799,7 @@ export class MissionManager {
   }
 
   public saveState(): void {
+    if (this.isReplaySession) return;
     if (typeof window === "undefined" && !(typeof globalThis !== "undefined" && globalThis.localStorage)) return;
     try {
       const serialized = JSON.stringify(this.state);
@@ -1303,7 +1375,7 @@ export class MissionManager {
       const first = steps.find(step => step.targetTrigger) ?? steps.find(step => step.targetModule) ?? steps[0];
       const triggerId = first?.targetTrigger;
       const mapped = triggerId ? TRIGGER_GUIDANCE[triggerId] : undefined;
-      const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule === "Drone" ? "Drone Section" : first?.targetModule ?? "Location not mapped");
+      const module = mapped?.moduleName ?? (first?.targetModule === "Engineering" ? "Engineering Unit" : first?.targetModule === "Science" ? "Science Lab" : first?.targetModule === "Drone" ? "Drone Section" : first?.targetModule ?? "Location not mapped");
       const prereqs = first?.requiresCompletedTasks ?? prerequisiteMap[first?.stepId ?? ""] ?? [];
       const lockedOn = prereqs.filter(id => !this.state.completedStepIds.includes(id));
       const completed = steps.length > 0 && steps.every(step => this.state.completedStepIds.includes(step.stepId));
@@ -2043,6 +2115,14 @@ export class MissionManager {
       return { success: false, message: check.reason };
     }
 
+    if (this.isReplaySession) {
+      this.replayCompleted = true;
+      this.state.objectiveState = "completed";
+      this.state.notification = `Sol ${this.replayDay} replay complete. Canonical campaign progress is unchanged.`;
+      this.emit();
+      return { success: true, message: `Sol ${this.replayDay} replay complete. Returning to the menu.` };
+    }
+
     if (this.state.currentDay >= 11) {
       return { success: false, message: "Sol 11 is the final configured day." };
     }
@@ -2135,7 +2215,7 @@ export class MissionManager {
   }
 
   public resetProgress(): void {
-    if (typeof window !== "undefined") {
+    if (!this.isReplaySession && typeof window !== "undefined") {
       try {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(PREV_STORAGE_KEY);
