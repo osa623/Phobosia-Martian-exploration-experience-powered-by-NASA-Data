@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { Game } from "@/core/Game";
 import type { GameState } from "@/core/EventBus";
-import { DAYS_CONFIG, type MissionDayNumber } from "@/core/MissionManager";
+import { DAYS_CONFIG, type MissionDayNumber, type MissionProgressState } from "@/core/MissionManager";
 import { getPreparedAssetUrl } from "@/core/AssetLoading";
 import { getScreenConfigForSol } from "@/core/ScreenConfigRegistry";
 import { MissionInvestigationPanel } from "@/systems/investigation/InvestigationForm";
@@ -37,15 +37,19 @@ const DISPLAY_NAMES: Record<string, string> = {
 function humanize(key: string): string { return DISPLAY_NAMES[key] ?? key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").replace(/^./, c => c.toUpperCase()); }
 const FIELD_UNITS: Record<string, string> = { reactorOutput: "kW", solarGeneration: "kW", totalConsumption: "kW", batteryStorage: "%", gridEfficiency: "%", busVoltage: "V", voltageA: "V", voltageB: "V", currentA: "A", frequency: "Hz", chargePct: "%", chargeRateKw: "kW", cellTemp: "°C", impedanceOhms: "Ω", signalToNoiseDb: "dB", componentHealthPct: "%", oxygen: "%", cabinPressure: "kPa", temperature: "°C", humidity: "%", carbonDioxide: "%", waterReserve: "%", dailyWaterConsumption: "L/sol" };
 function print(value: unknown, field = ""): string {
-  if (value === null || value === undefined || value === "") return "Unavailable in this record";
+  if (value === null || value === undefined || value === "") return "No value recorded";
+  if (typeof value === "string" && /\bunavailable\b/i.test(value)) return value.replace(/\bunavailable\b/gi, "not supplied by this screen record");
+  if (typeof value === "string" && /^(not available|not recorded|n\/a|--|unknown)$/i.test(value.trim())) return `${humanize(field || "This field")} has no recorded value`;
   if (Array.isArray(value)) return value.map(item => print(item)).join(" · ");
   if (typeof value === "object") return Object.entries(value as Record<string, unknown>).map(([key, child]) => `${humanize(key)}: ${print(child, key)}`).join("; ");
   if (typeof value === "boolean") return value ? "Active" : "Inactive";
   return typeof value === "number" && FIELD_UNITS[field] ? `${value} ${FIELD_UNITS[field]}` : String(value);
 }
 
-function StructuredRecordValue({ value, field = "" }: { value: unknown; field?: string }) {
-  if (value === null || value === undefined || value === "") return <span>Unavailable in this record</span>;
+function StructuredRecordValue({ value, field = "", sol, missionTitle, missionObjective }: { value: unknown; field?: string; sol: number; missionTitle: string; missionObjective: string }) {
+  if (value === null || value === undefined || value === "") return <span>{humanize(field)} is not recorded on this screen. SOL {sol} mission focus: {missionObjective}</span>;
+  if (typeof value === "string" && /\bunavailable\b/i.test(value)) return <span>{value.replace(/\bunavailable\b/gi, "not supplied by this screen record")} SOL {sol} mission context: {missionTitle} — {missionObjective}</span>;
+  if (typeof value === "string" && /^(not available|not recorded|n\/a|--|unknown)$/i.test(value.trim())) return <span>{humanize(field)} is not recorded on this screen for SOL {sol}. Mission focus: {missionObjective}</span>;
   if (Array.isArray(value)) {
     if (!value.length) {
       const emptyValue = field === "data" || field === "series"
@@ -57,22 +61,39 @@ function StructuredRecordValue({ value, field = "" }: { value: unknown; field?: 
             : "No entries are recorded in this field.";
       return <span>{emptyValue}</span>;
     }
-    return <ul className="[margin:5px_0_0] [padding-left:18px] [display:grid] [gap:5px]">{value.map((item, index) => <li key={index}><StructuredRecordValue value={item} field={field} /></li>)}</ul>;
+    return <ul className="[margin:5px_0_0] [padding-left:18px] [display:grid] [gap:5px]">{value.map((item, index) => <li key={index}><StructuredRecordValue value={item} field={field} sol={sol} missionTitle={missionTitle} missionObjective={missionObjective} /></li>)}</ul>;
   }
   if (typeof value === "object") {
-    return <dl className="[margin:5px_0_0] [display:grid] [gap:5px]">{Object.entries(value as Record<string, unknown>).map(([key, child]) => <div key={key} className="[display:grid] [grid-template-columns:minmax(90px,_0.35fr)_1fr] [gap:8px]"><dt className="[color:#8ca8b5]">{humanize(key)}</dt><dd className="[margin:0]"><StructuredRecordValue value={child} field={key} /></dd></div>)}</dl>;
+    return <dl className="[margin:5px_0_0] [display:grid] [gap:5px]">{Object.entries(value as Record<string, unknown>).map(([key, child]) => <div key={key} className="[display:grid] [grid-template-columns:minmax(90px,_0.35fr)_1fr] [gap:8px]"><dt className="[color:#8ca8b5]">{humanize(key)}</dt><dd className="[margin:0]"><StructuredRecordValue value={child} field={key} sol={sol} missionTitle={missionTitle} missionObjective={missionObjective} /></dd></div>)}</dl>;
   }
   return <span>{print(value, field)}</span>;
 }
 
-function TriggerPanelDetails({ panel }: { panel: any }) {
-  const entries = Object.entries(panel).filter(([key, value]) =>
-    !["id", "type", "title"].includes(key) && value !== undefined && value !== null && value !== ""
-  );
-  if (!entries.length) {
-    return <p className="font-dm-sans [margin:0] [color:#bdcbd1] [font-size:12px] [line-height:1.5]">{panel.fallback ?? "No additional data is recorded for this panel."}</p>;
-  }
-  return <div className="font-dm-sans [display:grid] [gap:8px] [color:#bdcbd1] [font-size:12px] [line-height:1.5]">{entries.map(([key, value]) => <div key={key}><div className="[color:#8ca8b5] [font-size:10px] [text-transform:uppercase]">{humanize(key)}</div><StructuredRecordValue value={value} /></div>)}</div>;
+function getMissionBinding(path: string | undefined, sol: number, mission: typeof DAYS_CONFIG[1], missionState?: Readonly<MissionProgressState>): unknown {
+  if (!path?.startsWith("missionState.")) return undefined;
+  const steps = mission.steps;
+  const completedIds = new Set(missionState?.completedStepIds ?? []);
+  const completed = steps.filter(step => completedIds.has(step.stepId)).length;
+  const progressPercent = steps.length ? Math.round(completed / steps.length * 100) : 0;
+  const nextIndex = steps.findIndex(step => !completedIds.has(step.stepId));
+  const active = nextIndex >= 0 ? steps[nextIndex] : undefined;
+  const checklist = steps.map(step => ({ label: step.label, description: step.description, completed: completedIds.has(step.stepId), status: completedIds.has(step.stepId) ? "COMPLETE" : step === active ? "ACTIVE" : "PENDING" }));
+  const bindings: Record<string, unknown> = {
+    "missionState.currentSol": sol,
+    "missionState.currentDay": sol,
+    "missionState.objectives.completedCount": completed,
+    "missionState.objectives.currentProgressPercent": progressPercent,
+    "missionState.objectives.active": active ? { name: active.label, description: active.description, status: missionState?.objectiveState === "completed" ? "COMPLETE" : "IN_PROGRESS", progressPercent, zone: active.targetModule ?? active.targetTrigger ?? "Mission-wide", checklist } : { name: `${mission.title} complete`, description: mission.completionFeedback, status: "COMPLETE", progressPercent: 100, zone: "Mission-wide", checklist },
+    "missionState.objectives.active.checklist": checklist,
+    "missionState.objectives.upcoming": (nextIndex < 0 ? [] : steps.slice(nextIndex + 1)).map(step => ({ title: step.label, description: step.description, status: "QUEUED", zone: step.targetModule ?? step.targetTrigger ?? "Mission-wide" }))
+  };
+  return Object.prototype.hasOwnProperty.call(bindings, path) ? bindings[path] : undefined;
+}
+
+function TriggerPanelDetails({ panel, sol, mission, missionState }: { panel: any; sol: number; mission: typeof DAYS_CONFIG[1]; missionState?: Readonly<MissionProgressState> }) {
+  const liveValue = getMissionBinding(panel.dataSource, sol, mission, missionState);
+  const value = liveValue !== undefined ? liveValue : panel.fallback ?? Object.fromEntries(Object.entries(panel).filter(([key]) => !["id", "type", "title", "dataSource"].includes(key)));
+  return <div className="font-dm-sans [display:grid] [gap:8px] [color:#bdcbd1] [font-size:12px] [line-height:1.5]"><StructuredRecordValue value={value} sol={sol} missionTitle={mission.title} missionObjective={mission.primaryObjective} /></div>;
 }
 
 function getScreens(section: Section, sol: number): ScreenRecord[] {
@@ -83,19 +104,19 @@ function getScreens(section: Section, sol: number): ScreenRecord[] {
   return Object.entries(screens ?? {}).map(([mesh, screen]: [string, any]) => ({ id: mesh, mesh: screen.physicalMesh ?? mesh, title: screen.displayName ?? mesh, purpose: screen.purpose, data: screen.data }));
 }
 
-function TriggerScreenView({ record, location, dataMode, sol, missionTitle, showSol3TargetGallery = false, selectedTargetId = null }: { record?: ScreenRecord; location: string; dataMode: string; sol: number; missionTitle: string; showSol3TargetGallery?: boolean; selectedTargetId?: string | null }) {
+function TriggerScreenView({ record, location, dataMode, sol, mission, missionState, showSol3TargetGallery = false, selectedTargetId = null }: { record?: ScreenRecord; location: string; dataMode: string; sol: number; mission: typeof DAYS_CONFIG[1]; missionState?: Readonly<MissionProgressState>; showSol3TargetGallery?: boolean; selectedTargetId?: string | null }) {
   const [expandedImage, setExpandedImage] = useState<{ target: string; label: string; src: string } | null>(null);
-  if (!record) return <div className="[padding:18px] [color:#d4ad72]">The configured display record is unavailable.</div>;
+  if (!record) return <div className="[padding:18px] [color:#d4ad72]">No screen record is configured for this view in SOL {sol}. Mission focus: {mission.primaryObjective}</div>;
   const metricRows = Array.isArray(record.content?.primaryMetrics) ? record.content.primaryMetrics : [];
   const fields = record.data && typeof record.data === "object" ? Object.entries(record.data as Record<string, unknown>) : [];
   const panels = Array.isArray(record.content?.panels) ? record.content.panels : [];
   return <article className="[display:flex] [flex-direction:column] [gap:12px] [overflow-y:auto] [padding:12px]">
-    <header className="[border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL {String(sol).padStart(2, "0")} · {missionTitle} · {dataMode}</div><h2 className="font-kdam-thmor-pro [margin:5px_0] [color:#f2f7f9] [font-size:20px]">{record.title}</h2><p className="font-dm-sans [margin:0] [color:#9fb4c0] [font-size:13px]">{record.purpose ?? `Operational display for ${missionTitle}.`}</p><span className="[color:#758e9c] [font-size:11px]">{location} · Screen record {record.id}</span></header>
-    {fields.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:8px]">{fields.map(([key, value]) => <div key={key} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px] [text-transform:uppercase]">{humanize(key)}</div><div className="font-dm-sans [margin-top:4px] [color:#e1edf1] [font-size:13px]">{print(value, key)}</div></div>)}</section>}
-    {metricRows.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(170px,_1fr))] [gap:8px]">{metricRows.map((metric: any) => { const supplied = metric.value !== undefined && metric.value !== null; return <div key={metric.id ?? metric.label} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px]">{metric.label ?? humanize(metric.id ?? "Metric")}</div><strong className="font-dm-sans [display:block] [margin-top:4px] [color:#e1edf1]">{supplied ? `${metric.value}${metric.unit ? ` ${metric.unit}` : ""}` : "Unavailable"}</strong>{metric.status && <span className="[color:#88a9b7] [font-size:10px]">{print(metric.status)}</span>}{!supplied && metric.fallback !== undefined && <span className="[display:block] [color:#d2b47e] [font-size:10px]">Display fallback exists; not treated as live telemetry.</span>}</div>; })}</section>}
-    {panels.filter((panel: any) => !(showSol3TargetGallery && panel.type === "IMAGE_GALLERY")).map((panel: any, index: number) => <section key={panel.id ?? index} className="[border-left:2px_solid_#376478] [background:#0d1923] [padding:10px_12px]"><h3 className="[margin:0_0_6px] [color:#9bd9ea] [font-size:12px]">{panel.title ?? humanize(panel.id ?? `Record ${index + 1}`)}</h3><TriggerPanelDetails panel={panel} /></section>)}
+    <header className="[border-bottom:1px_solid_rgba(85,_205,_232,_0.18)] [padding-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL {String(sol).padStart(2, "0")} · {mission.title} · {dataMode}</div><h2 className="font-kdam-thmor-pro [margin:5px_0] [color:#f2f7f9] [font-size:20px]">{record.title}</h2><p className="font-dm-sans [margin:0] [color:#9fb4c0] [font-size:13px]">{record.purpose ?? `Operational display for ${mission.title}.`}</p><span className="[color:#758e9c] [font-size:11px]">{location} · Screen record {record.id}</span></header>
+    {fields.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:8px]">{fields.map(([key, value]) => <div key={key} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px] [text-transform:uppercase]">{humanize(key)}</div><div className="font-dm-sans [margin-top:4px] [color:#e1edf1] [font-size:13px]"><StructuredRecordValue value={value} field={key} sol={sol} missionTitle={mission.title} missionObjective={mission.primaryObjective} /></div></div>)}</section>}
+    {metricRows.length > 0 && <section className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(170px,_1fr))] [gap:8px]">{metricRows.map((metric: any) => { const liveValue = getMissionBinding(metric.source, sol, mission, missionState); const value = liveValue ?? metric.value ?? metric.fallback ?? `This SOL's screen record tracks ${mission.primaryObjective.toLowerCase()}.`; const isLive = liveValue !== undefined; return <div key={metric.id ?? metric.label} className="[border:1px_solid_rgba(132,_172,_194,_0.12)] [border-radius:8px] [background:#101d28] [padding:10px]"><div className="[color:#7795a4] [font-size:10px]">{metric.label ?? humanize(metric.id ?? "Metric")}</div><strong className="font-dm-sans [display:block] [margin-top:4px] [color:#e1edf1]"><StructuredRecordValue value={value} field={metric.id ?? metric.label ?? "metric"} sol={sol} missionTitle={mission.title} missionObjective={mission.primaryObjective} /></strong>{metric.unit && typeof value === "number" && <span className="[color:#88a9b7] [font-size:10px]">{metric.unit}</span>}{metric.status && <span className="[color:#88a9b7] [font-size:10px]">{print(metric.status)}</span>}{!isLive && metric.fallback !== undefined && <span className="[display:block] [color:#d2b47e] [font-size:10px]">Configured display reference</span>}</div>; })}</section>}
+    {panels.filter((panel: any) => !(showSol3TargetGallery && panel.type === "IMAGE_GALLERY")).map((panel: any, index: number) => <section key={panel.id ?? index} className="[border-left:2px_solid_#376478] [background:#0d1923] [padding:10px_12px]"><h3 className="[margin:0_0_6px] [color:#9bd9ea] [font-size:12px]">{panel.title ?? humanize(panel.id ?? `Record ${index + 1}`)}</h3><TriggerPanelDetails panel={panel} sol={sol} mission={mission} missionState={missionState} /></section>)}
     {showSol3TargetGallery && <section className="[border-top:1px_solid_rgba(85,_205,_232,_0.2)] [padding-top:12px]">
-      <header className="[margin-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL 3 · TARGET IMAGE CATALOGUE</div><p className="[margin:4px_0_0] [color:#9fb4c0] [font-size:11px]">Project imagery for comparison. Acquisition, instrument, and georeferencing metadata are unavailable; these images are not verified NASA observations.</p></header>
+      <header className="[margin-bottom:12px]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.14em]">SOL 3 · TARGET IMAGE CATALOGUE</div><p className="[margin:4px_0_0] [color:#9fb4c0] [font-size:11px]">Project imagery for comparison. The source does not include acquisition, instrument, or georeferencing metadata; these are not verified NASA observations.</p></header>
       <div className="[display:flex] [flex-direction:column] [gap:14px]">
         {sol03Mission.targetCatalogue.map((target, index) => {
           const targetLabel = `Target ${String.fromCharCode(65 + index)} · ${target.targetNumber}`;
@@ -110,7 +131,7 @@ function TriggerScreenView({ record, location, dataMode, sol, missionTitle, show
               <span className="[border:1px_solid_rgba(85,_205,_232,_0.2)] [border-radius:4px] [padding:4px_7px] [color:#9fb4c0] [font-size:9px]">{target.targetId === selectedTargetId ? "CURRENT PROPOSAL TARGET" : "AVAILABLE FOR REVIEW"}</span>
             </div>
             <p className="[margin:9px_0] [color:#c1cfd5] [font-size:12px] [line-height:1.5]">{target.scientificDescription}</p>
-            <p className="[margin:0_0_10px] [color:#d2b47e] [font-size:11px]">Mars coordinates: {target.marsCoordinates ? JSON.stringify(target.marsCoordinates) : "Unavailable"} · Outpost distance: {target.outpostDistance ?? "Unavailable"}<br/>{target.observationStatus}</p>
+            <p className="[margin:0_0_10px] [color:#d2b47e] [font-size:11px]">Mars coordinates: {target.marsCoordinates ? JSON.stringify(target.marsCoordinates) : "No georeferenced coordinates are recorded for this target."} · Outpost distance: {target.outpostDistance ?? "No in-game distance is recorded for this target."}<br/><StructuredRecordValue value={target.observationStatus} field="target observation status" sol={sol} missionTitle={mission.title} missionObjective={mission.primaryObjective} /></p>
             <div className="[display:grid] [grid-template-columns:repeat(auto-fit,_minmax(190px,_1fr))] [gap:9px]">
               {imageTypes.map(({ key, label }) => <TargetImagePreview key={key} targetLabel={targetLabel} label={label} src={target.images[key]} onInspect={setExpandedImage} />)}
             </div>
@@ -124,14 +145,14 @@ function TriggerScreenView({ record, location, dataMode, sol, missionTitle, show
         <img src={getPreparedAssetUrl(encodeURI(expandedImage.src))} alt={`${expandedImage.target} — ${expandedImage.label}`} className="[display:block] [max-width:100%] [max-height:78vh] [margin:auto] [object-contain]" />
       </div>
     </div>}
-    <details className="[border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:9px]"><summary className="[cursor:pointer] [color:#55cde8] [font-size:12px]">Record details and limitations</summary><dl className="[display:grid] [grid-template-columns:150px_1fr] [gap:6px] [font-size:11px]"><dt>Mission</dt><dd>SOL {String(sol).padStart(2, "0")} · {missionTitle}</dd><dt>Physical screen</dt><dd>{record.mesh}</dd><dt>Source record</dt><dd>{record.id}</dd><dt>Data provenance</dt><dd>{dataMode}; values are from the configured PHOBOSIA display record.</dd><dt>Timestamp</dt><dd>This source configuration does not timestamp the displayed record.</dd><dt>Interpretation</dt><dd>Values are presented as recorded; no diagnosis is inferred from this display.</dd></dl></details>
+    <details className="[border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:9px]"><summary className="[cursor:pointer] [color:#55cde8] [font-size:12px]">Record details and limitations</summary><dl className="[display:grid] [grid-template-columns:150px_1fr] [gap:6px] [font-size:11px]"><dt>Mission</dt><dd>SOL {String(sol).padStart(2, "0")} · {mission.title}</dd><dt>Physical screen</dt><dd>{record.mesh}</dd><dt>Source record</dt><dd>{record.id}</dd><dt>Data provenance</dt><dd>{dataMode}; values are from the configured PHOBOSIA display record.</dd><dt>Timestamp</dt><dd>This source configuration does not timestamp the displayed record.</dd><dt>Interpretation</dt><dd>Values are presented as recorded; no diagnosis is inferred from this display.</dd></dl></details>
   </article>;
 }
 
 function TargetImagePreview({ targetLabel, label, src, onInspect }: { targetLabel: string; label: string; src: string; onInspect: (image: { target: string; label: string; src: string }) => void }) {
   const [failed, setFailed] = useState(false);
   return <button type="button" className="[display:block] [overflow:hidden] [border:1px_solid_rgba(85,_205,_232,_0.18)] [border-radius:7px] [background:#101d28] [text-align:left] [cursor:zoom-in]" onClick={() => onInspect({ target: targetLabel, label, src })} aria-label={`Expand ${targetLabel}, ${label}`}>
-    {failed ? <div className="[display:grid] [min-height:160px] [place-items:center] [padding:10px] [color:#d2b47e] [font-size:11px]">Image unavailable at its configured project path.</div> : <img src={getPreparedAssetUrl(encodeURI(src))} alt={`${targetLabel} — ${label}`} loading="lazy" onError={() => setFailed(true)} className="[display:block] [width:100%] [height:190px] [background:#050a0e] [object-contain]" />}
+    {failed ? <div className="[display:grid] [min-height:160px] [place-items:center] [padding:10px] [color:#d2b47e] [font-size:11px]">This project image could not be loaded from its configured path.</div> : <img src={getPreparedAssetUrl(encodeURI(src))} alt={`${targetLabel} — ${label}`} loading="lazy" onError={() => setFailed(true)} className="[display:block] [width:100%] [height:190px] [background:#050a0e] [object-contain]" />}
     <span className="[display:block] [padding:8px] [color:#d8e5ea] [font-size:11px]">{label}</span>
   </button>;
 }
@@ -160,7 +181,7 @@ export function TriggerOperatingSystem({ game, state, triggerId, onClose }: { ga
           {allowedTasks.length > 0 && <div className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.12)] [padding-top:12px]"><div className="font-mono [color:#e88747] [font-size:10px] [letter-spacing:0.1em]">MISSION TASKS HERE</div>{allowedTasks.map(task => { const id = task.stepId; return <p key={id} className="[margin:8px_0] [color:#c6d6dc] [font-size:11px]">{game?.missionManager.isStepComplete(id) ? "✓ " : "○ "}{task?.label}</p>; })}</div>}
         </nav>
         <main className="[min-width:0] [flex:1] [overflow-y:auto] [padding:14px]">
-          {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} sol={activeSol} missionTitle={mission.title} showSol3TargetGallery={activeSol === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {activeSol}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
+          {spec.section ? <TriggerScreenView record={selectedRecord} location={spec.location} dataMode={dataMode} sol={activeSol} mission={mission} missionState={missionState} showSol3TargetGallery={activeSol === 3 && spec.section === "missionControl" && selectedRecord?.id === "MC_OBSERVATION_SITES"} selectedTargetId={selectedTargetId} /> : <div className="[padding:18px]"><div className="font-mono [color:#e88747] [font-size:10px]">PERSONAL MISSION WORKSPACE · SOL {activeSol}</div><h2 className="font-kdam-thmor-pro [color:white]">{mission.title}</h2><p className="font-dm-sans [color:#c6d5db]">{mission.primaryObjective}</p><div className="[margin-top:14px] [border-radius:8px] [background:#101d28] [padding:14px]"><div className="[color:#55cde8] [font-size:11px]">CHECKLIST PROGRESS</div><p>{state.completedStepCount} of {state.totalStepCount} mission tasks complete</p><p className="[color:#9db1bb] [font-size:12px]">This personal workspace does not provide remote system controls or live subsystem telemetry.</p></div></div>}
           {activeSol === 5 && triggerId === "MC_NAVIGATION_01" && <section className="[margin-top:18px] [border-top:1px_solid_rgba(85,_205,_232,_0.18)] [padding-top:16px]"><Sol5MissionPanel game={game} state={state} /></section>}
           {activeSol === 6 && ["MC_NAVIGATION_01", "MC_MAIN_01", "LAB_RESEARCH_ANALYSIS_01", "LAB_RESEARCH_MONITORING_01", "LAB_CULTIVATION_01"].includes(triggerId) && <Sol6MissionPanel manager={game?.missionManager} triggerId={triggerId} />}
           {activeSol === 7 && <Sol7MissionPanel manager={game?.missionManager} game={game ?? undefined} triggerId={triggerId} />}
