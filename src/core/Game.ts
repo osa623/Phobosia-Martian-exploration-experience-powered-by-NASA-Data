@@ -77,6 +77,13 @@ const transitions: Record<ModuleName, Record<string, Transition>> = {
   Drone: { DroneZone_Entrance_Trigger: { module: "Airlock", spawn: "Drone_Section_Entrance_Trigger" } }
 };
 
+const terrainMissionTriggerIds = new Set([
+  "PowerUnit_A",
+  "PowerUnit_B",
+  "PowerUnit_AB_Main",
+  "Commuication_fix_Trigger"
+]);
+
 const labels: Record<ModuleName, string> = {
   Habitat: "Habitat",
   Hub: "Central Hub",
@@ -105,6 +112,7 @@ export class Game {
   private current?: THREE.Group;
   private loaded = new Map<ModuleName, THREE.Group>();
   private interactive: InteractionTarget[] = [];
+  private triggerMarkerBeacons: THREE.Mesh[] = [];
   private colliders: THREE.Box3[] = [];
   private orientedColliders: OrientedBoxCollider[] = [];
   private cylinderColliders: VerticalCylinderCollider[] = [];
@@ -131,7 +139,7 @@ export class Game {
   private evaLastTickAt = Date.now();
   private pending?: Transition;
 
-  public missionManager = new MissionManager();
+  public missionManager: MissionManager;
   private screenRenderer = new ScreenRenderer();
   private laptopScreenRenderer = new LaptopScreenRenderer();
   private laptopPositionalAudio = new LaptopPositionalAudio();
@@ -210,8 +218,9 @@ export class Game {
   private sol5EInteractionConsumed = false;
   private sol5LastSnapshotAt = 0;
 
-  constructor(private host: HTMLDivElement, private emit: SetState) {
-    this.evaResources = new EVAResources(getEVAStorage());
+  constructor(private host: HTMLDivElement, private emit: SetState, replayState?: MissionProgressState) {
+    this.missionManager = new MissionManager(replayState);
+    this.evaResources = new EVAResources(replayState ? undefined : getEVAStorage());
     const evaSnapshot = this.evaResources.getState();
     this.evaSuitActive = evaSnapshot.suitActive;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -625,12 +634,14 @@ export class Game {
   }
 
   private persistNightSession(day: number, expired: boolean) {
+    if (this.missionManager.isReplaySession) return;
     try {
       window.localStorage.setItem("phobosia_master_terrain_night_session_v1", JSON.stringify({ day, elapsedSeconds: this.nighttimeElapsedSeconds, expired }));
     } catch { /* Storage may be unavailable in private or embedded sessions. */ }
   }
 
   private clearStoredNightSession() {
+    if (this.missionManager.isReplaySession) return;
     try { window.localStorage.removeItem("phobosia_master_terrain_night_session_v1"); }
     catch { /* Storage may be unavailable in private or embedded sessions. */ }
   }
@@ -1765,6 +1776,7 @@ export class Game {
 
   private configureModule(model: THREE.Group, module: ModuleName) {
     this.interactive = [];
+    this.triggerMarkerBeacons = [];
     this.colliders = [];
     this.orientedColliders = [];
     this.cylinderColliders = [];
@@ -1792,13 +1804,33 @@ export class Game {
         (o.name === "HAB_WORKSTATION_01" || o.userData?.name === "HAB_WORKSTATION_01")) return;
       const route = this.resolve(transitions[module], o);
       const screen = this.resolve(screenActions, o);
+      const isTrigger = /trigger|spawn|entrance/i.test(o.name) ||
+        (module === "Terrain" && terrainMissionTriggerIds.has(o.name));
+
+      // Preserve authored trigger materials and visibility. Screen renderers
+      // restore each mesh's original material when their canvas binding ends.
+      let triggerAncestor: THREE.Object3D | null = o;
+      let belongsToTrigger = false;
+      while (triggerAncestor && triggerAncestor !== additions) {
+        if (/trigger|spawn|entrance/i.test(triggerAncestor.name) ||
+          (module === "Terrain" && terrainMissionTriggerIds.has(triggerAncestor.name))) {
+          belongsToTrigger = true;
+          break;
+        }
+        triggerAncestor = triggerAncestor.parent;
+      }
+      const mesh = o as THREE.Mesh;
+      if (belongsToTrigger && mesh.isMesh) mesh.visible = true;
 
       if (route || screen) {
         const target = this.makeTarget(o, (route ?? screen)![0]);
+        if (isTrigger) target.center.copy(o.getWorldPosition(new THREE.Vector3()));
         this.interactive.push(target);
-        if (route || /trigger|spawn|entrance/i.test(o.name)) {
-          this.addHolographicMarker(additions, target, Boolean(route));
-        }
+        if (route || isTrigger) this.addHolographicMarker(additions, target);
+      } else if (isTrigger) {
+        const target = this.makeTarget(o, o.name);
+        target.center.copy(o.getWorldPosition(new THREE.Vector3()));
+        this.addHolographicMarker(additions, target);
       }
 
       if (/collider/i.test(o.name)) {
@@ -1926,37 +1958,68 @@ export class Game {
     return { object, identifier, center, range: Math.max(2.5, Math.min(4, Math.hypot(size.x, size.z) / 2 + 1)) };
   }
 
-  private addHolographicMarker(parent: THREE.Group, target: InteractionTarget, entrance: boolean) {
-    const bounds = new THREE.Box3().setFromObject(target.object);
-    const size = bounds.getSize(new THREE.Vector3());
-    const radius = THREE.MathUtils.clamp(Math.hypot(size.x, size.z) * 0.42, 0.34, 1.25);
-    const color = entrance ? 0xe88747 : 0x55cde8;
+  private addHolographicMarker(parent: THREE.Group, target: InteractionTarget) {
+    // Keep floor markers compact so nearby interaction points do not merge
+    // into oversized, overlapping rings.
+    const radius = 0.48;
+    // Use the trigger anchor rather than its bounds: some imported triggers
+    // contain offset screen planes that would drag a marker away from its spot.
+    const markerPosition = parent.worldToLocal(target.center.clone());
+    markerPosition.y += 0.04;
+    if (parent.children.some(child =>
+      child.name.startsWith("Holographic interaction marker ") &&
+      child.position.distanceTo(markerPosition) < 0.15
+    )) return;
     const ringMaterial = new THREE.MeshBasicMaterial({
-      color,
+      color: 0xffa044,
       transparent: true,
-      opacity: 0.62,
+      opacity: 0.94,
       depthWrite: false,
+      // Trigger meshes sit on or slightly below the floor; render the marker
+      // above the scene depth buffer so it remains visible from either side.
+      depthTest: false,
       side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending
+      toneMapped: false
     });
-    const floorY = bounds.isEmpty() ? target.center.y : bounds.min.y + 0.035;
+    // Keep trigger marker materials independent of authored trigger meshes
+    // (which may contain imported screen or environmental textures).
+    const innerRingMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.94,
+      depthWrite: false,
+      depthTest: false,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
     const rings = new THREE.Group();
     rings.name = `Holographic interaction marker ${target.identifier}`;
-    rings.position.set(target.center.x, floorY, target.center.z);
+    rings.position.copy(markerPosition);
 
-    const outer = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.018, 6, 48), ringMaterial);
+    const outer = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.014, 6, 48), ringMaterial);
     outer.rotation.x = Math.PI / 2;
     rings.add(outer);
 
-    const inner = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.72, 0.009, 5, 40), ringMaterial.clone());
-    (inner.material as THREE.MeshBasicMaterial).opacity = 0.42;
+    const inner = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.76, 0.014, 6, 48), innerRingMaterial);
     inner.rotation.x = Math.PI / 2;
     rings.add(inner);
 
-    const sweep = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.012, 5, 36, Math.PI * 0.38), ringMaterial.clone());
+    const sweep = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.01, 5, 36, Math.PI * 0.38), ringMaterial.clone());
     sweep.rotation.x = Math.PI / 2;
     sweep.rotation.z = Math.PI * 0.28;
     rings.add(sweep);
+
+    const beacon = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 0.42, 0.012, 6, 40),
+      ringMaterial.clone()
+    );
+    beacon.position.y = 0.34;
+    beacon.renderOrder = 1000;
+    this.triggerMarkerBeacons.push(beacon);
+    rings.add(beacon);
+    outer.renderOrder = 1000;
+    inner.renderOrder = 1000;
+    sweep.renderOrder = 1000;
     parent.add(rings);
   }
 
@@ -2351,7 +2414,7 @@ export class Game {
         const remaining = this.missionManager.getRemainingSteps();
         const missingTasks = remaining.map(task => {
           const dayOneTask = DAY1_TASKS.find(item => item.taskId === task.stepId);
-          const inferredZone = task.targetTrigger?.startsWith("HAB_") ? "Habitat" : task.targetTrigger?.startsWith("Engineering_") ? "Engineering Unit" : task.targetTrigger?.startsWith("MC_") ? "Mission Control" : task.targetTrigger?.startsWith("LAB_") ? "Research Lab" : "";
+          const inferredZone = task.targetTrigger?.startsWith("HAB_") ? "Habitat" : task.targetTrigger?.startsWith("Engineering_") ? "Engineering Unit" : task.targetTrigger?.startsWith("MC_") ? "Mission Control" : task.targetTrigger?.startsWith("LAB_") ? "Science Lab" : "";
           return { title: task.label, zone: task.targetModule ?? (inferredZone || (dayOneTask ? DAY1_ZONES.find(zone => zone.zoneId === dayOneTask.zoneId)?.friendlyName ?? "" : "")) };
         });
         this.set({
@@ -2433,7 +2496,7 @@ export class Game {
       }
     }
 
-    // 3. Sol 8 Research Lab analysis sequence. Sol 3 uses the same physical
+    // 3. Sol 8 Science Lab analysis sequence. Sol 3 uses the same physical
     // analysis trigger for its dataset investigation through TriggerOperatingSystem.
     if (
       this.state.missionDay === 8 &&
@@ -2447,7 +2510,7 @@ export class Game {
         this.set({
           restFeedback: {
             type: "blocked",
-            message: "Prerequisite Incomplete: No saved Day 7 surface observation found. Complete Sol 07 outdoor scan before analysing in the Research Lab."
+            message: "Prerequisite Incomplete: No saved Day 7 surface observation found. Complete Sol 07 outdoor scan before analysing in the Science Lab."
           },
           prompt: ""
         });
@@ -2888,6 +2951,7 @@ export class Game {
     if (this.disposed) return;
     requestAnimationFrame(this.loop);
     const dt = Math.min(this.clock.getDelta(), 0.05);
+    for (const beacon of this.triggerMarkerBeacons) beacon.rotation.y += dt * 0.8;
     this.updateTerrainSunTransition(dt);
     this.updateNighttimeGameplayClock(dt);
     if (this.active === "Terrain" && this.nighttimeActive) {

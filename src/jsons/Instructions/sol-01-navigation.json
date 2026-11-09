@@ -78,17 +78,17 @@
     {
       "taskId": "D1_LAB_RESEARCH_MONITORING",
       "title": "Inspect Research Monitoring",
-      "message": "Proceed to the Research Laboratory monitoring station.",
+      "message": "Proceed to the Science Lab monitoring station.",
       "guidance": "Review the existing research-monitoring display and familiarise yourself with its role in the laboratory.",
-      "destination": { "name": "Research Laboratory Monitoring Station", "module": "Research Laboratory", "section": "Research Monitoring" },
+      "destination": { "name": "Science Lab Monitoring Station", "module": "Science Lab", "section": "Research Monitoring" },
       "activity": "Approach the station interaction point and press E to inspect the display."
     },
     {
       "taskId": "D1_LAB_RESEARCH_ANALYSIS",
       "title": "Inspect Research Analysis",
-      "message": "Continue to the Research Laboratory analysis station.",
+      "message": "Continue to the Science Lab analysis station.",
       "guidance": "Review the existing research-analysis display to learn where scientific analysis information is presented.",
-      "destination": { "name": "Research Laboratory Analysis Station", "module": "Research Laboratory", "section": "Research Analysis" },
+      "destination": { "name": "Science Lab Analysis Station", "module": "Science Lab", "section": "Research Analysis" },
       "activity": "Approach the station interaction point and press E to inspect the display."
     },
     {
@@ -96,7 +96,7 @@
       "title": "Review Seed Inventory",
       "message": "Locate the laboratory seed-storage inventory display.",
       "guidance": "Inspect the existing inventory display and familiarise yourself with where seed-storage information is shown.",
-      "destination": { "name": "Research Laboratory Seed Storage", "module": "Research Laboratory", "section": "Seed Inventory" },
+      "destination": { "name": "Science Lab Seed Storage", "module": "Science Lab", "section": "Seed Inventory" },
       "activity": "Approach the display interaction point and press E to inspect it."
     },
     {
@@ -104,7 +104,7 @@
       "title": "Review Water and Nutrient Preparation",
       "message": "Continue to the laboratory water and nutrient preparation display.",
       "guidance": "Review the existing preparation display and learn where related laboratory information is presented.",
-      "destination": { "name": "Research Laboratory Water and Nutrition Station", "module": "Research Laboratory", "section": "Water and Nutrient Preparation" },
+      "destination": { "name": "Science Lab Water and Nutrition Station", "module": "Science Lab", "section": "Water and Nutrient Preparation" },
       "activity": "Approach the display interaction point and press E to inspect it."
     },
     {
@@ -112,7 +112,7 @@
       "title": "Inspect Water Quality",
       "message": "Review the laboratory water-quality display.",
       "guidance": "Inspect the existing water-quality display to learn where laboratory water information is presented.",
-      "destination": { "name": "Research Laboratory Water Quality Station", "module": "Research Laboratory", "section": "Water Quality" },
+      "destination": { "name": "Science Lab Water Quality Station", "module": "Science Lab", "section": "Water Quality" },
       "activity": "Approach the display interaction point and press E to inspect it."
     },
     {
@@ -120,7 +120,7 @@
       "title": "Inspect Cultivation Environment",
       "message": "Proceed to the cultivation-environment display.",
       "guidance": "Review the existing display and familiarise yourself with where cultivation-environment information is shown.",
-      "destination": { "name": "Research Laboratory Cultivation Area", "module": "Research Laboratory", "section": "Cultivation Environment" },
+      "destination": { "name": "Science Lab Cultivation Area", "module": "Science Lab", "section": "Cultivation Environment" },
       "activity": "Approach the display interaction point and press E to inspect it."
     },
     {

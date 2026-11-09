@@ -21,6 +21,7 @@
  */
 
 import * as THREE from "three";
+import { isTriggerMesh } from "./ScreenRenderer";
 import { drawSol08Warnings } from "../missions/sol-08/Sol08ScreenRenderer";
 import { reprojectPlanarUVs } from "./Collision";
 import { getScreenConfigForSol } from "./ScreenConfigRegistry";
@@ -109,6 +110,7 @@ export interface ResearchScreenBinding {
   meshName: string;
   rendererId: string;
   mesh: THREE.Mesh;
+  originalMaterial: THREE.Material | THREE.Material[];
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
@@ -214,7 +216,7 @@ export class ResearchScreenRenderer {
 
     model.traverse((child) => {
       const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry) return;
+      if (!mesh.isMesh || !mesh.geometry || isTriggerMesh(mesh)) return;
 
       const rawName = mesh.name || "";
       const trimmedName = rawName.trim();
@@ -310,6 +312,7 @@ export class ResearchScreenRenderer {
       toneMapped: false
     });
 
+    const originalMaterial = mesh.material;
     mesh.material = material;
     mesh.visible = true;
 
@@ -318,6 +321,7 @@ export class ResearchScreenRenderer {
       meshName: screenConf.meshName,
       rendererId: screenConf.rendererId,
       mesh,
+      originalMaterial,
       canvas,
       ctx,
       texture,
@@ -1480,6 +1484,7 @@ export class ResearchScreenRenderer {
 
   public dispose(): void {
     for (const binding of this.activeBindings) {
+      binding.mesh.material = binding.originalMaterial;
       if (binding.texture) {
         binding.texture.dispose();
       }

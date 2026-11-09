@@ -128,7 +128,7 @@
         "header": {
           "title": "RESEARCH STATUS",
           "subtitle": "SOL 03 ? NO NEW MEASUREMENTS",
-          "zone": "RESEARCH LAB",
+          "zone": "SCIENCE LAB",
           "dataMode": "MISSION SUPPORT"
         },
         "primaryMetrics": [],
@@ -264,7 +264,7 @@
         "header": {
           "title": "TARGET DATASET REVIEW",
           "subtitle": "SOL 3 CANDIDATE PROFILES",
-          "zone": "RESEARCH LAB",
+          "zone": "SCIENCE LAB",
           "dataMode": "PHOBOSIA TRAINING METADATA ? NO NASA MEASUREMENTS"
         },
         "primaryMetrics": [],

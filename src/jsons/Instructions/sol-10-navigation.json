@@ -145,12 +145,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_RESEARCH_MONITORING_01",
       "title": "Verify Research Monitoring Status",
-      "message": "Travel to Research Lab — Monitoring Station and press E at the existing Research Monitoring interaction point.",
+      "message": "Travel to Science Lab — Monitoring Station and press E at the existing Research Monitoring interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Research Monitoring",
         "module": "Science",
-        "section": "Research Lab — Monitoring Station",
+        "section": "Science Lab — Monitoring Station",
         "triggerId": "LAB_RESEARCH_MONITORING_01"
       },
       "activity": "Record the current status for LAB_RESEARCH_MONITORING_01.",
@@ -161,12 +161,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_RESEARCH_ANALYSIS_01",
       "title": "Verify Scientific Analysis Status",
-      "message": "Travel to Research Lab — Scientific Analysis Station and press E at the existing Scientific Analysis interaction point.",
+      "message": "Travel to Science Lab — Scientific Analysis Station and press E at the existing Scientific Analysis interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Scientific Analysis",
         "module": "Science",
-        "section": "Research Lab — Scientific Analysis Station",
+        "section": "Science Lab — Scientific Analysis Station",
         "triggerId": "LAB_RESEARCH_ANALYSIS_01"
       },
       "activity": "Record the current status for LAB_RESEARCH_ANALYSIS_01.",
@@ -177,12 +177,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_SEED_STORAGE_01",
       "title": "Verify Seed Storage Status",
-      "message": "Travel to Research Lab — Seed Storage and press E at the existing Seed Storage interaction point.",
+      "message": "Travel to Science Lab — Seed Storage and press E at the existing Seed Storage interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Seed Storage",
         "module": "Science",
-        "section": "Research Lab — Seed Storage",
+        "section": "Science Lab — Seed Storage",
         "triggerId": "LAB_SEED_STORAGE_01"
       },
       "activity": "Record the current status for LAB_SEED_STORAGE_01.",
@@ -193,12 +193,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_WATER_NUTRITION_01",
       "title": "Verify Water and Nutrition Mixing Status",
-      "message": "Travel to Research Lab — Nutrient Preparation Station and press E at the existing Water and Nutrition Mixing interaction point.",
+      "message": "Travel to Science Lab — Nutrient Preparation Station and press E at the existing Water and Nutrition Mixing interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Water and Nutrition Mixing",
         "module": "Science",
-        "section": "Research Lab — Nutrient Preparation Station",
+        "section": "Science Lab — Nutrient Preparation Station",
         "triggerId": "LAB_WATER_NUTRITION_01"
       },
       "activity": "Record the current status for LAB_WATER_NUTRITION_01.",
@@ -209,12 +209,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_WATER_SERVICE_01",
       "title": "Verify Water Quality and Service Status",
-      "message": "Travel to Research Lab — Water Quality Station and press E at the existing Water Quality and Service interaction point.",
+      "message": "Travel to Science Lab — Water Quality Station and press E at the existing Water Quality and Service interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Water Quality and Service",
         "module": "Science",
-        "section": "Research Lab — Water Quality Station",
+        "section": "Science Lab — Water Quality Station",
         "triggerId": "LAB_WATER_SERVICE_01"
       },
       "activity": "Record the current status for LAB_WATER_SERVICE_01.",
@@ -225,12 +225,12 @@
     {
       "taskId": "SOL10_VERIFY_LAB_CULTIVATION_01",
       "title": "Verify Cultivation Environment Status",
-      "message": "Travel to Research Lab — Cultivation Bay Console and press E at the existing Cultivation Environment interaction point.",
+      "message": "Travel to Science Lab — Cultivation Bay Console and press E at the existing Cultivation Environment interaction point.",
       "guidance": "This is a physical trigger check. Review the related persisted mission record and record verified, flagged, or incomplete. Do not infer status from an unrelated display.",
       "destination": {
         "name": "Cultivation Environment",
         "module": "Science",
-        "section": "Research Lab — Cultivation Bay Console",
+        "section": "Science Lab — Cultivation Bay Console",
         "triggerId": "LAB_CULTIVATION_01"
       },
       "activity": "Record the current status for LAB_CULTIVATION_01.",
@@ -432,7 +432,7 @@
     {
       "taskId": "SOL10_TASK_04",
       "title": "Verify Scientific Targets and Observations",
-      "message": "Review the selected target and its related observation records in the Research Lab.",
+      "message": "Review the selected target and its related observation records in the Science Lab.",
       "guidance": "Preserve the target identifier and cite the source SOL and task for each record. Do not add unsupported conclusions.",
       "destination": {
         "name": "Scientific Analysis Station",
@@ -447,7 +447,7 @@
     {
       "taskId": "SOL10_TASK_05",
       "title": "Verify Soil Sample Provenance and Cultivation Records",
-      "message": "Review the existing target, soil sample and cultivation history in the Research Lab.",
+      "message": "Review the existing target, soil sample and cultivation history in the Science Lab.",
       "guidance": "Keep the target selection, collected sample and cultivation experiment as separate linked records. Report unavailable relationships honestly.",
       "destination": {
         "name": "Cultivation Environment Display",

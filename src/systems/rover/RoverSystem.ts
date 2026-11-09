@@ -36,7 +36,7 @@ export class RoverSystem {
   private testPosition = new THREE.Vector3();
   private up = new THREE.Vector3(0, 1, 0);
   private bounds = new THREE.Box3();
-  private readonly maxSpeed = 10.5;
+  private readonly maxSpeed = 16.5;
   private readonly wheelRadius = 0.43;
   private readonly maxSteer = 0.42;
 
@@ -168,9 +168,11 @@ export class RoverSystem {
     const q = this.rover.getWorldQuaternion(new THREE.Quaternion());
     const fwd = new THREE.Vector3(0, -1, 0).applyQuaternion(q).setY(0).normalize();
     if (this.view === "FIRST PERSON") {
-      this.cameraPosition.copy(center).addScaledVector(fwd, this.dimensions.z * 0.16);
-      this.cameraPosition.y += this.dimensions.y * 0.26;
-      this.cameraLook.copy(this.cameraPosition).addScaledVector(fwd, 12);
+      // Move the first-person camera to the rover's nose so it looks over the
+      // terrain instead of from inside the cabin. Leave the chase camera intact.
+      this.cameraPosition.copy(center).addScaledVector(fwd, this.dimensions.z * 0.56);
+      this.cameraPosition.y += this.dimensions.y * 0.2;
+      this.cameraLook.copy(this.cameraPosition).addScaledVector(fwd, 18);
     } else {
       this.cameraPosition.copy(center).addScaledVector(fwd, -this.dimensions.z * 1.45);
       this.cameraPosition.y += this.dimensions.y * 1.5;

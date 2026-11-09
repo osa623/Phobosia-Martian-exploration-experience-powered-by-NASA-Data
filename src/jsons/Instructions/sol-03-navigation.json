@@ -41,7 +41,7 @@
       "title": "Investigate and Select a Scientific Dataset",
       "message": "Proceed to the Research Analysis Station.",
       "guidance": "Inspect the available dataset metadata and provenance. Evaluate its relevance to your question and record limitations. Available training metadata is not a measurement dataset.",
-      "destination": { "name": "Research Analysis Station", "module": "Research Lab", "section": "Analysis Station" },
+      "destination": { "name": "Research Analysis Station", "module": "Science Lab", "section": "Analysis Station" },
       "activity": "Select and assess the available catalogue record in the existing analysis interface.",
       "requiresCompletedTasks": ["SOL03_SELECT_TARGET"]
     },

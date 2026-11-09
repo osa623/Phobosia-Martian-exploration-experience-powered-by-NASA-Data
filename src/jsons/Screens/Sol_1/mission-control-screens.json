@@ -160,7 +160,7 @@
             "dataSource": "missionState.objectives.active",
             "fallback": {
               "name": "Complete the Outpost Orientation checklist",
-              "description": "Inspect the required systems and consoles across the Habitat, Central Hub, Mission Control, Research Lab, Engineering Unit, and Airlock.",
+              "description": "Inspect the required systems and consoles across the Habitat, Central Hub, Mission Control, Science Lab, Engineering Unit, and Airlock.",
               "status": "PENDING",
               "progressPercent": 0
             }
@@ -283,7 +283,7 @@
                 "healthPercent": 96
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "status": "NOMINAL",
                 "healthPercent": 93
               },
@@ -573,7 +573,7 @@
               },
               {
                 "id": "MSG-015",
-                "destination": "Research Lab",
+                "destination": "Science Lab",
                 "priority": "HIGH",
                 "status": "QUEUED"
               }
@@ -698,7 +698,7 @@
                 "status": "ACTIVE"
               },
               {
-                "name": "Research Lab",
+                "name": "Science Lab",
                 "percent": 24,
                 "status": "ACTIVE"
               },

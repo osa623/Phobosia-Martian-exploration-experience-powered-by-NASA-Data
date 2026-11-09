@@ -22,6 +22,7 @@
  */
 
 import * as THREE from "three";
+import { isTriggerMesh } from "./ScreenRenderer";
 import { reprojectPlanarUVs } from "./Collision";
 import { DAYS_CONFIG, getMissionTaskProgressFor, type MissionDayNumber } from "./MissionManager";
 import { getScreenConfigForSol, type ScreenMissionSnapshot } from "./ScreenConfigRegistry";
@@ -104,6 +105,7 @@ export interface MissionControlScreenBinding {
   meshName: string;
   rendererId: string;
   mesh: THREE.Mesh;
+  originalMaterial: THREE.Material | THREE.Material[];
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
@@ -211,7 +213,7 @@ export class MissionControlScreenRenderer {
 
     model.traverse((child) => {
       const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.geometry) return;
+      if (!mesh.isMesh || !mesh.geometry || isTriggerMesh(mesh)) return;
 
       const rawName = mesh.name || "";
       const trimmedName = rawName.trim();
@@ -305,6 +307,7 @@ export class MissionControlScreenRenderer {
       toneMapped: false
     });
 
+    const originalMaterial = mesh.material;
     mesh.material = material;
     mesh.visible = true;
 
@@ -313,6 +316,7 @@ export class MissionControlScreenRenderer {
       meshName: screenConf.meshName,
       rendererId: screenConf.rendererId,
       mesh,
+      originalMaterial,
       canvas,
       ctx,
       texture,
@@ -1407,6 +1411,7 @@ export class MissionControlScreenRenderer {
 
   public dispose(): void {
     for (const binding of this.activeBindings) {
+      binding.mesh.material = binding.originalMaterial;
       if (binding.texture) {
         binding.texture.dispose();
       }

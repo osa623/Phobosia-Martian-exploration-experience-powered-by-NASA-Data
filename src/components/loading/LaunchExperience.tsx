@@ -5,12 +5,14 @@ import { MainMenu } from "@/components/menu/MainMenu";
 import { GameViewport } from "@/components/game/GameViewport";
 import { areRequiredAssetsReady, beginGameplayInitialization, completeGameplayInitialization, getAssetLoadingSnapshot, prepareRequiredAssets, startLoadingMusic, stopLoadingMusic, subscribeToAssetLoading, type AssetLoadingSnapshot } from "@/core/AssetLoading";
 import { LoadingScreen } from "./LoadingScreen";
+import type { MissionProgressState } from "@/core/MissionManager";
 
 type LaunchView = "loading" | "menu" | "game";
 
 export function LaunchExperience() {
   const [view, setView] = useState<LaunchView>("loading");
-  const [gameMode, setGameMode] = useState<"new" | "continue">("new");
+  const [gameMode, setGameMode] = useState<"new" | "continue" | "replay">("new");
+  const [replayState, setReplayState] = useState<MissionProgressState | undefined>();
   const [gameReady, setGameReady] = useState(false);
   const [snapshot, setSnapshot] = useState<AssetLoadingSnapshot>(getAssetLoadingSnapshot);
 
@@ -30,8 +32,9 @@ export function LaunchExperience() {
     return () => stopLoadingMusic();
   }, [view]);
 
-  const startGame = useCallback(async (mode: "new" | "continue") => {
+  const startGame = useCallback(async (mode: "new" | "continue" | "replay", replay?: MissionProgressState) => {
     setGameMode(mode);
+    setReplayState(replay);
     setGameReady(false);
     if (areRequiredAssetsReady()) {
       beginGameplayInitialization();
@@ -64,9 +67,9 @@ export function LaunchExperience() {
 
   if (view === "loading") return <LoadingScreen snapshot={snapshot} onRetry={() => { void retry(); }} />;
   if (view === "game") return <>
-    <GameViewport key={gameMode} onReturnToMenu={returnToMenu} onReady={gameInitialized} />
+    <GameViewport key={`${gameMode}-${replayState?.currentDay ?? "campaign"}`} replayState={gameMode === "replay" ? replayState : undefined} onReturnToMenu={returnToMenu} onReady={gameInitialized} />
     {!gameReady && <LoadingScreen snapshot={snapshot} onRetry={() => { void retry(); }} />}
   </>;
   if (!areRequiredAssetsReady()) return <LoadingScreen snapshot={snapshot} onRetry={() => { void retry(); }} />;
-  return <MainMenu onStartGame={mode => { void startGame(mode); }} />;
+  return <MainMenu onStartGame={(mode, replay) => { void startGame(mode, replay); }} />;
 }
