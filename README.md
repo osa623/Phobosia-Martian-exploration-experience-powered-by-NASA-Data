@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/phobosia-logo.webp" alt="PHOBOSIA logo" width="360" />
+  <img src="public\assets\images\PHOBOSIA_Martian_Modern_Logo_4K.png" alt="PHOBOSIA logo" width="360" />
 </p>
 
 <h1 align="center">PHOBOSIA</h1>
