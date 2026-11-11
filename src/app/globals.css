@@ -22,19 +22,21 @@
 /* Three.js creates this canvas outside JSX; retain only renderer sizing here. */
 canvas { width: 100% !important; height: 100% !important; }
 
-@media (max-width: 900px) and (pointer: coarse) {
+@media (max-width: 900px) and (pointer: coarse), (max-width: 900px) and (hover: none) {
   #game.mobile-game { width: 100vw; height: 100dvh; min-height: 0; overflow: hidden; touch-action: none; }
   #game.mobile-game [data-mobile-hud="true"] { height: 100dvh; }
   #game.mobile-game [data-mobile-task="true"] {
     top: max(58px, calc(env(safe-area-inset-top) + 48px)) !important; left: 8px !important; right: auto !important;
-    width: calc(50vw - 12px) !important; max-height: 24dvh; overflow: auto; padding: 8px 9px !important;
+    width: calc(50vw - 14px) !important; max-height: 24dvh; overflow: auto; padding: 7px 8px !important;
   }
+  #game.mobile-game [data-mobile-task="true"], #game.mobile-game [data-mobile-navigation="true"] { transform: scale(.88); transform-origin: top left; }
+  #game.mobile-game [data-mobile-navigation="true"] { transform-origin: top right; }
   #game.mobile-game [data-mobile-task="true"] > div:first-child { font-size: 10px !important; line-height: 1.2 !important; }
   #game.mobile-game [data-mobile-task="true"] > div:nth-child(2) { margin: 4px 0 5px !important; font-size: 12px !important; line-height: 1.25 !important; }
   #game.mobile-game [data-mobile-task="true"] > div:last-child { margin-top: 4px !important; font-size: 9px !important; }
   #game.mobile-game [data-mobile-navigation="true"] {
     top: max(58px, calc(env(safe-area-inset-top) + 48px)) !important; right: 8px !important; left: auto !important;
-    width: calc(50vw - 12px) !important; max-height: 24dvh !important; padding: 8px 9px !important;
+    width: calc(50vw - 14px) !important; max-height: 24dvh !important; padding: 7px 8px !important;
   }
   #game.mobile-game [data-mobile-navigation="true"] > div:nth-child(2) { font-size: 14px !important; line-height: 1.2 !important; }
   #game.mobile-game [data-mobile-navigation="true"] > div:nth-child(n+3) { font-size: 9px !important; line-height: 1.25 !important; }
@@ -56,11 +58,13 @@ canvas { width: 100% !important; height: 100% !important; }
   #game.mobile-game [data-mobile-hud="true"] > div[style*="right: 16px"] { display: none; }
 }
 
-@media (max-width: 900px) and (pointer: coarse) and (orientation: landscape) {
+@media (max-width: 900px) and (orientation: landscape) and (pointer: coarse), (max-width: 900px) and (orientation: landscape) and (hover: none) {
   #game.mobile-game [data-mobile-task="true"], #game.mobile-game [data-mobile-navigation="true"] {
-    top: calc(env(safe-area-inset-top) + 8px) !important; max-height: 32dvh !important; width: min(34vw, 310px) !important;
+    top: calc(env(safe-area-inset-top) + 8px) !important; max-height: 27dvh !important; width: min(27vw, 250px) !important;
   }
-  #game.mobile-game [data-mobile-navigation="true"] { width: min(36vw, 330px) !important; }
+  #game.mobile-game [data-mobile-navigation="true"] { width: min(29vw, 270px) !important; }
+  #game.mobile-game [data-mobile-task="true"] > div:nth-child(2) { font-size: 11px !important; }
+  #game.mobile-game [data-mobile-navigation="true"] > div:nth-child(2) { font-size: 12px !important; }
   #game.mobile-game [data-mobile-prompt="true"] { bottom: calc(env(safe-area-inset-bottom) + 120px) !important; }
 }
 
