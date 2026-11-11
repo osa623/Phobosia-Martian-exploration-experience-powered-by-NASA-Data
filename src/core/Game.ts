@@ -725,9 +725,86 @@ export class Game {
       this.state.showOSDesktop ||
       this.state.showPersonalLaptop;
 
-    if (!isModalOpen) {
+    if (!isModalOpen && !this.isMobileTouch()) {
       void this.renderer.domElement.requestPointerLock();
     }
+  }
+
+  private isMobileTouch(): boolean {
+    return typeof window !== "undefined" && window.innerWidth <= 900 && window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  /** Mobile-only adapter: feed the same held keys consumed by the existing controllers. */
+  public setMobileKey(code: string, pressed: boolean): void {
+    if (pressed) this.audioManager.unlock();
+    const keys = this.sol5DroneActive || this.droneModeActive
+      ? this.droneKeys
+      : this.roverSystem?.isActive
+        ? this.roverKeys
+        : this.player.keys;
+    if (pressed) keys.add(code);
+    else keys.delete(code);
+  }
+
+  public get canMobileInteract(): boolean {
+    return Boolean(this.nearby) && !this.transitioning && !this.state.panel && !this.state.showBriefingModal &&
+      !this.state.showRoutePlanning && !this.state.showGeologicalForm && !this.state.showSurfaceObservationForm &&
+      !this.state.showScienceAnalysisModal && !this.state.showDroneConsoleModal && !this.state.showOSDesktop &&
+      !this.state.showPersonalLaptop && !this.state.showCinematicOverlay;
+  }
+
+  /** Invoke the exact existing contextual interaction path used by the E key. */
+  public mobileInteract(): void {
+    this.audioManager.unlock();
+    if (!this.canMobileInteract) return;
+    if (this.nearby?.identifier === "terrainRover_trigger" && this.active === "Terrain") {
+      if (!this.roverSystem?.canEnterFrom(this.camera.position)) this.set({ prompt: "MOVE CLOSER TO THE TERRAIN ROVER TRIGGER TO ENTER" });
+      else if (!this.evaSuitActive) this.set({ prompt: "EVA SUIT REQUIRED · ACCESS MARS FROM THE AIRLOCK" });
+      else this.enterRover();
+      return;
+    }
+    const key = this.nearby && ENTRANCE_INTERACTION_KEYS[this.nearby.identifier] === "Q" ? "Q" : "E";
+    this.interact(key);
+  }
+
+  /** Apply relative touch-look through the existing camera state and pitch limits. */
+  public mobileLook(dx: number, dy: number): void {
+    const sensitivity = 0.002;
+    if (this.sol5DroneActive) {
+      this.sol5LookYaw -= dx * sensitivity;
+      this.sol5LookPitch = THREE.MathUtils.clamp(this.sol5LookPitch - dy * sensitivity, -1.35, 1.35);
+    } else if (this.droneModeActive) {
+      this.droneYaw -= dx * sensitivity;
+      this.dronePitch = THREE.MathUtils.clamp(this.dronePitch - dy * sensitivity, -1.4, 1.4);
+      this.camera.rotation.set(this.dronePitch, this.droneYaw, 0, "YXZ");
+    } else if (!this.roverSystem?.isActive) {
+      this.player.look(dx, dy);
+    }
+  }
+
+  public mobileRoverView(): void {
+    if (this.roverSystem?.isActive) { this.roverSystem.switchView(); this.publishRoverState(); }
+  }
+
+  public mobileExitRover(): void {
+    if (!this.roverSystem?.isActive) return;
+    if (Math.abs(this.roverSystem.snapshot.speed) < 0.18) this.exitRover();
+    else this.set({ prompt: "BRAKE TO A STOP BEFORE EXITING THE ROVER" });
+  }
+
+  public mobileExitDrone(): void {
+    if (this.sol5DroneActive) this.abortSol5Flight();
+    else if (this.droneModeActive) this.exitDroneFPV();
+  }
+
+  public mobileInspectDrone(): void {
+    this.audioManager.unlock();
+    if (this.sol5DroneActive && this.sol5Flight && !this.sol5Flight.landed) this.inspectSol5Target();
+    else if (this.droneModeActive) this.captureDroneSurvey();
+  }
+
+  public mobileLandDrone(): void {
+    if (this.state.sol5LandingPromptActive && this.requestSol5Landing()) this.finishSol5LandingAndReturn();
   }
 
   closePanel() {
@@ -1093,7 +1170,7 @@ export class Game {
     });
     this.astronautStateBeforeDrone = { module: "MissionControl", position: mcNav.getWorldPosition(new THREE.Vector3()), rotation: new THREE.Euler() };
     this.missionManager.saveSol5FlightSnapshot(this.toSol5Snapshot("flying"));
-    void this.renderer.domElement.requestPointerLock();
+    if (!this.isMobileTouch()) void this.renderer.domElement.requestPointerLock();
   }
 
   confirmSol5ImageReview() {
@@ -1384,7 +1461,7 @@ export class Game {
       prompt: "DRONE FPV ACTIVE · WASD maneuver · Space/Shift altitude · C capture survey · ESC return to base"
     });
 
-    void this.renderer.domElement.requestPointerLock();
+    if (!this.isMobileTouch()) void this.renderer.domElement.requestPointerLock();
   }
 
   exitDroneFPV() {

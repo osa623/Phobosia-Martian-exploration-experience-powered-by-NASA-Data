@@ -16,6 +16,7 @@ import { PersonalLaptopOS } from "@/systems/personal-laptop/PersonalLaptopOS";
 import { LaptopAudioController, type LaptopAudioSnapshot } from "@/systems/personal-laptop/LaptopAudioController";
 import { areRequiredAssetsReady, getPreparedAssetUrl } from "@/core/AssetLoading";
 import { TransitionLoadingScreen } from "@/components/loading/TransitionLoadingScreen";
+import { MobileControls } from "./MobileControls";
 
 const initialState: GameState = {
   ready: false,
@@ -172,9 +173,14 @@ export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewp
   const compassPoints = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const compassIndex = Math.round(state.evaHeadingDegrees / 45) % compassPoints.length;
   const compassDirection = compassPoints[compassIndex];
+  const mobileMode = state.sol5DroneActive ? "sol5" : state.droneModeActive ? "drone" : state.roverActive ? "rover" : "walk";
+  const mobileControlsBlocked = Boolean(state.panel || state.transition || state.showBriefingModal || state.showRoutePlanning ||
+    state.showGeologicalForm || state.showSurfaceObservationForm || state.showScienceAnalysisModal || state.showDroneConsoleModal ||
+    state.restFeedback || state.restTransition || state.showCinematicOverlay || state.showOSDesktop || state.showPersonalLaptop ||
+    state.cameraPresentation || state.finalDepartureVideo);
 
   return (
-    <div id="game" className="relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
+    <div id="game" className="mobile-game relative h-screen w-screen bg-black" ref={host} onClick={() => canClickToLock && game.current?.lock()}>
       {state.finalDepartureVideo && <div role="dialog" aria-label="Final departure cinematic" onKeyDown={event => event.preventDefault()} style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 10000, background: "#000", overflow: "hidden" }}>
         <video ref={video} src="/assets/videos/finalVideo/finalVideo.mp4" autoPlay playsInline preload="auto" disablePictureInPicture onCanPlay={() => setFinalVideoError(false)} onError={() => setFinalVideoError(true)} onEnded={() => { if (game.current?.finishSol11FinalVideo()) onReturnToMenu?.(); }} aria-label="Final PHOBOSIA departure" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />
         {finalVideoError && <div style={{ position: "absolute", inset: 0, display: "grid", placeContent: "center", gap: 12, color: "#fff", background: "rgba(0,0,0,.88)", fontFamily: "monospace", textAlign: "center" }}><p>Final cinematic could not start. The campaign remains incomplete.</p><button onClick={() => { setFinalVideoError(false); void video.current?.play().catch(() => setFinalVideoError(true)); }} style={{ justifySelf: "center", padding: "10px 16px", border: "1px solid #7ca9b5", background: "#14242b", color: "white", cursor: "pointer" }}>RETRY PLAYBACK</button></div>}
@@ -253,13 +259,13 @@ export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewp
       )}
 
       {/* 2. PERSISTENT IN-GAME HUD */}
-      <div className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:30]">
+      <div data-mobile-hud="true" className="[position:fixed] [inset:0] [pointer-events:none] [color:#dce8ec] [font-size:13px] [text-shadow:0_1px_3px_rgba(0,_0,_0,_0.9)] [z-index:30]">
         {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:0px] [left:10px] [letter-spacing:0.22em] [font-size:14px] [font-weight:bold] [color:#e88747]">  <img className="[width:min(200px,_74vw)] top-0 [height:auto] [object-fit:contain]" src={getPreparedAssetUrl("/assets/images/PHOBOSIA_Martian_Modern_Logo_4K.png")} alt="PHOBOSIA" /></div>}
         {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && <div className="[position:absolute] [top:42px] [left:24px] [font-size:12px] [letter-spacing:0.1em] [color:#8da6b2]">ACTIVE MODULE · {state.module}</div>}
 
         {/* Mission Status Badge */}
-        {!state.droneModeActive && !state.sol5DroneActive && !state.evaSuitActive && (
-          <div className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
+        {!state.droneModeActive && !state.sol5DroneActive && (
+          <div data-mobile-task="true" className="[position:absolute] rounded-2xl [top:72px] [left:24px] [width:min(500px,_86vw)] bg-gradient-to-r from-[rgba(0,10,50,0.85)] via-[rgba(4,79,129,0.85)] to-[rgba(0,10,50,0.85)] [border:1px_solid_rgba(63,_105,_123,_0.6)] [border-left:3px_solid_#e88747] [padding:10px_14px] [backdrop-filter:blur(4px)]">
             <div className="[display:flex] [align-items:center] [gap:6px] text-[15px] font-kdam-thmor-pro font-bold [letter-spacing:0.12em] [color:#e88747]">
               <span className="[width:6px] [height:6px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8] [animation:pulse_2s_infinite_ease-in-out]" />
               SOL {state.missionDay} · {state.missionTitle.toUpperCase()}
@@ -282,8 +288,8 @@ export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewp
           </div>
         )}
 
-        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (!state.evaSuitActive || state.missionDay === 8 || state.missionDay === 9 || state.missionDay === 10 || state.missionDay === 11) && (
-          <section className="[position:absolute] [top:72px] [right:24px] [z-index:30] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
+        {state.navigationInstruction && !state.droneModeActive && !state.sol5DroneActive && (
+          <section data-mobile-navigation="true" className="[position:absolute] [top:72px] [right:24px] [z-index:30] [width:min(500px,_86vw)] [max-height:calc(100vh_-_310px)] [overflow-y:auto] rounded-2xl [background:linear-gradient(110deg,_rgba(0,_10,_50,_0.88),_rgba(4,_79,_129,_0.88),_rgba(0,_10,_50,_0.88))] [border:1px_solid_rgba(63,_105,_123,_0.7)] [border-left:3px_solid_#e88747] [padding:12px_14px] [box-shadow:0_8px_24px_rgba(0,_0,_0,_0.35)]" aria-live="polite">
             <div className="[display:flex] [align-items:center] [gap:7px] text-[10px] font-dm-sans [font-weight:bold] [letter-spacing:0.13em] [color:#55cde8]">
               <span className="[width:5px] [height:5px] [border-radius:50%] [background:#55cde8] [box-shadow:0_0_6px_#55cde8]" />
               {state.navigationInstruction.isCompletion ? "SOL OBJECTIVE COMPLETE" : "NEXT MISSION ACTIVITY"}
@@ -300,18 +306,18 @@ export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewp
         {!state.droneModeActive && !state.sol5DroneActive && <div className="[position:absolute] [left:50%] [top:50%] [transform:translate(-50%,_-50%)] [font-size:22px] [color:rgba(220,_235,_240,_0.6)]">+</div>}
 
         {/* Contextual Interaction Prompt */}
-        {state.prompt && <div className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
+        {state.prompt && <div data-mobile-prompt="true" className="[position:absolute] [bottom:68px] [left:50%] [transform:translateX(-50%)] [background:rgba(14,_29,_39,_0.92)] [border:1px_solid_#55cde8] [box-shadow:0_4px_20px_rgba(0,_0,_0,_0.6)] [padding:10px_18px] [font-weight:500] [letter-spacing:0.05em] [color:#f1f7f9] [border-radius:2px]">{state.prompt}</div>}
 
         {/* Event Notification Toast */}
         {state.notification && state.notification !== state.navigationInstruction?.notification && (
-          <div className="[position:absolute] [top:24px] [left:50%] [z-index:30] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
+          <div data-mobile-notification="true" className="[position:absolute] [top:24px] [left:50%] [z-index:30] [transform:translateX(-50%)] [background:rgba(16,_35,_48,_0.92)] [border:1px_solid_#44d788] [padding:8px_16px] [display:flex] [align-items:center] [gap:10px] [box-shadow:0_4px_24px_rgba(0,_0,_0,_0.7)] [animation:slideDown_0.3s_ease]">
             <div className="text-[10px] font-bold font-mono [color:#44d788] [letter-spacing:0.14em]">MISSION EVENT</div>
             <div className="[font-size:13px] [color:#eaf2f4]">{state.notification}</div>
           </div>
         )}
 
         {!state.droneModeActive && !state.sol5DroneActive && !state.roverActive && !state.evaSuitActive && <div className="[position:absolute] [bottom:22px] [left:24px] [color:#8aa0a8] [font-size:12px] [letter-spacing:0.04em]">{state.controlHint}</div>}
-        {state.roverActive && <section aria-label="Terrain Rover controls" className="[position:fixed] [left:24px] [bottom:24px] [z-index:22] [min-width:230px] [border:1px_solid_rgba(85,_205,_232,_0.35)] [background:rgba(5,_13,_20,_0.88)] [padding:12px_15px] [color:#d8e8ee] font-mono [box-shadow:0_8px_28px_rgba(0,_0,_0,_0.35)]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.2em]">TERRAIN ROVER</div><div className="[margin-top:6px] [font-size:18px]">{Math.abs(state.roverSpeed).toFixed(1)} <span className="[font-size:10px] [color:#91aab4]">M/S</span></div><div className="[margin-top:3px] [font-size:10px] [color:#c99a66]">{state.roverView} VIEW</div><div className="[margin-top:8px] [font-size:10px] [color:#91aab4]">W/S DRIVE · A/D STEER · SPACE BRAKE<br/>C CAMERA · R EXIT · E EXIT WHEN STOPPED</div></section>}
+        {state.roverActive && <section data-mobile-rover-hud="true" aria-label="Terrain Rover controls" className="[position:fixed] [left:24px] [bottom:24px] [z-index:22] [min-width:230px] [border:1px_solid_rgba(85,_205,_232,_0.35)] [background:rgba(5,_13,_20,_0.88)] [padding:12px_15px] [color:#d8e8ee] font-mono [box-shadow:0_8px_28px_rgba(0,_0,_0,_0.35)]"><div className="[color:#55cde8] [font-size:10px] [letter-spacing:0.2em]">TERRAIN ROVER</div><div className="[margin-top:6px] [font-size:18px]">{Math.abs(state.roverSpeed).toFixed(1)} <span className="[font-size:10px] [color:#91aab4]">M/S</span></div><div className="[margin-top:3px] [font-size:10px] [color:#c99a66]">{state.roverView} VIEW</div><div className="[margin-top:8px] [font-size:10px] [color:#91aab4]">W/S DRIVE · A/D STEER · SPACE BRAKE<br/>C CAMERA · R EXIT · E EXIT WHEN STOPPED</div></section>}
 
         {state.error && !state.transition && <div className="[position:absolute] [top:70px] [left:24px] [color:#ffb08b] [max-width:480px]">{state.error}</div>}
 
@@ -1045,6 +1051,19 @@ export function GameViewport({ onReturnToMenu, onReady, replayState }: GameViewp
           WebGL {state.ready ? "ready" : "loading"} · {state.fps} fps · Sol {state.missionDay}
         </div>
       </div>
+      {state.ready && !mobileControlsBlocked && <MobileControls
+        mode={mobileMode}
+        prompt={state.prompt}
+        canInteract={game.current?.canMobileInteract ?? false}
+        canLand={state.sol5LandingPromptActive}
+        onKey={(code, down) => game.current?.setMobileKey(code, down)}
+        onLook={(dx, dy) => game.current?.mobileLook(dx, dy)}
+        onInteract={() => game.current?.mobileInteract()}
+        onRoverView={() => game.current?.mobileRoverView()}
+        onExitMode={() => mobileMode === "rover" ? game.current?.mobileExitRover() : game.current?.mobileExitDrone()}
+        onInspect={() => game.current?.mobileInspectDrone()}
+        onLand={() => game.current?.mobileLandDrone()}
+      />}
     </div>
   );
 }

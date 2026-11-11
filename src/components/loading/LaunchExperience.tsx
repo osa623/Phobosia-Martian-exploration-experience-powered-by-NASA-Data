@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import "@/app/game-fonts.css";
+import "@/components/menu/MainMenu.css";
 import { MainMenu } from "@/components/menu/MainMenu";
 import { GameViewport } from "@/components/game/GameViewport";
 import { areRequiredAssetsReady, beginGameplayInitialization, completeGameplayInitialization, getAssetLoadingSnapshot, prepareRequiredAssets, startLoadingMusic, stopLoadingMusic, subscribeToAssetLoading, type AssetLoadingSnapshot } from "@/core/AssetLoading";

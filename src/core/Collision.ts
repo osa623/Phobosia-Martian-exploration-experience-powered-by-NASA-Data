@@ -66,6 +66,11 @@ export function buildTerrainBuildingColliders(root: THREE.Object3D, excludeRocks
   root.updateWorldMatrix(true, true);
   root.traverse(object => {
     const mesh = object as THREE.Mesh;
+    let vehicleAncestor: THREE.Object3D | null = object;
+    while (vehicleAncestor && vehicleAncestor !== root) {
+      if (vehicleAncestor.name === "TerrainRover") return;
+      vehicleAncestor = vehicleAncestor.parent;
+    }
     let ancestor: THREE.Object3D | null = object;
     let belongsToSolarStructure = false;
     let belongsToSatelliteCommunication = false;
